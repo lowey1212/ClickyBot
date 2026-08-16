@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "ClickyBot/0.1.0": {
+      "ClickyBot/0.1.2": {
         "runtime": {
           "ClickyBot.dll": {}
         }
@@ -14,7 +14,7 @@
     }
   },
   "libraries": {
-    "ClickyBot/0.1.0": {
+    "ClickyBot/0.1.2": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

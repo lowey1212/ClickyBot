@@ -167,8 +167,19 @@ public partial class MainWindow : Window
                 return;
             }
 
-            UpdateButton.Content = "DOWNLOADING…";
-            var installerPath = await UpdateService.DownloadInstallerAsync(update, _updateCancellation.Token);
+            var downloadProgress = new Progress<DownloadProgress>(progress =>
+            {
+                if (progress.TotalBytes is > 0)
+                {
+                    var percent = (int)Math.Clamp(progress.BytesDownloaded * 100L / progress.TotalBytes.Value, 0, 100);
+                    UpdateButton.Content = $"DOWNLOADING {percent}%";
+                }
+                else
+                {
+                    UpdateButton.Content = $"DOWNLOADING {progress.BytesDownloaded / (1024 * 1024)} MB";
+                }
+            });
+            var installerPath = await UpdateService.DownloadInstallerAsync(update, downloadProgress, _updateCancellation.Token);
             AppendLog($"Downloaded {update.AssetName}. ClickyBot will restart to install it.");
             if (!UpdateService.StartInstallerAfterExit(installerPath))
             {

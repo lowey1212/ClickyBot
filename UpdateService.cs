@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 namespace ClickyBot;
 
 internal sealed record UpdateInfo(string CurrentVersion, string LatestVersion, string AssetName, string AssetUrl);
+internal sealed record DownloadProgress(long BytesDownloaded, long? TotalBytes);
 
 internal static class UpdateService
 {
@@ -57,7 +58,10 @@ internal static class UpdateService
         throw new InvalidDataException("The latest GitHub release does not contain a trusted ClickyBot installer.");
     }
 
-    public static async Task<string> DownloadInstallerAsync(UpdateInfo update, CancellationToken cancellationToken)
+    public static async Task<string> DownloadInstallerAsync(
+        UpdateInfo update,
+        IProgress<DownloadProgress>? progress,
+        CancellationToken cancellationToken)
     {
         if (!IsAllowedUpdateUrl(update.AssetUrl) || !IsInstallerAsset(update.AssetName))
         {
@@ -72,22 +76,27 @@ internal static class UpdateService
 
         var destination = Path.Combine(updateDirectory, $"ClickyBot-Setup-{update.LatestVersion}.exe");
         var temporary = destination + ".part";
+        using var downloadTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        downloadTimeout.CancelAfter(TimeSpan.FromMinutes(5));
+        var downloadToken = downloadTimeout.Token;
         try
         {
             File.Delete(temporary);
-            using var response = await Http.GetAsync(update.AssetUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await Http.GetAsync(update.AssetUrl, HttpCompletionOption.ResponseHeadersRead, downloadToken);
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength is > MaxUpdateBytes)
             {
                 throw new InvalidDataException("The update installer is larger than the allowed download limit.");
             }
 
-            await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var totalBytes = response.Content.Headers.ContentLength;
+            await using var source = await response.Content.ReadAsStreamAsync(downloadToken);
             await using var target = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             var buffer = new byte[256 * 1024];
             long total = 0;
             int read;
-            while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
+            progress?.Report(new DownloadProgress(0, totalBytes));
+            while ((read = await source.ReadAsync(buffer.AsMemory(), downloadToken)) > 0)
             {
                 total += read;
                 if (total > MaxUpdateBytes)
@@ -95,11 +104,16 @@ internal static class UpdateService
                     throw new InvalidDataException("The update installer is larger than the allowed download limit.");
                 }
 
-                await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                await target.WriteAsync(buffer.AsMemory(0, read), downloadToken);
+                progress?.Report(new DownloadProgress(total, totalBytes));
             }
 
             File.Move(temporary, destination, overwrite: true);
             return destination;
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested && downloadTimeout.IsCancellationRequested)
+        {
+            throw new TimeoutException("The installer download timed out. Check your connection and try again.", ex);
         }
         catch
         {
