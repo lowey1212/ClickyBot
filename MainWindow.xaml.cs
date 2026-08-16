@@ -1106,9 +1106,12 @@ public partial class MainWindow : Window
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
         CoverageThresholdLabel.Content = snapshotCondition ? "Reference match threshold (%)" : "Region coverage / match threshold (%)";
-        KeyPanel.Visibility = action == ActionType.KeyPress ? Visibility.Visible : Visibility.Collapsed;
+        var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;
+        KeyPanel.Visibility = isKeyAction ? Visibility.Visible : Visibility.Collapsed;
+        KeyLabel.Content = action == ActionType.KeyHold ? "Key to hold" : "Key to press";
+        KeyHoldHelpText.Visibility = action == ActionType.KeyHold ? Visibility.Visible : Visibility.Collapsed;
         ClickPanel.Visibility = action == ActionType.MouseClick ? Visibility.Visible : Visibility.Collapsed;
-        RecordComboPanel.Visibility = action is ActionType.KeyPress or ActionType.MouseClick or ActionType.RecordedCombo
+        RecordComboPanel.Visibility = action is ActionType.KeyPress or ActionType.KeyHold or ActionType.MouseClick or ActionType.RecordedCombo
             ? Visibility.Visible : Visibility.Collapsed;
         RecordComboButton.Content = action == ActionType.RecordedCombo && (RulesListBox.SelectedItem as MacroRule)?.RecordedSteps.Count > 0
             ? "EDIT COMBO" : "RECORD COMBO";

@@ -12,6 +12,7 @@ internal sealed class MacroEngine
         {
             rule.LastCondition = false;
             rule.LastTriggeredUtc = DateTime.MinValue;
+            rule.KeyHoldActive = false;
         }
 
         var enabledRuleCount = 0;
@@ -31,12 +32,40 @@ internal sealed class MacroEngine
             {
                 if (!rule.Enabled)
                 {
+                    ReleaseHeldKey(rule);
                     continue;
                 }
 
                 token.ThrowIfCancellationRequested();
                 var condition = Evaluate(rule, token);
                 var risingEdge = condition && !rule.LastCondition;
+
+                if (rule.Action == ActionType.KeyHold)
+                {
+                    if (condition && !rule.KeyHoldActive)
+                    {
+                        try
+                        {
+                            InputSimulator.SendKeyDown(rule.Key);
+                            rule.KeyHoldActive = true;
+                            rule.LastTriggeredUtc = DateTime.UtcNow;
+                            Log?.Invoke($"{rule.Name}: holding {rule.Key}");
+                        }
+                        catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
+                        {
+                            Log?.Invoke($"{rule.Name}: action failed — {ex.Message}");
+                        }
+                    }
+                    else if (!condition)
+                    {
+                        ReleaseHeldKey(rule);
+                    }
+
+                    rule.LastCondition = condition;
+                    continue;
+                }
+
+                ReleaseHeldKey(rule);
                 var shouldTrigger = condition && (rule.Repeat == RepeatMode.WhileTrue || risingEdge);
 
                 if (shouldTrigger
@@ -62,6 +91,28 @@ internal sealed class MacroEngine
             }
 
             await Task.Delay(Math.Clamp(profile.PollIntervalMs, 20, 2000), token);
+        }
+    }
+
+    private static void ReleaseHeldKey(MacroRule rule)
+    {
+        if (!rule.KeyHoldActive)
+        {
+            return;
+        }
+
+        try
+        {
+            InputSimulator.SendKeyUp(rule.Key);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
+        {
+            // The engine's final cleanup still releases any remaining
+            // generated inputs if the individual key release fails.
+        }
+        finally
+        {
+            rule.KeyHoldActive = false;
         }
     }
 

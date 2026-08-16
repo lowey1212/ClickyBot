@@ -238,10 +238,11 @@
                             </WrapPanel>
 
                             <Label Content="THEN — action" />
-                            <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose a key press, mouse click, wait, or recorded combo." />
+                            <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose a key press, key hold, mouse click, wait, or recorded combo." />
                             <StackPanel x:Name="KeyPanel">
-                                <Label Content="Key to press" />
-                                <TextBox x:Name="KeyBox" ToolTip="Key name to press, such as Q, 1, Space, Enter, or F1." />
+                                <Label x:Name="KeyLabel" Content="Key to press" />
+                                <TextBox x:Name="KeyBox" ToolTip="Key name to press or hold, such as Q, 1, Space, Enter, or F1." />
+                                <TextBlock x:Name="KeyHoldHelpText" Text="The key stays held while this rule condition is true, then is released automatically." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" Visibility="Collapsed" />
                             </StackPanel>
                             <StackPanel x:Name="ClickPanel">
                                 <Label Content="Click location" />

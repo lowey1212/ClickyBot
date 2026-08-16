@@ -15,6 +15,7 @@ public enum ConditionType
 public enum ActionType
 {
     KeyPress,
+    KeyHold,
     MouseClick,
     Wait,
     RecordedCombo
@@ -105,6 +106,9 @@ public sealed class MacroRule
     public DateTime LastTriggeredUtc { get; set; } = DateTime.MinValue;
 
     [JsonIgnore]
+    public bool KeyHoldActive { get; set; }
+
+    [JsonIgnore]
     public string ConditionSummary => Condition switch
     {
         ConditionType.Always => "always",
@@ -122,6 +126,7 @@ public sealed class MacroRule
     public string ActionSummary => Action switch
     {
         ActionType.KeyPress => $"press {Key}",
+        ActionType.KeyHold => $"hold {Key}",
         ActionType.MouseClick => $"{MouseButton.ToString().ToLowerInvariant()} click {ClickX},{ClickY}",
         ActionType.Wait => $"wait {DelayAfterActionMs} ms",
         ActionType.RecordedCombo => $"combo ({RecordedSteps.Count} step{(RecordedSteps.Count == 1 ? "" : "s")})",
