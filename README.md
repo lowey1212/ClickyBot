@@ -55,10 +55,12 @@ To create a self-contained app and installer on Windows:
 powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 ```
 
-The command creates these files in `dist`:
+The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.0.exe` — per-user installer. It installs to `%LOCALAPPDATA%\ClickyBot`, creates a Start Menu shortcut, and opens ClickyBot.
+- `ClickyBot-Setup-0.1.0.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
 - `ClickyBot-Portable-0.1.0-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+
+The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 
 GitHub Actions can build the same Windows artifacts from `.github/workflows/build-windows.yml` when a `v*` tag is pushed or the workflow is run manually.
 
