@@ -1,13 +1,1 @@
-bin/
-obj/
-.dotnet-cli/
-artifacts/
-dist/
-*.user
-*.suo
-
-
-bin/
-obj/
-dist/
-.vs/
+bin/Release-macros/macros/
