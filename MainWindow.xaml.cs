@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private string? _currentMacroPath;
     private bool _updateBusy;
     private CancellationTokenSource? _updateCancellation;
+    private Task? _updateTask;
 
     public MainWindow()
     {
@@ -67,7 +68,7 @@ public partial class MainWindow : Window
         UpdateStatus(false);
         if (_settings.CheckForUpdatesOnStartup)
         {
-            _ = CheckForUpdatesAsync(silent: true);
+            _updateTask = CheckForUpdatesAsync(silent: true);
         }
     }
 
@@ -107,7 +108,23 @@ public partial class MainWindow : Window
         _windowSource?.RemoveHook(WindowMessageHook);
     }
 
-    private async void UpdateButton_Click(object sender, RoutedEventArgs e) => await CheckForUpdatesAsync(silent: false);
+    private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateBusy)
+        {
+            UpdateButton.IsEnabled = false;
+            UpdateButton.Content = "CHECKING…";
+            _updateCancellation?.Cancel();
+            var runningTask = _updateTask;
+            if (runningTask is not null)
+            {
+                await runningTask;
+            }
+        }
+
+        _updateTask = CheckForUpdatesAsync(silent: false);
+        await _updateTask;
+    }
 
     private async Task CheckForUpdatesAsync(bool silent)
     {
@@ -119,8 +136,11 @@ public partial class MainWindow : Window
         _updateBusy = true;
         _updateCancellation?.Dispose();
         _updateCancellation = new CancellationTokenSource();
-        UpdateButton.IsEnabled = false;
-        UpdateButton.Content = "CHECKING…";
+        if (!silent)
+        {
+            UpdateButton.IsEnabled = false;
+            UpdateButton.Content = "CHECKING…";
+        }
         try
         {
             var update = await UpdateService.CheckAsync(_updateCancellation.Token);
@@ -172,7 +192,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (!_updateBusy || !IsVisible)
+            if (!silent && IsVisible)
             {
                 UpdateButton.IsEnabled = true;
                 UpdateButton.Content = "CHECK FOR UPDATES";
