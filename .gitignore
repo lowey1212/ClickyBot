@@ -1,1 +1,10 @@
 bin/Release-macros/macros/
+
+# Rebuildable local build state.
+.dotnet-cli/
+artifacts/
+obj/
+installer/bin/
+installer/obj/
+bin/Release-macros/net8.0-windows/
+bin/Release-macros/win-x64/

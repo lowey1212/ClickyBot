@@ -24,6 +24,13 @@ foreach ($path in @($publishRoot, $installerAppRoot, $portableRoot)) {
     }
 }
 New-Item -ItemType Directory -Force -Path $distRoot, $artifactRoot, $publishRoot, $installerAppRoot, $portableRoot | Out-Null
+
+# Keep only the current release pair in dist. Older installers remain
+# available from GitHub releases and do not need to stay in the checkout.
+Get-ChildItem -LiteralPath $distRoot -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like 'ClickyBot-Setup-*.exe' -or $_.Name -like 'ClickyBot-Portable-*.zip' } |
+    Remove-Item -Force
+
 if (Test-Path -LiteralPath $setupPath) {
     Remove-Item -LiteralPath $setupPath -Force
 }
