@@ -58,8 +58,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.1.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.1-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.2.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.2-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

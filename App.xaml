@@ -166,14 +166,43 @@
             <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
             <Setter Property="Background" Value="{StaticResource AccentDarkBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
-                    <Setter Property="Background" Value="#1A2637" />
-                    <Setter Property="BorderBrush" Value="#344257" />
-                    <Setter Property="Opacity" Value="1" />
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="AccentButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="AccentButtonBorder" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="#07130F" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="AccentButtonBorder" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="#07130F" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="AccentButtonBorder" Property="Background" Value="#1A2637" />
+                                <Setter TargetName="AccentButtonBorder" Property="BorderBrush" Value="#344257" />
+                                <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Foreground" Value="#220609" />
