@@ -5,3 +5,9 @@ artifacts/
 dist/
 *.user
 *.suo
+
+
+bin/
+obj/
+dist/
+.vs/
