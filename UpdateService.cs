@@ -90,24 +90,29 @@ internal static class UpdateService
             }
 
             var totalBytes = response.Content.Headers.ContentLength;
-            await using var source = await response.Content.ReadAsStreamAsync(downloadToken);
-            await using var target = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            var buffer = new byte[256 * 1024];
-            long total = 0;
-            int read;
-            progress?.Report(new DownloadProgress(0, totalBytes));
-            while ((read = await source.ReadAsync(buffer.AsMemory(), downloadToken)) > 0)
+            await using (var source = await response.Content.ReadAsStreamAsync(downloadToken))
+            await using (var target = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                total += read;
-                if (total > MaxUpdateBytes)
+                var buffer = new byte[256 * 1024];
+                long total = 0;
+                int read;
+                progress?.Report(new DownloadProgress(0, totalBytes));
+                while ((read = await source.ReadAsync(buffer.AsMemory(), downloadToken)) > 0)
                 {
-                    throw new InvalidDataException("The update installer is larger than the allowed download limit.");
-                }
+                    total += read;
+                    if (total > MaxUpdateBytes)
+                    {
+                        throw new InvalidDataException("The update installer is larger than the allowed download limit.");
+                    }
 
-                await target.WriteAsync(buffer.AsMemory(0, read), downloadToken);
-                progress?.Report(new DownloadProgress(total, totalBytes));
+                    await target.WriteAsync(buffer.AsMemory(0, read), downloadToken);
+                    progress?.Report(new DownloadProgress(total, totalBytes));
+                }
             }
 
+            // The streams must be disposed before Windows can rename the
+            // temporary file. FileShare.None intentionally protects the
+            // partial download while it is being written.
             File.Move(temporary, destination, overwrite: true);
             return destination;
         }
