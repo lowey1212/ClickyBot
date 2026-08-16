@@ -1,0 +1,54 @@
+<Window x:Class="ClickyBot.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ClickyBot settings"
+        Width="680"
+        Height="460"
+        MinWidth="560"
+        MinHeight="390"
+        Background="{StaticResource WindowBrush}"
+        Foreground="{StaticResource TextBrush}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="18" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="SETTINGS" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
+            <TextBlock Text="References and macros" FontSize="23" FontWeight="SemiBold" Margin="0,5,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Row="2">
+            <Label Content="Reference image folder" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ReferenceFolderBox" Grid.Column="0" Margin="0" />
+                <Button Grid.Column="2" Content="BROWSE…" Click="BrowseButton_Click" Margin="0" />
+            </Grid>
+            <TextBlock Text="Captured areas are saved as numbered PNG files such as 001_Skill-is-lit.png. The profile stores the selected file path." Foreground="{StaticResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0" />
+            <Label Content="Macro folder" Margin="0,20,0,0" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="MacroFolderBox" Grid.Column="0" Margin="0" ToolTip="Folder where SAVE MACRO stores profile JSON files." />
+                <Button Grid.Column="2" Content="BROWSE…" Click="BrowseMacroButton_Click" Margin="0" ToolTip="Choose the folder used for macro profiles." />
+            </Grid>
+            <TextBlock Text="SAVE MACRO writes directly here, and the profile dropdown lists the JSON files found in this folder." Foreground="{StaticResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="CANCEL" Click="CancelButton_Click" />
+            <Button Content="SAVE SETTINGS" Style="{StaticResource AccentButton}" Click="SaveButton_Click" Margin="0,0,0,8" />
+        </StackPanel>
+    </Grid>
+</Window>

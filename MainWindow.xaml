@@ -1,0 +1,357 @@
+<Window x:Class="ClickyBot.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ClickyBot"
+        Title="ClickyBot — screen-aware macro studio"
+        Width="1440"
+        Height="920"
+        MinWidth="1120"
+        MinHeight="700"
+        Background="{StaticResource WindowBrush}"
+        Foreground="{StaticResource TextBrush}"
+        WindowStartupLocation="CenterScreen"
+        Loaded="Window_Loaded"
+        SourceInitialized="Window_SourceInitialized"
+        Closing="Window_Closing">
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type local:MacroRule}">
+            <StackPanel>
+                <DockPanel>
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding ActionSummary}" Foreground="{StaticResource AccentBrush}" FontSize="11" />
+                </DockPanel>
+                <TextBlock Text="{Binding ConditionSummary}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <TextBlock Text="DISABLED" Foreground="{StaticResource WarningBrush}" FontSize="10" FontWeight="Bold" Margin="0,6,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Enabled}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="18" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="42" Height="42" CornerRadius="13" Background="{StaticResource AccentDarkBrush}" Margin="0,0,12,0">
+                    <TextBlock Text="⌁" Foreground="{StaticResource AccentBrush}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel>
+                    <TextBlock Text="CLICKYBOT" FontSize="22" FontWeight="Bold" />
+                    <TextBlock Text="screen-aware macro studio" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="{StaticResource MutedTextBrush}" Margin="0,0,8,0" />
+                <TextBlock x:Name="StatusText" Text="Idle" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,18,0" />
+                <Button x:Name="StartStopButton" Content="START  F6" Style="{StaticResource AccentButton}" Click="StartStopButton_Click" Padding="18,10" />
+                <Button Content="PANIC STOP  F7" Style="{StaticResource DangerButton}" Click="PanicStopButton_Click" Padding="18,10" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="390" MinWidth="330" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="420" MinWidth="330" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="*" MinWidth="220" />
+            </Grid.ColumnDefinitions>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+                <StackPanel>
+                    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="PROFILE" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="Keep your game-specific coordinates in a portable profile." Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,5,0,14" TextWrapping="Wrap" />
+                            <Label Content="Macro name / file" />
+                            <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Choose a JSON macro from the macro folder, or type a new macro name before saving." />
+                            <Label Content="Poll interval (20–2000 ms)" />
+                            <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
+                            <WrapPanel>
+                                <Button Content="NEW BLANK" Click="NewProfileButton_Click" />
+                                <Button Content="LOAD STARTER" Click="LoadStarterButton_Click" />
+                                <Button Content="OPEN MACRO" Click="OpenMacroButton_Click" ToolTip="Open the JSON macro selected in the profile dropdown." />
+                                <Button Content="SAVE MACRO" Style="{StaticResource AccentButton}" Click="SaveMacroButton_Click" ToolTip="Save or update this macro in the configured macro folder." />
+                                <Button Content="SETTINGS" Click="SettingsButton_Click" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="18">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,14">
+                                <TextBlock Text="RULE EDITOR" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
+                                <TextBlock DockPanel.Dock="Right" Text="F8 selects watch area" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
+                            </DockPanel>
+
+                            <Label Content="Rule name" />
+                            <TextBox x:Name="RuleNameBox" Text="New rule" ToolTip="A readable name for this rule and its reference image files." />
+                            <CheckBox x:Name="RuleEnabledCheckBox" Content="Rule enabled" IsChecked="True" ToolTip="Enable or disable this rule without deleting it." />
+
+                            <Label Content="WHEN — condition" />
+                            <ComboBox x:Name="ConditionCombo" SelectionChanged="ConditionCombo_SelectionChanged" ToolTip="Choose what the watch area must look like before the action can run." />
+
+                            <StackPanel x:Name="ConditionTargetPanel">
+                                <Label Content="Watch location / region (screen pixels)" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="WatchXBox" Grid.Column="0" ToolTip="Left screen coordinate of the watch area." />
+                                    <TextBox x:Name="WatchYBox" Grid.Column="2" ToolTip="Top screen coordinate of the watch area." />
+                                    <TextBox x:Name="WatchWidthBox" Grid.Column="4" ToolTip="Width of the watch area in screen pixels." />
+                                    <TextBox x:Name="WatchHeightBox" Grid.Column="6" ToolTip="Height of the watch area in screen pixels." />
+                                </Grid>
+                                <UniformGrid Columns="4" Margin="0,-2,0,8">
+                                    <TextBlock Text="X" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                    <TextBlock Text="Y" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                    <TextBlock Text="WIDTH" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                    <TextBlock Text="HEIGHT" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                </UniformGrid>
+                                <WrapPanel>
+                                    <Button Content="SELECT WATCH AREA" Click="CaptureWatchButton_Click" />
+                                    <Button Content="SAMPLE COLOR" Click="SamplePixelButton_Click" />
+                                    <Button Content="CAPTURE REFERENCE" Click="CaptureWatchReferenceButton_Click" />
+                                </WrapPanel>
+
+                                <StackPanel x:Name="ColorPanel">
+                                    <Label Content="Target color + tolerance" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TargetRedBox" Grid.Column="0" ToolTip="Target red channel, from 0 to 255." />
+                                        <TextBox x:Name="TargetGreenBox" Grid.Column="1" Margin="4,0,4,8" ToolTip="Target green channel, from 0 to 255." />
+                                        <TextBox x:Name="TargetBlueBox" Grid.Column="2" Margin="0,0,4,8" ToolTip="Target blue channel, from 0 to 255." />
+                                        <TextBox x:Name="ToleranceBox" Grid.Column="3" ToolTip="Allowed per-channel color difference. Higher values match more variation." />
+                                    </Grid>
+                                    <UniformGrid Columns="4" Margin="0,-2,0,8">
+                                        <TextBlock Text="RED" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                        <TextBlock Text="GREEN" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                        <TextBlock Text="BLUE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                        <TextBlock Text="TOLERANCE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                    </UniformGrid>
+                                </StackPanel>
+                                <StackPanel x:Name="CoveragePanel">
+                                    <Label x:Name="CoverageThresholdLabel" Content="Region coverage / match threshold (%)" />
+                                    <TextBox x:Name="CoverageThresholdBox" ToolTip="Minimum or maximum percentage of matching pixels required by the selected condition." />
+                                    <TextBlock Text="Coverage counts sampled pixels close to the target color. This works well for mana bars and lit/unlit icons when the watch region is tight." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Expander x:Name="GatePanel" Header="OPTIONAL AND GATE" IsExpanded="False" Background="#0D1420" BorderBrush="#223149" BorderThickness="1" Margin="0,0,0,14" ToolTip="Open this section only when the rule needs a second screen condition.">
+                                <Border Background="#0D1420" Padding="12">
+                                    <StackPanel>
+                                    <CheckBox x:Name="GateEnabledCheckBox" Content="Use an additional AND gate" Checked="GateEnabledCheckBox_Changed" Unchecked="GateEnabledCheckBox_Changed" ToolTip="Require both the main condition and this gate condition before running the action." />
+                                    <TextBlock Text="Example: ready icon AND mana coverage ≥ 60%, or event pixel AND another button is not lit." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                    <StackPanel x:Name="GateEditorPanel">
+                                        <Label Content="Gate condition" />
+                                        <ComboBox x:Name="GateConditionCombo" SelectionChanged="GateConditionCombo_SelectionChanged" ToolTip="Choose the second condition that must also pass." />
+                                        <Label Content="Gate location / region" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="GateXBox" Grid.Column="0" ToolTip="Left screen coordinate of the gate area." />
+                                            <TextBox x:Name="GateYBox" Grid.Column="2" ToolTip="Top screen coordinate of the gate area." />
+                                            <TextBox x:Name="GateWidthBox" Grid.Column="4" ToolTip="Width of the gate area in screen pixels." />
+                                            <TextBox x:Name="GateHeightBox" Grid.Column="6" ToolTip="Height of the gate area in screen pixels." />
+                                        </Grid>
+                                        <UniformGrid Columns="4" Margin="0,-2,0,8">
+                                            <TextBlock Text="X" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                            <TextBlock Text="Y" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                            <TextBlock Text="WIDTH" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                            <TextBlock Text="HEIGHT" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                        </UniformGrid>
+                                        <WrapPanel>
+                                            <Button Content="SELECT GATE AREA" Click="CaptureGateButton_Click" />
+                                            <Button Content="SAMPLE GATE COLOR" Click="SampleGateButton_Click" />
+                                            <Button Content="CAPTURE GATE REFERENCE" Click="CaptureGateReferenceButton_Click" />
+                                        </WrapPanel>
+                                        <StackPanel x:Name="GateColorPanel">
+                                            <Label Content="Gate target color + tolerance" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="GateTargetRedBox" Grid.Column="0" ToolTip="Gate target red channel, from 0 to 255." />
+                                                <TextBox x:Name="GateTargetGreenBox" Grid.Column="1" Margin="4,0,4,8" ToolTip="Gate target green channel, from 0 to 255." />
+                                                <TextBox x:Name="GateTargetBlueBox" Grid.Column="2" Margin="0,0,4,8" ToolTip="Gate target blue channel, from 0 to 255." />
+                                                <TextBox x:Name="GateToleranceBox" Grid.Column="3" ToolTip="Allowed per-channel color difference for the gate." />
+                                            </Grid>
+                                            <UniformGrid Columns="4" Margin="0,-2,0,8">
+                                                <TextBlock Text="RED" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                                <TextBlock Text="GREEN" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                                <TextBlock Text="BLUE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                                <TextBlock Text="TOLERANCE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                        <StackPanel x:Name="GateCoveragePanel">
+                                            <Label x:Name="GateCoverageThresholdLabel" Content="Gate coverage / match threshold (%)" />
+                                            <TextBox x:Name="GateCoverageThresholdBox" ToolTip="Minimum or maximum match percentage required by the gate condition." />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Expander>
+
+                            <WrapPanel Margin="0,0,0,10">
+                                <Button Content="TEST CONDITION" Click="TestConditionButton_Click" ToolTip="Evaluate the selected rule now without sending its action." />
+                                <TextBlock x:Name="TestResultText" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="250" />
+                            </WrapPanel>
+
+                            <Label Content="THEN — action" />
+                            <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose a key press, mouse click, wait, or recorded combo." />
+                            <StackPanel x:Name="KeyPanel">
+                                <Label Content="Key to press" />
+                                <TextBox x:Name="KeyBox" ToolTip="Key name to press, such as Q, 1, Space, Enter, or F1." />
+                            </StackPanel>
+                            <StackPanel x:Name="ClickPanel">
+                                <Label Content="Click location" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ClickXBox" Grid.Column="0" ToolTip="Screen X coordinate for the mouse click." />
+                                    <TextBox x:Name="ClickYBox" Grid.Column="2" ToolTip="Screen Y coordinate for the mouse click." />
+                                </Grid>
+                                <UniformGrid Columns="2" Margin="0,-2,0,8">
+                                    <TextBlock Text="X" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                    <TextBlock Text="Y" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                </UniformGrid>
+                                <WrapPanel>
+                                    <Button Content="USE POINTER → CLICK" Click="CaptureClickButton_Click" />
+                                    <ComboBox x:Name="MouseButtonCombo" Width="102" Margin="0,0,0,8" ToolTip="Mouse button to generate." />
+                                </WrapPanel>
+                                <CheckBox x:Name="RestorePointerCheckBox" Content="Restore pointer after click" IsChecked="True" ToolTip="Return the pointer to its original location after the generated click." />
+                            </StackPanel>
+
+                            <Border x:Name="RecordComboPanel" Background="#0D1420" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="COMBO RECORDER" Foreground="{StaticResource WarningBrush}" FontSize="11" FontWeight="Bold" />
+                                    <TextBlock x:Name="RecordedComboSummary" Text="No recorded combo. Inputs pass through while recording." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,8" />
+                                    <WrapPanel>
+                                        <Button x:Name="RecordComboButton" Content="RECORD COMBO" Style="{StaticResource AccentButton}" Click="RecordComboButton_Click" />
+                                        <Button Content="CLEAR COMBO" Click="ClearComboButton_Click" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Label Content="Repeat and pacing" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="RepeatCombo" Grid.Column="0" ToolTip="OnRisingEdge runs once per false-to-true transition. WhileTrue repeats while the condition remains true." />
+                                <TextBox x:Name="CooldownBox" Grid.Column="2" ToolTip="Minimum time between action runs, in milliseconds." />
+                            </Grid>
+                            <UniformGrid Columns="2" Margin="0,-2,0,8">
+                                <TextBlock Text="TRIGGER MODE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                                <TextBlock Text="COOLDOWN (MS)" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                            </UniformGrid>
+                            <TextBlock Text="WhileTrue repeats the action—including recorded combos—until the condition becomes false. OnRisingEdge runs once when the condition turns true." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <Label Content="Delay after action (ms)" />
+                            <TextBox x:Name="DelayAfterActionBox" ToolTip="Extra delay after this action or combo finishes, in milliseconds." />
+
+                            <WrapPanel Margin="0,4,0,0">
+                                <Button Content="ADD RULE" Style="{StaticResource AccentButton}" Click="AddRuleButton_Click" />
+                                <Button Content="DUPLICATE" Click="DuplicateRuleButton_Click" ToolTip="Create a copy of the selected rule directly below it." />
+                                <Button Content="MOVE UP" Click="MoveRuleUpButton_Click" ToolTip="Run the selected rule earlier by moving it up one position." />
+                                <Button Content="MOVE DOWN" Click="MoveRuleDownButton_Click" ToolTip="Run the selected rule later by moving it down one position." />
+                                <Button Content="APPLY CHANGES" Click="ApplyRuleButton_Click" />
+                                <Button Content="DELETE RULE" Click="DeleteRuleButton_Click" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{StaticResource PanelBorderBrush}" ShowsPreview="True" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ToolTip="Drag to resize the rule editor." />
+
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0">
+                        <StackPanel>
+                            <TextBlock Text="AUTOMATION MAP" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="Rules are checked from top to bottom." FontSize="20" FontWeight="SemiBold" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <TextBlock x:Name="RuleCountText" DockPanel.Dock="Right" Text="0 rules" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Bottom" />
+                    </DockPanel>
+                    <ListBox x:Name="RulesListBox" Grid.Row="2" SelectionChanged="RulesListBox_SelectionChanged" />
+                    <Border Grid.Row="4" Background="#0D1420" BorderBrush="#223149" BorderThickness="1" CornerRadius="10" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="DESIGN NOTE" Foreground="{StaticResource WarningBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="Conditions are read-only screen samples. Generated key events are additive, so the app does not swallow your real keyboard or mouse input. Mouse clicks can restore your pointer immediately after the click." Foreground="{StaticResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{StaticResource PanelBorderBrush}" ShowsPreview="True" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ToolTip="Drag to resize the activity panel." />
+
+            <Expander x:Name="ActivityExpander" Grid.Column="4" IsExpanded="False" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Padding="14" Header="ACTIVITY  ·  Live engine log" ToolTip="Expand this panel only when debugging the engine.">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBox x:Name="LogBox" Grid.Row="0" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Background="#0D1420" BorderBrush="#223149" Padding="10" ToolTip="Diagnostic messages from the macro engine." />
+                    <Border Grid.Row="2" Background="#0D1420" BorderBrush="#223149" BorderThickness="1" CornerRadius="10" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="GLOBAL HOTKEYS" Foreground="{StaticResource WarningBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="F6  start / stop\nF7  panic stop\nF8  select watch area\nCtrl+F8  select gate area\nF9  capture click target" Foreground="{StaticResource MutedTextBrush}" FontSize="12" LineHeight="21" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Expander>
+        </Grid>
+    </Grid>
+</Window>

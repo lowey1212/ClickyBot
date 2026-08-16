@@ -1,0 +1,94 @@
+<Window x:Class="ClickyBot.ComboRecorderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ClickyBot — combo editor"
+        Width="900"
+        Height="650"
+        MinWidth="680"
+        MinHeight="460"
+        Background="{StaticResource WindowBrush}"
+        Foreground="{StaticResource TextBrush}"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="14" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="14" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+            <StackPanel>
+                <TextBlock Text="COMBO EDITOR" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
+                <TextBlock Text="Record and tune the action sequence" FontSize="23" FontWeight="SemiBold" Margin="0,5,0,0" />
+                <TextBlock Text="Keyboard and mouse input passes through while recording. Press F7 or STOP to finish." Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,5,0,0" />
+            </StackPanel>
+            <Border DockPanel.Dock="Right" Background="#162131" BorderBrush="#263449" BorderThickness="1" CornerRadius="8" Padding="12,8" VerticalAlignment="Center">
+                <TextBlock x:Name="RecordingStatusText" Text="Ready" Foreground="{StaticResource MutedTextBrush}" FontWeight="SemiBold" />
+            </Border>
+        </DockPanel>
+
+        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12">
+            <WrapPanel VerticalAlignment="Center">
+                <Button x:Name="StartRecordingButton" Content="RECORD / REPLACE" Style="{StaticResource AccentButton}" Click="StartRecordingButton_Click" ToolTip="Clear the current sequence and record a new keyboard/mouse sequence." />
+                <Button x:Name="StopRecordingButton" Content="STOP  F7" Click="StopRecordingButton_Click" IsEnabled="False" ToolTip="Stop recording while keeping the steps already captured." />
+                <Button Content="CLEAR ALL" Click="ClearAllButton_Click" ToolTip="Remove every recorded step." />
+                <Label Content="Standard delay (ms)" VerticalAlignment="Center" Margin="12,0,6,8" Foreground="{StaticResource MutedTextBrush}" />
+                <TextBox x:Name="DefaultDelayBox" Width="90" Text="100" ToolTip="Default time inserted before each recorded step after the first." />
+                <CheckBox x:Name="UseDefaultDelayCheckBox" Content="Use standard delay while recording" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,8" ToolTip="When checked, new steps use the standard delay instead of the physical timing you recorded." />
+                <Button Content="APPLY TO ALL" Click="ApplyDelayToAllButton_Click" ToolTip="Set every step after the first to the standard delay shown above." />
+            </WrapPanel>
+        </Border>
+
+        <Border Grid.Row="4" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="150" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="#" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
+                    <TextBlock Grid.Column="1" Text="TYPE" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
+                    <TextBlock Grid.Column="2" Text="ACTION" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
+                    <TextBlock Grid.Column="3" Text="DELAY BEFORE (MS)" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
+                </Grid>
+                <ListBox x:Name="StepsListBox" Grid.Row="2" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#162131" BorderBrush="#263449" BorderThickness="1" Margin="0,0,0,6" Padding="8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="150" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding SequenceNumber}" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding TypeLabel}" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    <TextBox Grid.Column="3" Text="{Binding DelayBeforeMs, UpdateSourceTrigger=PropertyChanged}" ToolTip="Milliseconds to wait before this step. Type a custom value here." Margin="8,0,0,0" VerticalContentAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+            <TextBlock x:Name="StepCountText" Text="0 steps" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,18,8" />
+            <Button Content="CANCEL" Click="CancelButton_Click" ToolTip="Close without applying changes." />
+            <Button Content="APPLY COMBO" Style="{StaticResource AccentButton}" Click="ApplyButton_Click" ToolTip="Save the recorded steps and their custom delays to this rule." />
+        </StackPanel>
+    </Grid>
+</Window>

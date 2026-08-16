@@ -1,0 +1,27 @@
+<Window x:Class="ClickyBot.SelectionOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="True"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="#33040B15"
+        Focusable="True"
+        Cursor="Cross"
+        KeyDown="Window_KeyDown"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseMove="Window_MouseMove"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp">
+    <Canvas x:Name="OverlayCanvas">
+        <Border Canvas.Left="24" Canvas.Top="24" Background="#E6111926" BorderBrush="#6EE7C2" BorderThickness="1" CornerRadius="8" Padding="14,10">
+            <StackPanel>
+                <TextBlock Text="SELECT SCREEN AREA" Foreground="#6EE7C2" FontWeight="Bold" FontSize="13" />
+                <TextBlock Text="Click for a 1×1 pixel, or click-drag a rectangle. Press Esc to cancel." Foreground="#F4F7FB" FontSize="12" Margin="0,4,0,0" />
+            </StackPanel>
+        </Border>
+        <Rectangle x:Name="SelectionRectangle" Visibility="Collapsed" Stroke="#6EE7C2" StrokeThickness="2" Fill="#336EE7C2" />
+        <TextBlock x:Name="SelectionSizeText" Visibility="Collapsed" Foreground="#FFFFFF" Background="#CC111925" Padding="6,3" FontSize="12" />
+    </Canvas>
+</Window>
