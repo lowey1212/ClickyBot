@@ -42,6 +42,8 @@ public partial class MainWindow : Window
     private string _watchReferenceImagePath = "";
     private string _gateReferenceImagePath = "";
     private string? _currentMacroPath;
+    private bool _updateBusy;
+    private CancellationTokenSource? _updateCancellation;
 
     public MainWindow()
     {
@@ -63,6 +65,10 @@ public partial class MainWindow : Window
     {
         AppendLog("Ready. Load the starter profile or add a rule.");
         UpdateStatus(false);
+        if (_settings.CheckForUpdatesOnStartup)
+        {
+            _ = CheckForUpdatesAsync(silent: true);
+        }
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -90,6 +96,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _updateCancellation?.Cancel();
         StopEngine("Stopped before closing.");
         var handle = new WindowInteropHelper(this).Handle;
         NativeMethods.UnregisterHotKey(handle, ToggleHotKeyId);
@@ -98,6 +105,80 @@ public partial class MainWindow : Window
         NativeMethods.UnregisterHotKey(handle, CaptureClickHotKeyId);
         NativeMethods.UnregisterHotKey(handle, CaptureGateHotKeyId);
         _windowSource?.RemoveHook(WindowMessageHook);
+    }
+
+    private async void UpdateButton_Click(object sender, RoutedEventArgs e) => await CheckForUpdatesAsync(silent: false);
+
+    private async Task CheckForUpdatesAsync(bool silent)
+    {
+        if (_updateBusy)
+        {
+            return;
+        }
+
+        _updateBusy = true;
+        _updateCancellation?.Dispose();
+        _updateCancellation = new CancellationTokenSource();
+        UpdateButton.IsEnabled = false;
+        UpdateButton.Content = "CHECKING…";
+        try
+        {
+            var update = await UpdateService.CheckAsync(_updateCancellation.Token);
+            if (update is null)
+            {
+                AppendLog($"ClickyBot is up to date ({UpdateService.CurrentVersion}).");
+                if (!silent)
+                {
+                    MessageBox.Show(this, $"You are running the latest ClickyBot release ({UpdateService.CurrentVersion}).", "No update available", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                return;
+            }
+
+            AppendLog($"ClickyBot update available: {update.LatestVersion}.");
+            var answer = MessageBox.Show(
+                this,
+                $"ClickyBot {update.LatestVersion} is available. Download and install it now?\n\nThe app will close, install the update, and reopen.",
+                "ClickyBot update available",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+            if (answer != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            UpdateButton.Content = "DOWNLOADING…";
+            var installerPath = await UpdateService.DownloadInstallerAsync(update, _updateCancellation.Token);
+            AppendLog($"Downloaded {update.AssetName}. ClickyBot will restart to install it.");
+            if (!UpdateService.StartInstallerAfterExit(installerPath))
+            {
+                throw new InvalidOperationException("The downloaded installer could not be started.");
+            }
+
+            _updateBusy = false;
+            Application.Current.Shutdown();
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("Update check cancelled.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Update check failed: {ex.Message}");
+            if (!silent)
+            {
+                MessageBox.Show(this, ex.Message, "Could not check for updates", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (!_updateBusy || !IsVisible)
+            {
+                UpdateButton.IsEnabled = true;
+                UpdateButton.Content = "CHECK FOR UPDATES";
+            }
+            _updateBusy = false;
+        }
     }
 
     private IntPtr WindowMessageHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)

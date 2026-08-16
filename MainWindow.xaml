@@ -62,6 +62,7 @@
                 <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="{StaticResource MutedTextBrush}" Margin="0,0,8,0" />
                 <TextBlock x:Name="StatusText" Text="Idle" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,18,0" />
                 <Button x:Name="StartStopButton" Content="START  F6" Style="{StaticResource AccentButton}" Click="StartStopButton_Click" Padding="18,10" />
+                <Button x:Name="UpdateButton" Content="CHECK FOR UPDATES" Click="UpdateButton_Click" ToolTip="Check GitHub for a newer ClickyBot release." Padding="14,10" />
                 <Button Content="PANIC STOP  F7" Style="{StaticResource DangerButton}" Click="PanicStopButton_Click" Padding="18,10" />
             </StackPanel>
         </Grid>

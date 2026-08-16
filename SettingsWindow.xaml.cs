@@ -13,10 +13,12 @@ public partial class SettingsWindow : Window
         Settings = new AppSettings
         {
             ReferenceImageFolder = settings.ReferenceImageFolder,
-            MacroFolder = settings.MacroFolder
+            MacroFolder = settings.MacroFolder,
+            CheckForUpdatesOnStartup = settings.CheckForUpdatesOnStartup
         };
         ReferenceFolderBox.Text = Settings.ReferenceImageFolder;
         MacroFolderBox.Text = Settings.MacroFolder;
+        CheckForUpdatesCheckBox.IsChecked = Settings.CheckForUpdatesOnStartup;
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -59,6 +61,7 @@ public partial class SettingsWindow : Window
             Directory.CreateDirectory(macroFolder);
             Settings.ReferenceImageFolder = folder;
             Settings.MacroFolder = macroFolder;
+            Settings.CheckForUpdatesOnStartup = CheckForUpdatesCheckBox.IsChecked == true;
             if (!AppSettingsStore.Save(Settings, out var error))
             {
                 MessageBox.Show(this, error, "Could not save settings", MessageBoxButton.OK, MessageBoxImage.Error);

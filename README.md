@@ -22,6 +22,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Additive `SendInput` events. The app does not install a low-level hook or suppress normal user input.
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
 - Bounded activity logging and optimized screen sampling/input replay to keep long-running profiles lighter on CPU and memory.
+- GitHub release updates: use `CHECK FOR UPDATES` manually or enable the background startup check in `SETTINGS`; updates ask for confirmation before downloading and restarting the app.
 
 ## Run
 
@@ -61,6 +62,8 @@ The command publishes the portable app as a self-contained single executable and
 - `ClickyBot-Portable-0.1.0-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
+
+The installed app checks the latest GitHub release through the `SETTINGS` option when enabled. It only downloads a newer trusted ClickyBot installer after confirmation, then closes, installs, and relaunches the app.
 
 GitHub Actions can build the same Windows artifacts from `.github/workflows/build-windows.yml` when a `v*` tag is pushed or the workflow is run manually.
 
