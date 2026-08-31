@@ -24,6 +24,10 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Bounded activity logging and optimized screen sampling/input replay to keep long-running profiles lighter on CPU and memory.
 - GitHub release updates: use `CHECK FOR UPDATES` manually or enable the background startup check in `SETTINGS`; updates ask for confirmation before downloading and restarting the app.
 
+## Licence
+
+ClickyBot is released under the [ClickyBot Free Use Licence](LICENSE). It permits use, modification, and redistribution, but the app and modified versions must remain free of charge and may not be sold. Modified or redistributed versions must clearly identify changes and include attribution to the original ClickyBot project. This is a custom licence and is not an OSI-approved open-source licence because it prohibits charging for the Software.
+
 ## Run
 
 ```powershell
@@ -58,8 +62,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.8.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.8-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.9.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.9-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

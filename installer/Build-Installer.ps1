@@ -44,6 +44,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Copy-Item -Path (Join-Path $publishRoot '*') -Destination $portableRoot -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $portableRoot 'LICENSE') -Force
 
 if (Test-Path -LiteralPath $portableZip) {
     Remove-Item -LiteralPath $portableZip -Force
