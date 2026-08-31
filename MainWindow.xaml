@@ -91,13 +91,18 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander x:Name="ProfileActionsExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" Header="PROFILE ACTIONS" ToolTip="Profile and rule management actions.">
+                    <Expander x:Name="ProfileActionsExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" Header="PROFILE ACTIONS" ToolTip="Create, open, save, or configure macro profiles.">
                         <WrapPanel Margin="18,0,18,10">
                             <Button Content="NEW BLANK" Click="NewProfileButton_Click" ToolTip="Start a new empty macro profile." />
                             <Button Content="LOAD STARTER" Click="LoadStarterButton_Click" ToolTip="Load the built-in example profile." />
                             <Button Content="OPEN MACRO" Click="OpenMacroButton_Click" ToolTip="Open the JSON macro selected in the profile dropdown." />
                             <Button Content="SAVE MACRO" Style="{StaticResource AccentButton}" Click="SaveMacroButton_Click" ToolTip="Save or update this macro in the configured macro folder." />
                             <Button Content="SETTINGS" Click="SettingsButton_Click" ToolTip="Configure folders and startup update behavior." />
+                        </WrapPanel>
+                    </Expander>
+
+                    <Expander x:Name="RuleActionsExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" Header="RULE ACTIONS" ToolTip="Actions for managing the rules in the current profile.">
+                        <WrapPanel Margin="18,0,18,10">
                             <Button Content="ADD RULE" Style="{StaticResource AccentButton}" Click="AddRuleButton_Click" ToolTip="Add a new rule to the current profile." />
                             <Button Content="DUPLICATE" Click="DuplicateRuleButton_Click" ToolTip="Create a copy of the selected rule directly below it." />
                             <Button Content="MOVE UP" Click="MoveRuleUpButton_Click" ToolTip="Run the selected rule earlier by moving it up one position." />
