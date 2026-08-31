@@ -160,7 +160,9 @@ internal static class UpdateService
             "  timeout /t 1 /nobreak >nul",
             "  goto wait_for_clickybot",
             ")",
-            $"start \"\" /wait \"{installerPath}\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART",
+            // Keep the normal Inno Setup wizard visible so the user can review
+            // and accept the ClickyBot licence before the update installs.
+            $"start \"\" /wait \"{installerPath}\"",
             $"start \"\" \"{applicationPath}\"",
             "del \"%~f0\"",
             ""
