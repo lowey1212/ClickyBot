@@ -146,12 +146,6 @@ internal static class UpdateService
             return false;
         }
 
-        var applicationPath = Process.GetCurrentProcess().MainModule?.FileName ?? Environment.ProcessPath;
-        if (string.IsNullOrWhiteSpace(applicationPath))
-        {
-            return false;
-        }
-
         var processId = Environment.ProcessId;
         var scriptPath = Path.Combine(Path.GetTempPath(), $"ClickyBot-update-{processId}-{Guid.NewGuid():N}.cmd");
         var logPath = Path.Combine(Path.GetTempPath(), $"ClickyBot-update-{processId}.log");
@@ -161,7 +155,6 @@ internal static class UpdateService
             "setlocal",
             $"set \"LOG_PATH={logPath}\"",
             $"set \"INSTALLER_PATH={installerPath}\"",
-            $"set \"APPLICATION_PATH={applicationPath}\"",
             ":wait_for_clickybot",
             $"tasklist /FI \"PID eq {processId}\" /NH 2>nul | findstr /C:\"{processId}\" >nul",
             "if not errorlevel 1 (",
@@ -177,7 +170,6 @@ internal static class UpdateService
             "start \"\" /wait \"%INSTALLER_PATH%\"",
             "set \"INSTALL_EXIT=%ERRORLEVEL%\"",
             ">>\"%LOG_PATH%\" echo Installer exit code: %INSTALL_EXIT%",
-            "if exist \"%APPLICATION_PATH%\" start \"\" \"%APPLICATION_PATH%\"",
             "del \"%~f0\"",
             ""
         });

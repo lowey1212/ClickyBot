@@ -161,7 +161,7 @@ public partial class MainWindow : Window
             AppendLog($"ClickyBot update available: {update.LatestVersion}.");
             var answer = MessageBox.Show(
                 this,
-                $"ClickyBot {update.LatestVersion} is available. Download and install it now?\n\nThe app will close, install the update, and reopen.",
+                $"ClickyBot {update.LatestVersion} is available. Download and install it now?\n\nThe app will close, then the installer will ask whether to launch ClickyBot when it finishes.",
                 "ClickyBot update available",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);

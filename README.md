@@ -62,12 +62,12 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.12.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.12-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.13.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.13-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 
-The installed app checks the latest GitHub release through the `SETTINGS` option when enabled. It only downloads a newer trusted ClickyBot installer after confirmation, then closes and opens the normal installer wizard so you can review and accept the ClickyBot licence before installation. The app relaunches after the installer finishes.
+The installed app checks the latest GitHub release through the `SETTINGS` option when enabled. It only downloads a newer trusted ClickyBot installer after confirmation, then closes and opens the normal installer wizard so you can review and accept the ClickyBot licence before installation. The installer controls whether ClickyBot is launched after the update, so accepting its launch prompt starts only one app instance.
 
 GitHub Actions can build the same Windows artifacts from `.github/workflows/build-windows.yml` when a `v*` tag is pushed or the workflow is run manually.
 
