@@ -74,7 +74,11 @@ internal static class UpdateService
             "updates");
         Directory.CreateDirectory(updateDirectory);
 
-        var destination = Path.Combine(updateDirectory, $"ClickyBot-Setup-{update.LatestVersion}.exe");
+        // Use a unique destination so a previous installer process cannot keep
+        // the next retry from replacing a fixed filename.
+        var destination = Path.Combine(
+            updateDirectory,
+            $"ClickyBot-Setup-{update.LatestVersion}-{Guid.NewGuid():N}.exe");
         var temporary = destination + ".part";
         using var downloadTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         downloadTimeout.CancelAfter(TimeSpan.FromMinutes(5));
@@ -149,30 +153,40 @@ internal static class UpdateService
         }
 
         var processId = Environment.ProcessId;
-        var scriptPath = Path.Combine(Path.GetTempPath(), $"ClickyBot-update-{processId}.cmd");
+        var scriptPath = Path.Combine(Path.GetTempPath(), $"ClickyBot-update-{processId}-{Guid.NewGuid():N}.cmd");
+        var logPath = Path.Combine(Path.GetTempPath(), $"ClickyBot-update-{processId}.log");
         var script = string.Join(Environment.NewLine, new[]
         {
             "@echo off",
             "setlocal",
+            $"set \"LOG_PATH={logPath}\"",
+            $"set \"INSTALLER_PATH={installerPath}\"",
+            $"set \"APPLICATION_PATH={applicationPath}\"",
             ":wait_for_clickybot",
-            $"tasklist /FI \"PID eq {processId}\" /NH | findstr /C:\" {processId} \" >nul",
+            $"tasklist /FI \"PID eq {processId}\" /NH 2>nul | findstr /C:\"{processId}\" >nul",
             "if not errorlevel 1 (",
             "  timeout /t 1 /nobreak >nul",
             "  goto wait_for_clickybot",
             ")",
+            // Give Windows a moment to release the WPF process files after
+            // tasklist no longer reports the process.
+            "timeout /t 2 /nobreak >nul",
+            ">>\"%LOG_PATH%\" echo ClickyBot exited; starting the installer.",
             // Keep the normal Inno Setup wizard visible so the user can review
             // and accept the ClickyBot licence before the update installs.
-            $"start \"\" /wait \"{installerPath}\"",
-            $"start \"\" \"{applicationPath}\"",
+            "start \"\" /wait \"%INSTALLER_PATH%\"",
+            "set \"INSTALL_EXIT=%ERRORLEVEL%\"",
+            ">>\"%LOG_PATH%\" echo Installer exit code: %INSTALL_EXIT%",
+            "if exist \"%APPLICATION_PATH%\" start \"\" \"%APPLICATION_PATH%\"",
             "del \"%~f0\"",
             ""
         });
-        File.WriteAllText(scriptPath, script);
+        File.WriteAllText(scriptPath, script, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         Process.Start(new ProcessStartInfo
         {
             FileName = "cmd.exe",
-            Arguments = $"/d /c \"{scriptPath}\"",
+            Arguments = $"/d /s /c \"\"{scriptPath}\"\"",
             WorkingDirectory = Path.GetDirectoryName(installerPath) ?? AppContext.BaseDirectory,
             UseShellExecute = false,
             CreateNoWindow = true
