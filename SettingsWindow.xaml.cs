@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
         {
             ReferenceImageFolder = settings.ReferenceImageFolder,
             MacroFolder = settings.MacroFolder,
+            LastMacroPath = settings.LastMacroPath,
             CheckForUpdatesOnStartup = settings.CheckForUpdatesOnStartup
         };
         ReferenceFolderBox.Text = Settings.ReferenceImageFolder;

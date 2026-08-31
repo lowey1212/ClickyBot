@@ -78,30 +78,43 @@
 
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
                 <StackPanel>
-                    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,0,0,14">
-                        <StackPanel>
+                    <Expander x:Name="ProfileExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,10" ToolTip="Expand or collapse the profile settings.">
+                        <Expander.Header>
                             <TextBlock Text="PROFILE" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
-                            <TextBlock Text="Keep your game-specific coordinates in a portable profile." Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,5,0,14" TextWrapping="Wrap" />
+                        </Expander.Header>
+                        <StackPanel Margin="18">
+                            <TextBlock Text="Keep your game-specific coordinates in a portable profile." Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,0,0,14" TextWrapping="Wrap" />
                             <Label Content="Macro name / file" />
                             <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Choose a JSON macro from the macro folder, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
-                            <WrapPanel>
-                                <Button Content="NEW BLANK" Click="NewProfileButton_Click" />
-                                <Button Content="LOAD STARTER" Click="LoadStarterButton_Click" />
-                                <Button Content="OPEN MACRO" Click="OpenMacroButton_Click" ToolTip="Open the JSON macro selected in the profile dropdown." />
-                                <Button Content="SAVE MACRO" Style="{StaticResource AccentButton}" Click="SaveMacroButton_Click" ToolTip="Save or update this macro in the configured macro folder." />
-                                <Button Content="SETTINGS" Click="SettingsButton_Click" />
-                            </WrapPanel>
                         </StackPanel>
-                    </Border>
+                    </Expander>
 
-                    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="18">
-                        <StackPanel>
-                            <DockPanel Margin="0,0,0,14">
+                    <Expander x:Name="ProfileActionsExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" Header="PROFILE ACTIONS" ToolTip="Profile and rule management actions.">
+                        <WrapPanel Margin="18,0,18,10">
+                            <Button Content="NEW BLANK" Click="NewProfileButton_Click" ToolTip="Start a new empty macro profile." />
+                            <Button Content="LOAD STARTER" Click="LoadStarterButton_Click" ToolTip="Load the built-in example profile." />
+                            <Button Content="OPEN MACRO" Click="OpenMacroButton_Click" ToolTip="Open the JSON macro selected in the profile dropdown." />
+                            <Button Content="SAVE MACRO" Style="{StaticResource AccentButton}" Click="SaveMacroButton_Click" ToolTip="Save or update this macro in the configured macro folder." />
+                            <Button Content="SETTINGS" Click="SettingsButton_Click" ToolTip="Configure folders and startup update behavior." />
+                            <Button Content="ADD RULE" Style="{StaticResource AccentButton}" Click="AddRuleButton_Click" ToolTip="Add a new rule to the current profile." />
+                            <Button Content="DUPLICATE" Click="DuplicateRuleButton_Click" ToolTip="Create a copy of the selected rule directly below it." />
+                            <Button Content="MOVE UP" Click="MoveRuleUpButton_Click" ToolTip="Run the selected rule earlier by moving it up one position." />
+                            <Button Content="MOVE DOWN" Click="MoveRuleDownButton_Click" ToolTip="Run the selected rule later by moving it down one position." />
+                            <Button Content="APPLY CHANGES" Click="ApplyRuleButton_Click" ToolTip="Apply the editor values to the selected rule and save changes when it has a file." />
+                            <Button Content="DELETE RULE" Click="DeleteRuleButton_Click" ToolTip="Delete the selected rule from the current profile." />
+                        </WrapPanel>
+                    </Expander>
+
+                    <Expander x:Name="RuleEditorExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" ToolTip="Expand or collapse the selected rule editor.">
+                        <Expander.Header>
+                            <DockPanel>
                                 <TextBlock Text="RULE EDITOR" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
                                 <TextBlock DockPanel.Dock="Right" Text="F8 selects watch area" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
                             </DockPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="18,0,18,18">
 
                             <Label Content="Rule name" />
                             <TextBox x:Name="RuleNameBox" Text="New rule" ToolTip="A readable name for this rule and its reference image files." />
@@ -295,23 +308,24 @@
                             <Label Content="Delay after action (ms)" />
                             <TextBox x:Name="DelayAfterActionBox" ToolTip="Extra delay after this action or combo finishes, in milliseconds." />
 
-                            <WrapPanel Margin="0,4,0,0">
-                                <Button Content="ADD RULE" Style="{StaticResource AccentButton}" Click="AddRuleButton_Click" />
-                                <Button Content="DUPLICATE" Click="DuplicateRuleButton_Click" ToolTip="Create a copy of the selected rule directly below it." />
-                                <Button Content="MOVE UP" Click="MoveRuleUpButton_Click" ToolTip="Run the selected rule earlier by moving it up one position." />
-                                <Button Content="MOVE DOWN" Click="MoveRuleDownButton_Click" ToolTip="Run the selected rule later by moving it down one position." />
-                                <Button Content="APPLY CHANGES" Click="ApplyRuleButton_Click" />
-                                <Button Content="DELETE RULE" Click="DeleteRuleButton_Click" />
-                            </WrapPanel>
                         </StackPanel>
-                    </Border>
+                    </Expander>
                 </StackPanel>
             </ScrollViewer>
 
             <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{StaticResource PanelBorderBrush}" ShowsPreview="True" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ToolTip="Drag to resize the rule editor." />
 
-            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20">
-                <Grid>
+            <Expander x:Name="AutomationMapExpander" Grid.Column="2" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" ToolTip="Expand or collapse the automation map.">
+                <Expander.Header>
+                    <DockPanel>
+                        <StackPanel>
+                            <TextBlock Text="AUTOMATION MAP" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="Rules are checked from top to bottom." FontSize="20" FontWeight="SemiBold" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <TextBlock x:Name="RuleCountText" DockPanel.Dock="Right" Text="0 rules" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Bottom" />
+                    </DockPanel>
+                </Expander.Header>
+                <Grid Margin="20,0,20,20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="14" />
@@ -319,13 +333,6 @@
                         <RowDefinition Height="18" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0">
-                        <StackPanel>
-                            <TextBlock Text="AUTOMATION MAP" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold" />
-                            <TextBlock Text="Rules are checked from top to bottom." FontSize="20" FontWeight="SemiBold" Margin="0,5,0,0" />
-                        </StackPanel>
-                        <TextBlock x:Name="RuleCountText" DockPanel.Dock="Right" Text="0 rules" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Bottom" />
-                    </DockPanel>
                     <ListBox x:Name="RulesListBox" Grid.Row="2" SelectionChanged="RulesListBox_SelectionChanged" />
                     <Border Grid.Row="4" Background="#0D1420" BorderBrush="#223149" BorderThickness="1" CornerRadius="10" Padding="16">
                         <StackPanel>
@@ -334,7 +341,7 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-            </Border>
+            </Expander>
 
             <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{StaticResource PanelBorderBrush}" ShowsPreview="True" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ToolTip="Drag to resize the activity panel." />
 

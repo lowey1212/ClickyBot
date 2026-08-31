@@ -7,6 +7,7 @@ public sealed class AppSettings
 {
     public string ReferenceImageFolder { get; set; } = DefaultReferenceImageFolder();
     public string MacroFolder { get; set; } = DefaultMacroFolder();
+    public string LastMacroPath { get; set; } = "";
     public bool CheckForUpdatesOnStartup { get; set; } = true;
 
     public static string DefaultReferenceImageFolder()

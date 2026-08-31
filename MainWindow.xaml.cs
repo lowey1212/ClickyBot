@@ -59,6 +59,7 @@ public partial class MainWindow : Window
         MouseButtonCombo.ItemsSource = Enum.GetValues<MouseButtonType>();
         _engine.Log += message => Dispatcher.BeginInvoke(() => AppendLog(message));
         LoadStarterProfile();
+        RestoreLastProfile();
         RefreshMacroList(_profile.Name);
     }
 
@@ -99,6 +100,8 @@ public partial class MainWindow : Window
     {
         _updateCancellation?.Cancel();
         StopEngine("Stopped before closing.");
+        RememberLastProfile();
+        AppSettingsStore.Save(_settings, out _);
         var handle = new WindowInteropHelper(this).Handle;
         NativeMethods.UnregisterHotKey(handle, ToggleHotKeyId);
         NativeMethods.UnregisterHotKey(handle, PanicHotKeyId);
@@ -427,6 +430,23 @@ public partial class MainWindow : Window
         UpdateRuleCount();
     }
 
+    private void RestoreLastProfile()
+    {
+        var path = _settings.LastMacroPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        if (!File.Exists(path) || !TryLoadMacro(path, showError: false, announce: false))
+        {
+            _settings.LastMacroPath = "";
+            return;
+        }
+
+        AppendLog($"Restored last profile: {Path.GetFileName(path)}.");
+    }
+
     private void OpenMacroButton_Click(object sender, RoutedEventArgs e)
     {
         var requestedName = ProfileNameCombo.Text.Trim();
@@ -438,11 +458,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        TryLoadMacro(path, showError: true, announce: true);
+    }
+
+    private bool TryLoadMacro(string path, bool showError, bool announce)
+    {
         try
         {
             var json = File.ReadAllText(path);
             var loaded = JsonSerializer.Deserialize<MacroProfile>(json, _jsonOptions) ?? throw new InvalidDataException("The file did not contain a profile.");
-            StopEngine("Loaded macro.");
+            StopEngine(announce ? "Loaded macro." : "");
             _profile = loaded;
             _profile.Name = MacroDisplayName(path);
             _currentMacroPath = path;
@@ -457,11 +482,21 @@ public partial class MainWindow : Window
             RulesListBox.SelectedIndex = _rules.Count > 0 ? 0 : -1;
             UpdateRuleCount();
             RefreshMacroList(_profile.Name);
-            AppendLog($"Opened {Path.GetFileName(path)}.");
+            if (announce)
+            {
+                AppendLog($"Opened {Path.GetFileName(path)}.");
+            }
+
+            return true;
         }
         catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
         {
-            MessageBox.Show(this, ex.Message, "Could not open macro", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (showError)
+            {
+                MessageBox.Show(this, ex.Message, "Could not open macro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return false;
         }
     }
 
@@ -478,7 +513,6 @@ public partial class MainWindow : Window
         if (window.ShowDialog() == true)
         {
             _settings = window.Settings;
-            _currentMacroPath = null;
             RefreshMacroList(_profile.Name);
             AppendLog($"Reference images: {_settings.ReferenceImageFolder}; macros: {_settings.MacroFolder}.");
         }
@@ -522,6 +556,7 @@ public partial class MainWindow : Window
             Directory.CreateDirectory(_settings.MacroFolder);
             File.WriteAllText(path, JsonSerializer.Serialize(_profile, _jsonOptions));
             _currentMacroPath = path;
+            RememberLastProfile();
             ProfileNameCombo.Text = MacroDisplayName(path);
             RefreshMacroList(ProfileNameCombo.Text);
             AppendLog($"{logVerb} {Path.GetFileName(path)}.");
@@ -532,6 +567,13 @@ public partial class MainWindow : Window
             MessageBox.Show(this, ex.Message, "Could not save macro", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
+    }
+
+    private void RememberLastProfile()
+    {
+        _settings.LastMacroPath = string.IsNullOrWhiteSpace(_currentMacroPath)
+            ? ""
+            : Path.GetFullPath(_currentMacroPath);
     }
 
     private void RefreshMacroList(string? preferredName = null)
