@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private const int CaptureGateHotKeyId = 5;
 
     private readonly ObservableCollection<MacroRule> _rules = [];
+    private readonly ObservableCollection<string> _gameNames = [];
     private readonly ObservableCollection<string> _macroNames = [];
     private readonly MacroEngine _engine = new();
     private AppSettings _settings;
@@ -45,13 +46,18 @@ public partial class MainWindow : Window
     private bool _updateBusy;
     private CancellationTokenSource? _updateCancellation;
     private Task? _updateTask;
+    private bool _refreshingProfileSelectors;
 
     public MainWindow()
     {
         _settings = AppSettingsStore.Load();
         InitializeComponent();
         RulesListBox.ItemsSource = _rules;
+        GameCombo.ItemsSource = _gameNames;
         ProfileNameCombo.ItemsSource = _macroNames;
+        GameCombo.AddHandler(
+            System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
+            new System.Windows.Controls.TextChangedEventHandler(GameCombo_TextChanged));
         ConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
         GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
         ActionCombo.ItemsSource = Enum.GetValues<ActionType>();
@@ -344,11 +350,32 @@ public partial class MainWindow : Window
         StartStopButton.Style = (Style)FindResource(running ? "DangerButton" : "AccentButton");
     }
 
+    private void GameCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_refreshingProfileSelectors)
+        {
+            RefreshMacroList(ProfileNameCombo.Text);
+        }
+    }
+
+    private void GameCombo_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (!_refreshingProfileSelectors)
+        {
+            RefreshMacroList(ProfileNameCombo.Text);
+        }
+    }
+
     private void NewProfileButton_Click(object sender, RoutedEventArgs e)
     {
         StopEngine("Profile reset.");
-        _profile = new MacroProfile { Name = "Untitled profile" };
+        _profile = new MacroProfile
+        {
+            Name = "Untitled profile",
+            Game = NormalizeGameName(GameCombo.Text)
+        };
         _currentMacroPath = null;
+        GameCombo.Text = _profile.Game;
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
         _rules.Clear();
@@ -370,6 +397,7 @@ public partial class MainWindow : Window
         _profile = new MacroProfile
         {
             Name = "Fishing + resource-aware skills",
+            Game = MacroProfile.DefaultGameName,
             PollIntervalMs = 80,
             Rules =
             [
@@ -418,6 +446,7 @@ public partial class MainWindow : Window
             ]
         };
 
+        GameCombo.Text = _profile.Game;
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
         _rules.Clear();
@@ -470,8 +499,10 @@ public partial class MainWindow : Window
             StopEngine(announce ? "Loaded macro." : "");
             _profile = loaded;
             _profile.Name = MacroDisplayName(path);
+            _profile.Game = NormalizeGameName(_profile.Game);
             _currentMacroPath = path;
             HydrateProfileReferences(_profile);
+            GameCombo.Text = _profile.Game;
             ProfileNameCombo.Text = _profile.Name;
             PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
             _rules.Clear();
@@ -521,6 +552,7 @@ public partial class MainWindow : Window
     private void ApplyProfileEditorToModel()
     {
         _profile.Name = MacroDisplayName(ProfileNameCombo.Text);
+        _profile.Game = NormalizeGameName(GameCombo.Text);
         _profile.PollIntervalMs = ReadInt(PollIntervalBox, 80, 20, 2000);
         _profile.Rules = _rules.ToList();
     }
@@ -578,18 +610,32 @@ public partial class MainWindow : Window
 
     private void RefreshMacroList(string? preferredName = null)
     {
-        var currentText = preferredName ?? ProfileNameCombo.Text;
-        _macroNames.Clear();
+        if (_refreshingProfileSelectors)
+        {
+            return;
+        }
+
+        var currentGame = NormalizeGameName(GameCombo.Text);
+        var currentProfile = preferredName ?? ProfileNameCombo.Text;
+        var games = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var matchingProfiles = new List<string>();
+
         try
         {
             if (Directory.Exists(_settings.MacroFolder))
             {
                 foreach (var path in Directory.EnumerateFiles(_settings.MacroFolder, "*.json", SearchOption.TopDirectoryOnly).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 {
-                    var displayName = MacroDisplayName(path);
-                    if (!_macroNames.Contains(displayName, StringComparer.OrdinalIgnoreCase))
+                    var game = ReadMacroGame(path);
+                    games.Add(game);
+                    if (string.IsNullOrWhiteSpace(currentGame)
+                        || string.Equals(game, currentGame, StringComparison.OrdinalIgnoreCase))
                     {
-                        _macroNames.Add(displayName);
+                        var displayName = MacroDisplayName(path);
+                        if (!matchingProfiles.Contains(displayName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            matchingProfiles.Add(displayName);
+                        }
                     }
                 }
             }
@@ -598,11 +644,68 @@ public partial class MainWindow : Window
         {
             AppendLog($"Could not list macros: {ex.Message}");
         }
-
-        if (!string.IsNullOrWhiteSpace(currentText))
+        catch (UnauthorizedAccessException ex)
         {
-            ProfileNameCombo.Text = currentText;
+            AppendLog($"Could not list macros: {ex.Message}");
         }
+
+        _refreshingProfileSelectors = true;
+        try
+        {
+            _gameNames.Clear();
+            foreach (var game in games.OrderBy(game => game, StringComparer.OrdinalIgnoreCase))
+            {
+                _gameNames.Add(game);
+            }
+
+            _macroNames.Clear();
+            foreach (var profile in matchingProfiles.OrderBy(profile => profile, StringComparer.OrdinalIgnoreCase))
+            {
+                _macroNames.Add(profile);
+            }
+
+            GameCombo.Text = currentGame;
+            ProfileNameCombo.Text = matchingProfiles.Contains(currentProfile, StringComparer.OrdinalIgnoreCase)
+                ? currentProfile
+                : "";
+        }
+        finally
+        {
+            _refreshingProfileSelectors = false;
+        }
+    }
+
+    private static string ReadMacroGame(string path)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            if (document.RootElement.TryGetProperty("Game", out var gameElement)
+                && gameElement.ValueKind == JsonValueKind.String)
+            {
+                return NormalizeGameName(gameElement.GetString());
+            }
+        }
+        catch (IOException)
+        {
+            // Treat an unreadable file as a legacy profile so it remains visible
+            // in the default game group and can show its normal open error.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Treat an inaccessible file as a legacy profile and keep listing.
+        }
+        catch (JsonException)
+        {
+            // Treat malformed/legacy metadata as belonging to the default game.
+        }
+
+        return MacroProfile.DefaultGameName;
+    }
+
+    private static string NormalizeGameName(string? game)
+    {
+        return string.IsNullOrWhiteSpace(game) ? MacroProfile.DefaultGameName : game.Trim();
     }
 
     private string? ResolveMacroPath(string requestedName)
@@ -619,7 +722,9 @@ public partial class MainWindow : Window
         foreach (var candidate in candidates)
         {
             var path = Path.Combine(_settings.MacroFolder, candidate);
-            if (File.Exists(path))
+            if (File.Exists(path)
+                && (string.IsNullOrWhiteSpace(GameCombo.Text)
+                    || string.Equals(ReadMacroGame(path), NormalizeGameName(GameCombo.Text), StringComparison.OrdinalIgnoreCase)))
             {
                 return path;
             }

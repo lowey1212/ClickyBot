@@ -44,7 +44,10 @@ public enum MouseButtonType
 
 public sealed class MacroProfile
 {
+    public const string DefaultGameName = "The First Descendant";
+
     public string Name { get; set; } = "Untitled profile";
+    public string Game { get; set; } = DefaultGameName;
     public int PollIntervalMs { get; set; } = 80;
     public List<MacroRule> Rules { get; set; } = [];
 }

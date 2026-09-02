@@ -9,7 +9,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Click/drag screen selection overlay: a click records a 1×1 pixel; dragging records a rectangular region.
 - Reference-region matching: capture a small screen area and require a configurable percentage of sampled pixels to stay within the RGB tolerance.
 - Settings page for the reference-image folder and macro folder; captures are saved as numbered PNGs named from the rule, for example `001_Skill-is-lit.png`.
-- Folder-backed macro profiles: the editable profile dropdown lists JSON macros, `SAVE MACRO` writes directly to the configured folder, and `APPLY CHANGES` updates the currently opened macro.
+- Game-grouped macro profiles: choose or type a game in the editable game dropdown, then the profile dropdown shows only JSON macros assigned to that game. `SAVE MACRO` writes the selected game into the profile, and `APPLY CHANGES` updates the currently opened macro.
 - Key presses, mouse clicks, and wait actions.
 - Recorded combo actions containing timed keyboard and mouse input; held modifiers such as `Ctrl+C` are preserved as key-down/key-up events.
 - Rising-edge triggers so a ready icon is acted on once until it goes inactive again.
@@ -38,7 +38,7 @@ The project targets `net8.0-windows` and uses only the Windows desktop runtime; 
 
 ## First workflow
 
-1. Start the app and click `LOAD STARTER`.
+1. Start the app and click `LOAD STARTER`. The built-in profiles are assigned to `The First Descendant`.
 2. Open `SETTINGS` and choose the reference-image folder and macro folder. The default macro folder is `macros` beside the ClickyBot executable.
 3. Click `SELECT WATCH AREA`, then click once for a pixel or click-drag a rectangle on the game UI. Press `Esc` to cancel.
 4. Choose `RegionSnapshotMatches` and click `CAPTURE REFERENCE` to save the selected area as a numbered PNG named from the rule. Set the match threshold and tolerance to control how much visual change is allowed.
@@ -47,7 +47,7 @@ The project targets `net8.0-windows` and uses only the Windows desktop runtime; 
 7. Use `RECORD COMBO` to open the larger combo editor. Record the desired keyboard/mouse sequence, then press `F7` to finish. Input passes through while recording. The editor lets you set a standard delay, apply it to every step, or type a custom delay into any step. The sequence becomes a `RecordedCombo` action and is saved in the profile.
 8. Change the key/action and thresholds, then use `APPLY CHANGES`. If a macro is currently open, the JSON is updated automatically.
 9. Use `TEST CONDITION` to check the selected rule without sending its action. Use `DUPLICATE`, `MOVE UP`, and `MOVE DOWN` to organize the rule order.
-10. Type a new profile name and click `SAVE MACRO` to create a JSON file, or choose an existing name from the dropdown and click `OPEN MACRO`.
+10. Choose `The First Descendant` or type another game in the `GAME` dropdown. The profile dropdown will then show only profiles for that game. Type a new profile name and click `SAVE MACRO` to create a JSON file, or choose an existing name from the filtered dropdown and click `OPEN MACRO`.
 11. Press `F6` to run and `F7` to stop immediately.
 
 The `ACTIVITY · Live engine log` panel is collapsed by default. Expand it when diagnosing a rule or engine run; the tooltips on controls explain the fields without needing the log open.
@@ -62,8 +62,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.15.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.15-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.16.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.16-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

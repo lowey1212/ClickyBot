@@ -84,8 +84,10 @@
                         </Expander.Header>
                         <StackPanel Margin="18">
                             <TextBlock Text="Keep your game-specific coordinates in a portable profile." Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,0,0,14" TextWrapping="Wrap" />
+                            <Label Content="Game" />
+                            <ComboBox x:Name="GameCombo" IsEditable="True" IsTextSearchEnabled="True" SelectionChanged="GameCombo_SelectionChanged" ToolTip="Choose an existing game or type a new game name. Only profiles assigned to this game appear below." />
                             <Label Content="Macro name / file" />
-                            <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Choose a JSON macro from the macro folder, or type a new macro name before saving." />
+                            <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Choose a JSON macro for the selected game, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
                         </StackPanel>
