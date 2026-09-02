@@ -15,6 +15,7 @@ public partial class SettingsWindow : Window
             ReferenceImageFolder = settings.ReferenceImageFolder,
             MacroFolder = settings.MacroFolder,
             LastMacroPath = settings.LastMacroPath,
+            LastMacroPathsByGame = new Dictionary<string, string>(settings.LastMacroPathsByGame, StringComparer.OrdinalIgnoreCase),
             CheckForUpdatesOnStartup = settings.CheckForUpdatesOnStartup
         };
         ReferenceFolderBox.Text = Settings.ReferenceImageFolder;

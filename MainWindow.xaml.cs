@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _updateCancellation;
     private Task? _updateTask;
     private bool _refreshingProfileSelectors;
+    private string _activeGame = MacroProfile.DefaultGameName;
 
     public MainWindow()
     {
@@ -367,27 +368,61 @@ public partial class MainWindow : Window
                 {
                     if (!_refreshingProfileSelectors)
                     {
-                        RefreshMacroList(ProfileNameCombo.Text);
+                        HandleGameSelectionChanged();
                     }
                 }));
         }
     }
 
+    private void HandleGameSelectionChanged()
+    {
+        var selectedGame = NormalizeGameName(GameCombo.Text);
+        if (string.Equals(selectedGame, _activeGame, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshMacroList(ProfileNameCombo.Text);
+            return;
+        }
+
+        RememberLastProfile();
+        _activeGame = selectedGame;
+        RefreshMacroList();
+
+        var path = FindLastMacroPathForGame(selectedGame);
+        if (path is null && _macroNames.Count > 0)
+        {
+            path = ResolveMacroPath(_macroNames[0]);
+        }
+
+        if (path is not null && TryLoadMacro(path, showError: false, announce: false))
+        {
+            AppendLog($"Activated {Path.GetFileName(path)} for {selectedGame}.");
+            return;
+        }
+
+        CreateBlankProfile(selectedGame, "No saved macro exists for this game; created a blank profile.");
+    }
+
     private void NewProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        CreateBlankProfile(NormalizeGameName(GameCombo.Text), "Created a blank profile.");
+    }
+
+    private void CreateBlankProfile(string game, string logMessage)
     {
         StopEngine("Profile reset.");
         _profile = new MacroProfile
         {
             Name = "Untitled profile",
-            Game = NormalizeGameName(GameCombo.Text)
+            Game = NormalizeGameName(game)
         };
+        _activeGame = _profile.Game;
         _currentMacroPath = null;
         GameCombo.Text = _profile.Game;
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
         _rules.Clear();
         AddRuleToCollection(new MacroRule { Name = "New rule" });
-        AppendLog("Created a blank profile.");
+        AppendLog(logMessage);
     }
 
     private void LoadStarterButton_Click(object sender, RoutedEventArgs e)
@@ -395,6 +430,7 @@ public partial class MainWindow : Window
         StopEngine("Loaded starter profile.");
         LoadStarterProfile();
         _currentMacroPath = null;
+        _activeGame = _profile.Game;
         RefreshMacroList(_profile.Name);
         AppendLog("Loaded starter rules. Point F8/F9 at your game UI to replace the example coordinates.");
     }
@@ -508,6 +544,8 @@ public partial class MainWindow : Window
             _profile.Name = MacroDisplayName(path);
             _profile.Game = NormalizeGameName(_profile.Game);
             _currentMacroPath = path;
+            _activeGame = _profile.Game;
+            RememberLastProfile();
             HydrateProfileReferences(_profile);
             GameCombo.Text = _profile.Game;
             ProfileNameCombo.Text = _profile.Name;
@@ -595,6 +633,7 @@ public partial class MainWindow : Window
             Directory.CreateDirectory(_settings.MacroFolder);
             File.WriteAllText(path, JsonSerializer.Serialize(_profile, _jsonOptions));
             _currentMacroPath = path;
+            _activeGame = _profile.Game;
             RememberLastProfile();
             ProfileNameCombo.Text = MacroDisplayName(path);
             RefreshMacroList(ProfileNameCombo.Text);
@@ -610,9 +649,38 @@ public partial class MainWindow : Window
 
     private void RememberLastProfile()
     {
-        _settings.LastMacroPath = string.IsNullOrWhiteSpace(_currentMacroPath)
-            ? ""
-            : Path.GetFullPath(_currentMacroPath);
+        if (string.IsNullOrWhiteSpace(_currentMacroPath))
+        {
+            _settings.LastMacroPath = "";
+            return;
+        }
+
+        var fullPath = Path.GetFullPath(_currentMacroPath);
+        _settings.LastMacroPath = fullPath;
+        _settings.LastMacroPathsByGame[NormalizeGameName(_activeGame)] = fullPath;
+    }
+
+    private string? FindLastMacroPathForGame(string game)
+    {
+        foreach (var entry in _settings.LastMacroPathsByGame)
+        {
+            if (string.Equals(entry.Key, game, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(entry.Value)
+                && string.Equals(ReadMacroGame(entry.Value), game, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry.Value;
+            }
+        }
+
+        var legacyPath = _settings.LastMacroPath;
+        if (!string.IsNullOrWhiteSpace(legacyPath)
+            && File.Exists(legacyPath)
+            && string.Equals(ReadMacroGame(legacyPath), game, StringComparison.OrdinalIgnoreCase))
+        {
+            return legacyPath;
+        }
+
+        return null;
     }
 
     private void RefreshMacroList(string? preferredName = null)

@@ -8,6 +8,7 @@ public sealed class AppSettings
     public string ReferenceImageFolder { get; set; } = DefaultReferenceImageFolder();
     public string MacroFolder { get; set; } = DefaultMacroFolder();
     public string LastMacroPath { get; set; } = "";
+    public Dictionary<string, string> LastMacroPathsByGame { get; set; } = new();
     public bool CheckForUpdatesOnStartup { get; set; } = true;
 
     public static string DefaultReferenceImageFolder()
@@ -34,7 +35,9 @@ internal static class AppSettingsStore
         {
             if (File.Exists(SettingsPath))
             {
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath), Options) ?? new AppSettings();
+                var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath), Options) ?? new AppSettings();
+                settings.LastMacroPathsByGame ??= new Dictionary<string, string>();
+                return settings;
             }
         }
         catch (Exception)
