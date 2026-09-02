@@ -55,9 +55,6 @@ public partial class MainWindow : Window
         RulesListBox.ItemsSource = _rules;
         GameCombo.ItemsSource = _gameNames;
         ProfileNameCombo.ItemsSource = _macroNames;
-        GameCombo.AddHandler(
-            System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
-            new System.Windows.Controls.TextChangedEventHandler(GameCombo_TextChanged));
         ConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
         GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
         ActionCombo.ItemsSource = Enum.GetValues<ActionType>();
@@ -350,19 +347,29 @@ public partial class MainWindow : Window
         StartStopButton.Style = (Style)FindResource(running ? "DangerButton" : "AccentButton");
     }
 
-    private void GameCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void GameCombo_DropDownClosed(object sender, EventArgs e)
     {
-        if (!_refreshingProfileSelectors)
-        {
-            RefreshMacroList(ProfileNameCombo.Text);
-        }
+        QueueGameProfileRefresh();
     }
 
-    private void GameCombo_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private void GameCombo_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+    {
+        QueueGameProfileRefresh();
+    }
+
+    private void QueueGameProfileRefresh()
     {
         if (!_refreshingProfileSelectors)
         {
-            RefreshMacroList(ProfileNameCombo.Text);
+            Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new Action(() =>
+                {
+                    if (!_refreshingProfileSelectors)
+                    {
+                        RefreshMacroList(ProfileNameCombo.Text);
+                    }
+                }));
         }
     }
 

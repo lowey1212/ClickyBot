@@ -85,7 +85,7 @@
                         <StackPanel Margin="18">
                             <TextBlock Text="Keep your game-specific coordinates in a portable profile." Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,0,0,14" TextWrapping="Wrap" />
                             <Label Content="Game" />
-                            <ComboBox x:Name="GameCombo" IsEditable="True" IsTextSearchEnabled="True" SelectionChanged="GameCombo_SelectionChanged" ToolTip="Choose an existing game or type a new game name. Only profiles assigned to this game appear below." />
+                            <ComboBox x:Name="GameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="GameCombo_DropDownClosed" LostKeyboardFocus="GameCombo_LostKeyboardFocus" ToolTip="Choose an existing game or type a new game name. Only profiles assigned to this game appear below." />
                             <Label Content="Macro name / file" />
                             <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Choose a JSON macro for the selected game, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
