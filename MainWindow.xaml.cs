@@ -519,14 +519,44 @@ public partial class MainWindow : Window
         AppendLog($"Restored last profile: {Path.GetFileName(path)}.");
     }
 
-    private void OpenMacroButton_Click(object sender, RoutedEventArgs e)
+    private void ProfileNameCombo_DropDownClosed(object sender, EventArgs e)
     {
+        QueueProfileOpen();
+    }
+
+    private void ProfileNameCombo_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+        {
+            QueueProfileOpen();
+            e.Handled = true;
+        }
+    }
+
+    private void QueueProfileOpen()
+    {
+        if (_refreshingProfileSelectors)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Background,
+            new Action(OpenSelectedMacroIfAvailable));
+    }
+
+    private void OpenSelectedMacroIfAvailable()
+    {
+        if (_refreshingProfileSelectors)
+        {
+            return;
+        }
+
         var requestedName = ProfileNameCombo.Text.Trim();
         var path = ResolveMacroPath(requestedName);
-        if (path is null)
+        if (path is null
+            || string.Equals(Path.GetFullPath(path), Path.GetFullPath(_currentMacroPath ?? ""), StringComparison.OrdinalIgnoreCase))
         {
-            RefreshMacroList(requestedName);
-            MessageBox.Show(this, "Choose a macro from the dropdown or type the name of a JSON macro in the configured macro folder.", "Macro not found", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 

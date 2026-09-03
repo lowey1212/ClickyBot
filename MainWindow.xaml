@@ -87,17 +87,16 @@
                             <Label Content="Game" />
                             <ComboBox x:Name="GameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="GameCombo_DropDownClosed" LostKeyboardFocus="GameCombo_LostKeyboardFocus" ToolTip="Choose an existing game or type a new game name. Only profiles assigned to this game appear below." />
                             <Label Content="Macro name / file" />
-                            <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Choose a JSON macro for the selected game, or type a new macro name before saving." />
+                            <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="ProfileNameCombo_DropDownClosed" KeyDown="ProfileNameCombo_KeyDown" ToolTip="Choose a JSON macro for the selected game and it will open automatically, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
                         </StackPanel>
                     </Expander>
 
-                    <Expander x:Name="ProfileActionsExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" Header="PROFILE ACTIONS" ToolTip="Create, open, save, or configure macro profiles.">
+                    <Expander x:Name="ProfileActionsExpander" IsExpanded="True" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Margin="0,0,0,14" Header="PROFILE ACTIONS" ToolTip="Create, select, save, or configure macro profiles.">
                         <WrapPanel Margin="18,0,18,10">
                             <Button Content="NEW BLANK" Click="NewProfileButton_Click" ToolTip="Start a new empty macro profile." />
                             <Button Content="LOAD STARTER" Click="LoadStarterButton_Click" ToolTip="Load the built-in example profile." />
-                            <Button Content="OPEN MACRO" Click="OpenMacroButton_Click" ToolTip="Open the JSON macro selected in the profile dropdown." />
                             <Button Content="SAVE MACRO" Style="{StaticResource AccentButton}" Click="SaveMacroButton_Click" ToolTip="Save or update this macro in the configured macro folder." />
                             <Button Content="SETTINGS" Click="SettingsButton_Click" ToolTip="Configure folders and startup update behavior." />
                         </WrapPanel>
