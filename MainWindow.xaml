@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ClickyBot"
         Title="ClickyBot — screen-aware macro studio"
+        Icon="/ClickyBot;component/Assets/ClickyBot.png"
         Width="1440"
         Height="920"
         MinWidth="1120"
@@ -50,8 +51,8 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="42" Height="42" CornerRadius="13" Background="{StaticResource AccentDarkBrush}" Margin="0,0,12,0">
-                    <TextBlock Text="⌁" Foreground="{StaticResource AccentBrush}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Border Width="42" Height="42" CornerRadius="13" Background="{StaticResource AccentDarkBrush}" Margin="0,0,12,0" ClipToBounds="True" ToolTip="ClickyBot">
+                    <Image Source="/ClickyBot;component/Assets/ClickyBot.png" Stretch="UniformToFill" />
                 </Border>
                 <StackPanel>
                     <TextBlock Text="CLICKYBOT" FontSize="22" FontWeight="Bold" />

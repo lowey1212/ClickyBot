@@ -7,17 +7,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ClickyBot</RootNamespace>
     <AssemblyName>ClickyBot</AssemblyName>
+    <ApplicationIcon>Assets\ClickyBot.ico</ApplicationIcon>
     <Platforms>AnyCPU</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.19</Version>
-    <AssemblyVersion>0.1.19.0</AssemblyVersion>
-    <FileVersion>0.1.19.0</FileVersion>
+    <Version>0.1.20</Version>
+    <AssemblyVersion>0.1.20.0</AssemblyVersion>
+    <FileVersion>0.1.20.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <OutputPath>bin\Release-macros\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <Resource Include="Assets\ClickyBot.png" />
     <Compile Remove="installer\**" />
     <EmbeddedResource Remove="installer\**" />
     <None Remove="installer\**" />
