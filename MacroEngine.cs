@@ -37,7 +37,10 @@ internal sealed class MacroEngine
                 }
 
                 token.ThrowIfCancellationRequested();
-                var condition = Evaluate(rule, token);
+                var condition = rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches
+                    ? await Task.Run(() => Evaluate(rule, token), token)
+                    : Evaluate(rule, token);
+                token.ThrowIfCancellationRequested();
                 var risingEdge = condition && !rule.LastCondition;
 
                 if (rule.Action == ActionType.KeyHold)
@@ -118,24 +121,40 @@ internal sealed class MacroEngine
 
     private bool Evaluate(MacroRule rule, CancellationToken token)
     {
-        var primary = EvaluateCondition(
-            rule.Condition,
-            rule.WatchX,
-            rule.WatchY,
-            rule.WatchWidth,
-            rule.WatchHeight,
-            new RgbColor(rule.TargetRed, rule.TargetGreen, rule.TargetBlue),
-            rule.ReferenceRgb,
-            rule.Tolerance,
-            rule.CoverageThreshold,
-            token);
-
-        if (!primary || !rule.GateEnabled)
+        rule.CurrentMatch = null;
+        MatchLocation? match = null;
+        bool primary;
+        if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)
         {
-            return primary;
+            match = ScreenProbe.FindReference(rule, token);
+            primary = match.HasValue;
+        }
+        else
+        {
+            primary = EvaluateCondition(
+                rule.Condition,
+                rule.WatchX,
+                rule.WatchY,
+                rule.WatchWidth,
+                rule.WatchHeight,
+                new RgbColor(rule.TargetRed, rule.TargetGreen, rule.TargetBlue),
+                rule.ReferenceRgb,
+                rule.Tolerance,
+                rule.CoverageThreshold,
+                token);
+
+            if (primary)
+            {
+                if (rule.Condition == ConditionType.PixelMatches)
+                    match = new MatchLocation(rule.WatchX, rule.WatchY);
+                else if (rule.Condition == ConditionType.RegionSnapshotMatches)
+                    match = new MatchLocation(rule.WatchX + rule.WatchWidth / 2, rule.WatchY + rule.WatchHeight / 2);
+            }
         }
 
-        return EvaluateCondition(
+        if (!primary) return false;
+
+        if (rule.GateEnabled && !EvaluateCondition(
             rule.GateCondition,
             rule.GateX,
             rule.GateY,
@@ -145,7 +164,10 @@ internal sealed class MacroEngine
             rule.GateReferenceRgb,
             rule.GateTolerance,
             rule.GateCoverageThreshold,
-            token);
+            token)) return false;
+
+        rule.CurrentMatch = match;
+        return true;
     }
 
     private static bool EvaluateCondition(

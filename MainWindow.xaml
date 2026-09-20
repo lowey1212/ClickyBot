@@ -159,6 +159,25 @@
                                     <Button Content="CAPTURE REFERENCE" Click="CaptureWatchReferenceButton_Click" />
                                 </WrapPanel>
 
+                                <StackPanel x:Name="ImageSearchPanel" Visibility="Collapsed">
+                                    <CheckBox x:Name="SearchReferenceCheckBox" Content="Find reference anywhere in a search area" Checked="SearchReference_Changed" Unchecked="SearchReference_Changed" ToolTip="Capture a tight reference around the target first, then select the larger area where it may appear." />
+                                    <StackPanel x:Name="SearchAreaPanel">
+                                        <Button Content="SELECT SEARCH AREA" Click="SelectSearchArea_Click" ToolTip="Select the area to scan. This does not replace the captured reference. Maximum 1200 by 800 pixels." />
+                                        <UniformGrid Columns="4">
+                                            <TextBox x:Name="SearchXBox" ToolTip="Search area left X coordinate." />
+                                            <TextBox x:Name="SearchYBox" ToolTip="Search area top Y coordinate." />
+                                            <TextBox x:Name="SearchWidthBox" ToolTip="Search area width, up to 1200 pixels." />
+                                            <TextBox x:Name="SearchHeightBox" ToolTip="Search area height, up to 800 pixels." />
+                                        </UniformGrid>
+                                        <UniformGrid Columns="4" Margin="0,0,0,8">
+                                            <TextBlock Text="X" FontSize="10" /><TextBlock Text="Y" FontSize="10" />
+                                            <TextBlock Text="WIDTH" FontSize="10" /><TextBlock Text="HEIGHT" FontSize="10" />
+                                        </UniformGrid>
+                                        <TextBlock Text="Finds the first matching image, scanning top to bottom. Keep the search area tight for faster detection. Uses up to 256 sampled pixels; capture a distinctive target at its actual game size." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
+                                    </StackPanel>
+                                    <Label Content="Image color tolerance (0–255)" />
+                                    <TextBox x:Name="ImageToleranceBox" ToolTip="Allowed difference per red, green and blue channel when matching the reference. Lower values require a closer match." />
+                                </StackPanel>
                                 <StackPanel x:Name="ColorPanel">
                                     <Label Content="Target color + tolerance" />
                                     <Grid>
@@ -258,13 +277,17 @@
                             </WrapPanel>
 
                             <Label Content="THEN — action" />
-                            <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose a key press, key hold, mouse click, wait, or recorded combo." />
+                            <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose MouseClick to move and click, MouseMove to move only, or a keyboard/combo action." />
                             <StackPanel x:Name="KeyPanel">
                                 <Label x:Name="KeyLabel" Content="Key to press" />
                                 <TextBox x:Name="KeyBox" ToolTip="Key name to press or hold, such as Q, 1, Space, Enter, or F1." />
                                 <TextBlock x:Name="KeyHoldHelpText" Text="The key stays held while this rule condition is true, then is released automatically." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" Visibility="Collapsed" />
                             </StackPanel>
                             <StackPanel x:Name="ClickPanel">
+                                <Label Content="Mouse target" />
+                                <ComboBox x:Name="MouseTargetCombo" SelectionChanged="MouseTarget_Changed" ToolTip="Matched location uses the centre of the reference image found by this rule, or the matching pixel. Fixed coordinates uses the X/Y below." />
+                                <TextBlock Text="MouseClick moves to the target before clicking. MouseMove leaves the cursor there without clicking. Matched location requires PixelMatches or RegionSnapshotMatches." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
+                                <StackPanel x:Name="FixedMouseTargetPanel">
                                 <Label Content="Click location" />
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -280,10 +303,16 @@
                                     <TextBlock Text="Y" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
                                 </UniformGrid>
                                 <WrapPanel>
-                                    <Button Content="USE POINTER → CLICK" Click="CaptureClickButton_Click" />
-                                    <ComboBox x:Name="MouseButtonCombo" Width="102" Margin="0,0,0,8" ToolTip="Mouse button to generate." />
+                                    <Button Content="SELECT MOUSE LOCATION" Click="CaptureClickButton_Click" ToolTip="Click a point on screen to set the fixed mouse target." />
                                 </WrapPanel>
+                                </StackPanel>
+                                <StackPanel x:Name="MouseClickOptionsPanel">
+                                <Label Content="Mouse button" />
+                                <ComboBox x:Name="MouseButtonCombo" ToolTip="Select Left for a normal left click at the target." />
+                                <Label Content="Wait after moving, before click (ms)" />
+                                <TextBox x:Name="MouseMoveDelayBox" ToolTip="Optional time for the game to notice the cursor before clicking. Try 50–100 ms if needed. Stop cancels this wait and the pending click." />
                                 <CheckBox x:Name="RestorePointerCheckBox" Content="Restore pointer after click" IsChecked="True" ToolTip="Return the pointer to its original location after the generated click." />
+                                </StackPanel>
                             </StackPanel>
 
                             <Border x:Name="RecordComboPanel" Background="#0D1420" Margin="0,0,0,10" Padding="10">

@@ -18,7 +18,8 @@ public enum ActionType
     KeyHold,
     MouseClick,
     Wait,
-    RecordedCombo
+    RecordedCombo,
+    MouseMove
 }
 
 public enum RecordedStepType
@@ -41,6 +42,14 @@ public enum MouseButtonType
     Right,
     Middle
 }
+
+public enum MouseTargetType
+{
+    FixedCoordinates,
+    MatchedLocation
+}
+
+public readonly record struct MatchLocation(int X, int Y);
 
 public sealed class MacroProfile
 {
@@ -69,6 +78,11 @@ public sealed class MacroRule
     public int Tolerance { get; set; } = 15;
     public int CoverageThreshold { get; set; } = 50;
     public string ReferenceImagePath { get; set; } = "";
+    public bool SearchReference { get; set; }
+    public int SearchX { get; set; }
+    public int SearchY { get; set; }
+    public int SearchWidth { get; set; } = 400;
+    public int SearchHeight { get; set; } = 300;
 
     [JsonIgnore]
     public byte[] ReferenceRgb { get; set; } = [];
@@ -97,6 +111,15 @@ public sealed class MacroRule
     public int ClickY { get; set; } = 0;
     public MouseButtonType MouseButton { get; set; } = MouseButtonType.Left;
     public bool RestorePointerAfterClick { get; set; } = true;
+    public int MouseMoveDelayMs { get; set; }
+    public MouseTargetType MouseTarget { get; set; }
+
+    [JsonIgnore]
+    public MatchLocation? CurrentMatch { get; set; }
+
+    public MatchLocation ResolveMouseTarget() => MouseTarget == MouseTargetType.MatchedLocation
+        ? CurrentMatch ?? throw new InvalidOperationException("No matched location is available. Use a pixel-match or reference-image condition.")
+        : new MatchLocation(ClickX, ClickY);
     public RepeatMode Repeat { get; set; } = RepeatMode.OnRisingEdge;
     public int CooldownMs { get; set; } = 500;
     public int DelayAfterActionMs { get; set; } = 20;
@@ -119,6 +142,7 @@ public sealed class MacroRule
         ConditionType.PixelDiffers => $"pixel {WatchX},{WatchY} differs from RGB {TargetRed},{TargetGreen},{TargetBlue}",
         ConditionType.RegionCoverageAtLeast => $"region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} ≥ {CoverageThreshold}%",
         ConditionType.RegionCoverageAtMost => $"region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} ≤ {CoverageThreshold}%",
+        ConditionType.RegionSnapshotMatches when SearchReference => $"find reference in {SearchX},{SearchY} {SearchWidth}×{SearchHeight} ≥ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches => $"sampled region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} matches ≥ {CoverageThreshold}%",
         _ => "condition"
     } + (GateEnabled ? $" + gate: {GateCondition} at {GateX},{GateY}" : "")
@@ -130,11 +154,16 @@ public sealed class MacroRule
     {
         ActionType.KeyPress => $"press {Key}",
         ActionType.KeyHold => $"hold {Key}",
-        ActionType.MouseClick => $"{MouseButton.ToString().ToLowerInvariant()} click {ClickX},{ClickY}",
+        ActionType.MouseClick => $"{MouseButton.ToString().ToLowerInvariant()} click {MouseTargetSummary}",
+        ActionType.MouseMove => $"move pointer to {MouseTargetSummary}",
         ActionType.Wait => $"wait {DelayAfterActionMs} ms",
         ActionType.RecordedCombo => $"combo ({RecordedSteps.Count} step{(RecordedSteps.Count == 1 ? "" : "s")})",
         _ => "action"
     };
+
+    [JsonIgnore]
+    public string MouseTargetSummary => MouseTarget == MouseTargetType.MatchedLocation
+        ? "matched location" : $"{ClickX},{ClickY}";
 }
 
 public sealed class RecordedStep

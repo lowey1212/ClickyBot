@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         ActionCombo.ItemsSource = Enum.GetValues<ActionType>();
         RepeatCombo.ItemsSource = Enum.GetValues<RepeatMode>();
         MouseButtonCombo.ItemsSource = Enum.GetValues<MouseButtonType>();
+        MouseTargetCombo.ItemsSource = Enum.GetValues<MouseTargetType>();
         _engine.Log += message => Dispatcher.BeginInvoke(() => AppendLog(message));
         LoadStarterProfile();
         RestoreLastProfile();
@@ -1020,7 +1021,7 @@ public partial class MainWindow : Window
         AppendLog($"Moved rule '{selected.Name}' to position {newIndex + 1}.");
     }
 
-    private void TestConditionButton_Click(object sender, RoutedEventArgs e)
+    private async void TestConditionButton_Click(object sender, RoutedEventArgs e)
     {
         if (RulesListBox.SelectedItem is not MacroRule rule)
         {
@@ -1032,8 +1033,13 @@ public partial class MainWindow : Window
         ApplyEditorToSelectedRule();
         try
         {
-            var result = _engine.EvaluateNow(rule);
-            TestResultText.Text = result ? "PASS · action would run" : "FALSE · action would not run";
+            var testRule = CloneRule(rule);
+            TestResultText.Text = "Checking…";
+            var result = await Task.Run(() => _engine.EvaluateNow(testRule));
+            if (RulesListBox.SelectedItem != rule) return;
+            TestResultText.Text = result
+                ? testRule.CurrentMatch is { } match ? $"PASS · target {match.X}, {match.Y}" : "PASS · action would run"
+                : "FALSE · action would not run";
             TestResultText.Foreground = (Brush)FindResource(result ? "AccentBrush" : "MutedTextBrush");
             AppendLog($"Tested '{rule.Name}': condition {(result ? "passed" : "did not pass")}.");
         }
@@ -1086,6 +1092,26 @@ public partial class MainWindow : Window
     private void ActionCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         UpdateEditorState();
+    }
+
+    private void MouseTarget_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateEditorState();
+
+    private void SearchReference_Changed(object sender, RoutedEventArgs e) => UpdateEditorState();
+
+    private void SelectSearchArea_Click(object sender, RoutedEventArgs e)
+    {
+        var selection = SelectScreenArea();
+        if (selection is null) return;
+        if (selection.Width > 1200 || selection.Height > 800)
+        {
+            AppendLog("Select a search area no larger than 1200 by 800 pixels.");
+            return;
+        }
+        SearchXBox.Text = selection.X.ToString();
+        SearchYBox.Text = selection.Y.ToString();
+        SearchWidthBox.Text = selection.Width.ToString();
+        SearchHeightBox.Text = selection.Height.ToString();
+        AppendLog($"Image search area: {selection.X},{selection.Y} {selection.Width}×{selection.Height}.");
     }
 
     private void GateEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -1345,6 +1371,12 @@ public partial class MainWindow : Window
         TargetGreenBox.Text = rule.TargetGreen.ToString();
         TargetBlueBox.Text = rule.TargetBlue.ToString();
         ToleranceBox.Text = rule.Tolerance.ToString();
+        ImageToleranceBox.Text = rule.Tolerance.ToString();
+        SearchReferenceCheckBox.IsChecked = rule.SearchReference;
+        SearchXBox.Text = rule.SearchX.ToString();
+        SearchYBox.Text = rule.SearchY.ToString();
+        SearchWidthBox.Text = rule.SearchWidth.ToString();
+        SearchHeightBox.Text = rule.SearchHeight.ToString();
         CoverageThresholdBox.Text = rule.CoverageThreshold.ToString();
         _watchReferenceRgb = rule.ReferenceRgb.ToArray();
         _watchReferenceImagePath = rule.ReferenceImagePath;
@@ -1367,6 +1399,8 @@ public partial class MainWindow : Window
         ClickYBox.Text = rule.ClickY.ToString();
         MouseButtonCombo.SelectedItem = rule.MouseButton;
         RestorePointerCheckBox.IsChecked = rule.RestorePointerAfterClick;
+        MouseTargetCombo.SelectedItem = rule.MouseTarget;
+        MouseMoveDelayBox.Text = rule.MouseMoveDelayMs.ToString();
         RepeatCombo.SelectedItem = rule.Repeat;
         CooldownBox.Text = rule.CooldownMs.ToString();
         DelayAfterActionBox.Text = rule.DelayAfterActionMs.ToString();
@@ -1391,7 +1425,12 @@ public partial class MainWindow : Window
         rule.TargetRed = (byte)ReadInt(TargetRedBox, rule.TargetRed, 0, 255);
         rule.TargetGreen = (byte)ReadInt(TargetGreenBox, rule.TargetGreen, 0, 255);
         rule.TargetBlue = (byte)ReadInt(TargetBlueBox, rule.TargetBlue, 0, 255);
-        rule.Tolerance = ReadInt(ToleranceBox, rule.Tolerance, 0, 255);
+        rule.Tolerance = ReadInt(rule.Condition == ConditionType.RegionSnapshotMatches ? ImageToleranceBox : ToleranceBox, rule.Tolerance, 0, 255);
+        rule.SearchReference = SearchReferenceCheckBox.IsChecked == true;
+        rule.SearchX = ReadInt(SearchXBox, rule.SearchX);
+        rule.SearchY = ReadInt(SearchYBox, rule.SearchY);
+        rule.SearchWidth = ReadInt(SearchWidthBox, rule.SearchWidth, 1, 1200);
+        rule.SearchHeight = ReadInt(SearchHeightBox, rule.SearchHeight, 1, 800);
         rule.CoverageThreshold = ReadInt(CoverageThresholdBox, rule.CoverageThreshold, 0, 100);
         rule.ReferenceRgb = _watchReferenceRgb.ToArray();
         rule.ReferenceImagePath = _watchReferenceImagePath;
@@ -1414,6 +1453,8 @@ public partial class MainWindow : Window
         rule.ClickY = ReadInt(ClickYBox, rule.ClickY);
         rule.MouseButton = MouseButtonCombo.SelectedItem is MouseButtonType button ? button : MouseButtonType.Left;
         rule.RestorePointerAfterClick = RestorePointerCheckBox.IsChecked == true;
+        rule.MouseTarget = MouseTargetCombo.SelectedItem is MouseTargetType target ? target : MouseTargetType.FixedCoordinates;
+        rule.MouseMoveDelayMs = ReadInt(MouseMoveDelayBox, rule.MouseMoveDelayMs, 0, 60000);
         rule.Repeat = RepeatCombo.SelectedItem is RepeatMode repeat ? repeat : RepeatMode.OnRisingEdge;
         rule.CooldownMs = ReadInt(CooldownBox, rule.CooldownMs, 0, 600000);
         rule.DelayAfterActionMs = ReadInt(DelayAfterActionBox, rule.DelayAfterActionMs, 0, 60000);
@@ -1426,6 +1467,8 @@ public partial class MainWindow : Window
         var gateCondition = GateConditionCombo.SelectedItem is ConditionType selectedGateCondition ? selectedGateCondition : ConditionType.PixelDiffers;
         ConditionTargetPanel.IsEnabled = condition != ConditionType.Always;
         var snapshotCondition = condition == ConditionType.RegionSnapshotMatches;
+        ImageSearchPanel.Visibility = snapshotCondition ? Visibility.Visible : Visibility.Collapsed;
+        SearchAreaPanel.Visibility = SearchReferenceCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || snapshotCondition
@@ -1435,7 +1478,9 @@ public partial class MainWindow : Window
         KeyPanel.Visibility = isKeyAction ? Visibility.Visible : Visibility.Collapsed;
         KeyLabel.Content = action == ActionType.KeyHold ? "Key to hold" : "Key to press";
         KeyHoldHelpText.Visibility = action == ActionType.KeyHold ? Visibility.Visible : Visibility.Collapsed;
-        ClickPanel.Visibility = action == ActionType.MouseClick ? Visibility.Visible : Visibility.Collapsed;
+        ClickPanel.Visibility = action is ActionType.MouseClick or ActionType.MouseMove ? Visibility.Visible : Visibility.Collapsed;
+        FixedMouseTargetPanel.Visibility = MouseTargetCombo.SelectedItem is MouseTargetType.MatchedLocation ? Visibility.Collapsed : Visibility.Visible;
+        MouseClickOptionsPanel.Visibility = action == ActionType.MouseClick ? Visibility.Visible : Visibility.Collapsed;
         RecordComboPanel.Visibility = action is ActionType.KeyPress or ActionType.KeyHold or ActionType.MouseClick or ActionType.RecordedCombo
             ? Visibility.Visible : Visibility.Collapsed;
         RecordComboButton.Content = action == ActionType.RecordedCombo && (RulesListBox.SelectedItem as MacroRule)?.RecordedSteps.Count > 0

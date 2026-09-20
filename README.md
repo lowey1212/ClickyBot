@@ -12,6 +12,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Game-grouped macro profiles: choose or type a game in the editable game dropdown, then the profile dropdown shows only JSON macros assigned to that game. Selecting a macro opens it automatically, `SAVE MACRO` writes the selected game into the profile, and `APPLY CHANGES` updates the currently opened macro.
 - Switching games remembers the last active macro for each game and reopens it automatically; a new game starts with a blank profile ready to save.
 - Key presses, mouse clicks, and wait actions.
+- Image search inside a selected area, with mouse movement or clicking at the centre of the found reference. Fixed-coordinate mouse actions remain available.
 - Recorded combo actions containing timed keyboard and mouse input; held modifiers such as `Ctrl+C` are preserved as key-down/key-up events.
 - Rising-edge triggers so a ready icon is acted on once until it goes inactive again.
 - Optional repeat-while-true behavior with per-rule cooldowns.
@@ -55,6 +56,16 @@ The project targets `net8.0-windows` and uses only the Windows desktop runtime; 
 
 The `ACTIVITY · Live engine log` panel is collapsed by default. Expand it when diagnosing a rule or engine run; the tooltips on controls explain the fields without needing the log open.
 
+## Click a detected fishing target
+
+1. Use `CAPTURE REFERENCE` to select a tight rectangle around the target image. This selects `RegionSnapshotMatches`.
+2. Enable `Find reference anywhere in a search area`, then `SELECT SEARCH AREA` around the region where it may appear. This keeps the reference image separate from the search area (maximum 1200×800).
+3. Set `THEN` to `MouseClick`, `Mouse target` to `MatchedLocation`, and `Mouse button` to `Left`. The cursor moves to the centre of the found image before clicking. Choose `MouseMove` to move without clicking.
+4. Optionally set a short wait before clicking, and uncheck `Restore pointer after click` if the cursor should stay at the target. Use `TEST CONDITION` to see the detected screen coordinates without moving or clicking.
+5. Adjust the image color tolerance and reference match percentage as needed. `OnRisingEdge` acts once when the target appears; `WhileTrue` acts repeatedly with the configured cooldown while it remains visible.
+
+Search uses up to 256 evenly distributed reference pixels and returns the first qualifying location in top-to-bottom, left-to-right order. Capture a distinctive target at the same size it appears in the game and keep the search rectangle tight. It does not compensate for scaling or rotation. No match or a failed AND gate prevents the mouse action. Existing macros retain their fixed-coordinate defaults.
+
 ## Build a Windows release
 
 To create a self-contained app and installer on Windows:
@@ -65,8 +76,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.23.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.23-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.24.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.24-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

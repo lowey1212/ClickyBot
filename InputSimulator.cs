@@ -29,7 +29,12 @@ internal static class InputSimulator
                 PressKey(rule.Key);
                 break;
             case ActionType.MouseClick:
-                Click(rule.ClickX, rule.ClickY, rule.MouseButton, rule.RestorePointerAfterClick);
+                var clickTarget = rule.ResolveMouseTarget();
+                await ClickAsync(clickTarget.X, clickTarget.Y, rule.MouseButton, rule.RestorePointerAfterClick, rule.MouseMoveDelayMs, token);
+                break;
+            case ActionType.MouseMove:
+                var moveTarget = rule.ResolveMouseTarget();
+                MovePointer(moveTarget.X, moveTarget.Y);
                 break;
             case ActionType.Wait:
                 break;
@@ -62,7 +67,7 @@ internal static class InputSimulator
                                 break;
                             case RecordedStepType.MouseClick:
                                 FlushPendingKeyboard(pendingKeyboard, ref pendingCount);
-                                Click(step.ClickX, step.ClickY, step.MouseButton, rule.RestorePointerAfterClick);
+                                await ClickAsync(step.ClickX, step.ClickY, step.MouseButton, rule.RestorePointerAfterClick, 0, token);
                                 break;
                         }
                     }
@@ -232,16 +237,18 @@ internal static class InputSimulator
         };
     }
 
-    private static void Click(int x, int y, MouseButtonType button, bool restorePointer)
+    private static void MovePointer(int x, int y)
+    {
+        if (!NativeMethods.SetCursorPos(x, y))
+            throw new InvalidOperationException("Windows could not move the pointer to the target.");
+    }
+
+    private static async Task ClickAsync(int x, int y, MouseButtonType button, bool restorePointer, int moveDelayMs, CancellationToken token)
     {
         var original = default(NativeMethods.POINT);
         if (restorePointer)
         {
-            NativeMethods.GetCursorPos(out original);
-        }
-        if (!NativeMethods.SetCursorPos(x, y))
-        {
-            throw new InvalidOperationException("Windows could not move the pointer to the click target.");
+            restorePointer = NativeMethods.GetCursorPos(out original);
         }
 
         var (down, up) = button switch
@@ -253,6 +260,11 @@ internal static class InputSimulator
 
         try
         {
+            token.ThrowIfCancellationRequested();
+            MovePointer(x, y);
+            if (moveDelayMs > 0)
+                await Task.Delay(Math.Clamp(moveDelayMs, 0, 60000), token);
+            token.ThrowIfCancellationRequested();
             var inputs = new[]
             {
                 new NativeMethods.INPUT

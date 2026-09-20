@@ -117,13 +117,13 @@ internal static class ScreenProbe
         return samples == 0 ? -1 : (int)Math.Round(matches * 100d / samples);
     }
 
-    public static bool TryCaptureRegion(int x, int y, int width, int height, out byte[] rgb)
+    public static bool TryCaptureRegion(int x, int y, int width, int height, out byte[] rgb, int maxPixels = MaxReferencePixels)
     {
         rgb = [];
         width = Math.Clamp(width, 1, 1200);
         height = Math.Clamp(height, 1, 800);
         var pixelCount = (long)width * height;
-        if (pixelCount > MaxReferencePixels)
+        if (pixelCount > maxPixels)
         {
             return false;
         }
@@ -205,6 +205,22 @@ internal static class ScreenProbe
             }
             NativeMethods.ReleaseDC(IntPtr.Zero, screenDc);
         }
+    }
+
+    public static MatchLocation? FindReference(MacroRule rule, CancellationToken token)
+    {
+        var x = rule.SearchX;
+        var y = rule.SearchY;
+        var width = rule.SearchWidth;
+        var height = rule.SearchHeight;
+        if (width is < 1 or > 1200 || height is < 1 or > 800)
+            return null;
+        token.ThrowIfCancellationRequested();
+        if (!TryCaptureRegion(x, y, width, height, out var frame, 1200 * 800))
+            return null;
+        var match = ImageMatcher.Find(frame, width, height, rule.ReferenceRgb,
+            rule.WatchWidth, rule.WatchHeight, rule.Tolerance, rule.CoverageThreshold, token);
+        return match is { } point ? new MatchLocation(x + point.X, y + point.Y) : null;
     }
 
     public static int ReferenceMatchPercent(int x, int y, int width, int height, byte[] referenceRgb, int tolerance, CancellationToken token)
