@@ -1,6 +1,6 @@
 #define MyAppName "ClickyBot"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.22"
+  #define MyAppVersion "0.1.23"
 #endif
 #define MyAppPublisher "ClickyBot"
 #define MyAppExeName "ClickyBot.exe"

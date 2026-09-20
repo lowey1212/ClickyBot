@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private bool _refreshingProfileSelectors;
     private string _activeGame = MacroProfile.DefaultGameName;
     private int _registeredStartStopVirtualKey;
+    private readonly RunningStopHotkeys _runningStopHotkeys = new();
 
     public MainWindow()
     {
@@ -228,6 +229,13 @@ public partial class MainWindow : Window
     {
         if (message == NativeMethods.WmHotKey)
         {
+            if (_runningStopHotkeys.IsStopMessage(wParam.ToInt32()))
+            {
+                StopEngine("Stopped by hotkey while a modifier was held.");
+                handled = true;
+                return IntPtr.Zero;
+            }
+
             switch (wParam.ToInt32())
             {
                 case ToggleHotKeyId:
@@ -303,6 +311,7 @@ public partial class MainWindow : Window
         _engineCancellation = new CancellationTokenSource();
         var runGeneration = ++_runGeneration;
         _isRunning = true;
+        RegisterRunningStopHotkeys();
         UpdateStatus(true);
         AppendLog("Engine started. F7 is the emergency stop.");
         _engineTask = RunEngineAsync(_engineCancellation.Token, runGeneration);
@@ -331,6 +340,7 @@ public partial class MainWindow : Window
             {
                 if (runGeneration == _runGeneration)
                 {
+                    _runningStopHotkeys.Clear();
                     _isRunning = false;
                     UpdateStatus(false);
                 }
@@ -340,6 +350,7 @@ public partial class MainWindow : Window
 
     private void StopEngine(string message)
     {
+        _runningStopHotkeys.Clear();
         _runGeneration++;
         _engineCancellation?.Cancel();
         _engineCancellation = null;
@@ -350,6 +361,14 @@ public partial class MainWindow : Window
         {
             AppendLog(message);
         }
+    }
+
+    private void RegisterRunningStopHotkeys()
+    {
+        var failures = _runningStopHotkeys.Register(
+            new WindowInteropHelper(this).Handle, (uint)GetStartStopVirtualKey());
+        if (failures.Count > 0)
+            AppendLog($"Could not reserve these modified stop keys: {string.Join(", ", failures)}. Use the STOP button if a shortcut is unavailable.");
     }
 
     private void UpdateStatus(bool running)
@@ -653,6 +672,8 @@ public partial class MainWindow : Window
                 AppendLog($"Start/stop hotkey changed to {_settings.StartStopHotKey}.");
             }
 
+            if (_isRunning)
+                RegisterRunningStopHotkeys();
             UpdateStatus(_isRunning);
             RefreshMacroList(_profile.Name);
             AppendLog($"Reference images: {_settings.ReferenceImageFolder}; macros: {_settings.MacroFolder}.");

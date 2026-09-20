@@ -19,6 +19,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Rule authoring helpers: test a condition without sending input, duplicate a rule, and move rules up or down to control top-to-bottom priority.
 - A compact editor layout with tooltips, separate collapsible profile and rule action panels, a collapsed optional gate section, and a collapsed activity log; drag the splitters to resize the rule editor, automation map, and activity area.
 - Global hotkeys: `F12` start/stop by default (changeable in `SETTINGS`), `F7` panic stop, `F8` select the watch area, `Ctrl+F8` select the gate area, and `F9` select a click target.
+- While running, the configured start/stop key and `F7` also stop with Shift, Ctrl, Alt, or Windows held (including combinations). These additional shortcuts are released when the macro stops. Any shortcut conflicts are reported in the activity log.
 - JSON profile save/load.
 - Additive `SendInput` events. The app does not install a low-level hook or suppress normal user input.
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
@@ -64,8 +65,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.22.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.22-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.23.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.23-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 
