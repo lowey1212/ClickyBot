@@ -231,6 +231,7 @@ public partial class MainWindow : Window
             switch (wParam.ToInt32())
             {
                 case ToggleHotKeyId:
+                    AppendLog($"Start/stop hotkey {_settings.StartStopHotKey} received.");
                     ToggleEngine();
                     handled = true;
                     break;
@@ -262,9 +263,16 @@ public partial class MainWindow : Window
 
     private void ToggleEngine()
     {
-        if (_isRunning)
+        if (_engineTask is { IsCompleted: false })
         {
-            StopEngine("Stopped.");
+            if (_engineCancellation is { IsCancellationRequested: false })
+            {
+                StopEngine("Stopped by the start/stop hotkey or button.");
+            }
+            else
+            {
+                AppendLog("Stop is already in progress; waiting for the current action to finish.");
+            }
         }
         else
         {
