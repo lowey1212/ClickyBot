@@ -18,7 +18,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Optional AND gates, so a rule can require a ready pixel plus a mana threshold or a second UI pixel to be unlit.
 - Rule authoring helpers: test a condition without sending input, duplicate a rule, and move rules up or down to control top-to-bottom priority.
 - A compact editor layout with tooltips, separate collapsible profile and rule action panels, a collapsed optional gate section, and a collapsed activity log; drag the splitters to resize the rule editor, automation map, and activity area.
-- Global hotkeys: `F6` start/stop, `F7` panic stop, `F8` select the watch area, `Ctrl+F8` select the gate area, and `F9` select a click target.
+- Global hotkeys: `F12` start/stop by default (changeable in `SETTINGS`), `F7` panic stop, `F8` select the watch area, `Ctrl+F8` select the gate area, and `F9` select a click target.
 - JSON profile save/load.
 - Additive `SendInput` events. The app does not install a low-level hook or suppress normal user input.
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
@@ -50,7 +50,7 @@ The project targets `net8.0-windows` and uses only the Windows desktop runtime; 
 8. Change the key/action and thresholds, then use `APPLY CHANGES`. If a macro is currently open, the JSON is updated automatically.
 9. Use `TEST CONDITION` to check the selected rule without sending its action. Use `DUPLICATE`, `MOVE UP`, and `MOVE DOWN` to organize the rule order.
 10. Choose `The First Descendant` or type another game in the `GAME` dropdown. The profile dropdown will then show only profiles for that game, and ClickyBot will reopen that game's last active profile automatically. Type a new profile name and click `SAVE MACRO` to create a JSON file, or choose an existing name from the filtered dropdown to open it automatically.
-11. Press `F6` to run and `F7` to stop immediately.
+11. Press the configured start/stop hotkey (`F12` by default) to run and `F7` to stop immediately.
 
 The `ACTIVITY · Live engine log` panel is collapsed by default. Expand it when diagnosing a rule or engine run; the tooltips on controls explain the fields without needing the log open.
 
@@ -64,8 +64,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.20.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.20-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.21.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.21-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

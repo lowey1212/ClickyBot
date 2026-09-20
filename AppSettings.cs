@@ -9,6 +9,7 @@ public sealed class AppSettings
     public string MacroFolder { get; set; } = DefaultMacroFolder();
     public string LastMacroPath { get; set; } = "";
     public Dictionary<string, string> LastMacroPathsByGame { get; set; } = new();
+    public string StartStopHotKey { get; set; } = "F12";
     public bool CheckForUpdatesOnStartup { get; set; } = true;
 
     public static string DefaultReferenceImageFolder()

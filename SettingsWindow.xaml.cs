@@ -16,8 +16,13 @@ public partial class SettingsWindow : Window
             MacroFolder = settings.MacroFolder,
             LastMacroPath = settings.LastMacroPath,
             LastMacroPathsByGame = new Dictionary<string, string>(settings.LastMacroPathsByGame, StringComparer.OrdinalIgnoreCase),
+            StartStopHotKey = settings.StartStopHotKey,
             CheckForUpdatesOnStartup = settings.CheckForUpdatesOnStartup
         };
+        StartStopHotKeyCombo.ItemsSource = new[] { "F1", "F2", "F3", "F4", "F5", "F6", "F10", "F11", "F12" };
+        StartStopHotKeyCombo.SelectedItem = StartStopHotKeyCombo.Items.Contains(Settings.StartStopHotKey)
+            ? Settings.StartStopHotKey
+            : "F12";
         ReferenceFolderBox.Text = Settings.ReferenceImageFolder;
         MacroFolderBox.Text = Settings.MacroFolder;
         CheckForUpdatesCheckBox.IsChecked = Settings.CheckForUpdatesOnStartup;
@@ -63,6 +68,7 @@ public partial class SettingsWindow : Window
             Directory.CreateDirectory(macroFolder);
             Settings.ReferenceImageFolder = folder;
             Settings.MacroFolder = macroFolder;
+            Settings.StartStopHotKey = StartStopHotKeyCombo.SelectedItem as string ?? "F12";
             Settings.CheckForUpdatesOnStartup = CheckForUpdatesCheckBox.IsChecked == true;
             if (!AppSettingsStore.Save(Settings, out var error))
             {

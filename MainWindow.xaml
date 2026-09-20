@@ -62,7 +62,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="{StaticResource MutedTextBrush}" Margin="0,0,8,0" />
                 <TextBlock x:Name="StatusText" Text="Idle" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,18,0" />
-                <Button x:Name="StartStopButton" Content="START  F6" Style="{StaticResource AccentButton}" Click="StartStopButton_Click" Padding="18,10" />
+                <Button x:Name="StartStopButton" Content="START  F12" Style="{StaticResource AccentButton}" Click="StartStopButton_Click" Padding="18,10" />
                 <Button x:Name="UpdateButton" Content="CHECK FOR UPDATES" Style="{StaticResource AccentButton}" Click="UpdateButton_Click" ToolTip="Check GitHub for a newer ClickyBot release. Clicking during a startup check restarts it manually." Padding="14,10" />
                 <Button Content="PANIC STOP  F7" Style="{StaticResource DangerButton}" Click="PanicStopButton_Click" Padding="18,10" />
             </StackPanel>
@@ -363,7 +363,7 @@
                     <Border Grid.Row="2" Background="#0D1420" BorderBrush="#223149" BorderThickness="1" CornerRadius="10" Padding="14">
                         <StackPanel>
                             <TextBlock Text="GLOBAL HOTKEYS" Foreground="{StaticResource WarningBrush}" FontSize="11" FontWeight="Bold" />
-                            <TextBlock Text="F6  start / stop\nF7  panic stop\nF8  select watch area\nCtrl+F8  select gate area\nF9  capture click target" Foreground="{StaticResource MutedTextBrush}" FontSize="12" LineHeight="21" Margin="0,8,0,0" />
+                            <TextBlock x:Name="HotkeyHelpText" Text="F12  start / stop\nF7  panic stop\nF8  select watch area\nCtrl+F8  select gate area\nF9  capture click target" Foreground="{StaticResource MutedTextBrush}" FontSize="12" LineHeight="21" Margin="0,8,0,0" />
                         </StackPanel>
                     </Border>
                 </Grid>

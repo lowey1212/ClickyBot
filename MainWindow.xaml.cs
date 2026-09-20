@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private Task? _updateTask;
     private bool _refreshingProfileSelectors;
     private string _activeGame = MacroProfile.DefaultGameName;
+    private int _registeredStartStopVirtualKey;
 
     public MainWindow()
     {
@@ -84,7 +85,7 @@ public partial class MainWindow : Window
         var handle = new WindowInteropHelper(this).Handle;
         var hotkeys = new[]
         {
-            (Id: ToggleHotKeyId, Key: NativeMethods.VkF6, Modifiers: NativeMethods.ModNoRepeat, Name: "F6 start/stop"),
+            (Id: ToggleHotKeyId, Key: (uint)GetStartStopVirtualKey(), Modifiers: NativeMethods.ModNoRepeat, Name: $"{_settings.StartStopHotKey} start/stop"),
             (Id: PanicHotKeyId, Key: NativeMethods.VkF7, Modifiers: NativeMethods.ModNoRepeat, Name: "F7 panic stop"),
             (Id: CapturePixelHotKeyId, Key: NativeMethods.VkF8, Modifiers: NativeMethods.ModNoRepeat, Name: "F8 watch-area selection"),
             (Id: CaptureClickHotKeyId, Key: NativeMethods.VkF9, Modifiers: NativeMethods.ModNoRepeat, Name: "F9 click-target selection"),
@@ -96,6 +97,10 @@ public partial class MainWindow : Window
             if (!NativeMethods.RegisterHotKey(handle, hotkey.Id, hotkey.Modifiers, hotkey.Key))
             {
                 AppendLog($"Could not reserve {hotkey.Name}; another app may already own it.");
+            }
+            else if (hotkey.Id == ToggleHotKeyId)
+            {
+                _registeredStartStopVirtualKey = (int)hotkey.Key;
             }
         }
     }
@@ -279,7 +284,7 @@ public partial class MainWindow : Window
         ApplyProfileEditorToModel();
         if (NativeMethods.GetForegroundWindow() == new WindowInteropHelper(this).Handle)
         {
-            AppendLog("Warning: ClickyBot is the foreground window. Start with F6 while the game is focused so key input goes to the game.");
+            AppendLog($"Warning: ClickyBot is the foreground window. Start with {_settings.StartStopHotKey} while the game is focused so key input goes to the game.");
         }
         if (_profile.Rules.All(rule => !rule.Enabled))
         {
@@ -344,7 +349,8 @@ public partial class MainWindow : Window
         StatusText.Text = running ? "Running" : "Idle";
         StatusText.Foreground = running ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedTextBrush");
         StatusDot.Fill = running ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedTextBrush");
-        StartStopButton.Content = running ? "STOP  F6" : "START  F6";
+        StartStopButton.Content = running ? $"STOP  {_settings.StartStopHotKey}" : $"START  {_settings.StartStopHotKey}";
+        HotkeyHelpText.Text = $"{_settings.StartStopHotKey}  start / stop\nF7  panic stop\nF8  select watch area\nCtrl+F8  select gate area\nF9  capture click target";
         StartStopButton.Style = (Style)FindResource(running ? "DangerButton" : "AccentButton");
     }
 
@@ -618,10 +624,48 @@ public partial class MainWindow : Window
         var window = new SettingsWindow(_settings) { Owner = this };
         if (window.ShowDialog() == true)
         {
+            var previousHotKey = _settings.StartStopHotKey;
             _settings = window.Settings;
+            var handle = new WindowInteropHelper(this).Handle;
+            NativeMethods.UnregisterHotKey(handle, ToggleHotKeyId);
+            var newVirtualKey = GetStartStopVirtualKey();
+            if (!NativeMethods.RegisterHotKey(handle, ToggleHotKeyId, NativeMethods.ModNoRepeat, (uint)newVirtualKey))
+            {
+                _settings.StartStopHotKey = previousHotKey;
+                var previousVirtualKey = _registeredStartStopVirtualKey != 0
+                    ? _registeredStartStopVirtualKey
+                    : GetStartStopVirtualKey();
+                NativeMethods.RegisterHotKey(handle, ToggleHotKeyId, NativeMethods.ModNoRepeat, (uint)previousVirtualKey);
+                _ = AppSettingsStore.Save(_settings, out _);
+                MessageBox.Show(this, $"Could not register {window.Settings.StartStopHotKey}. It may already be used by Windows or another app. The previous hotkey has been restored.", "Hotkey unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                _registeredStartStopVirtualKey = newVirtualKey;
+                AppendLog($"Start/stop hotkey changed to {_settings.StartStopHotKey}.");
+            }
+
+            UpdateStatus(_isRunning);
             RefreshMacroList(_profile.Name);
             AppendLog($"Reference images: {_settings.ReferenceImageFolder}; macros: {_settings.MacroFolder}.");
         }
+    }
+
+    private int GetStartStopVirtualKey()
+    {
+        var keyName = _settings.StartStopHotKey;
+        if (!IsSupportedStartStopHotKey(keyName))
+        {
+            keyName = _settings.StartStopHotKey = "F12";
+        }
+
+        return System.Windows.Input.KeyInterop.VirtualKeyFromKey(
+            Enum.Parse<System.Windows.Input.Key>(keyName, ignoreCase: true));
+    }
+
+    private static bool IsSupportedStartStopHotKey(string? keyName)
+    {
+        return keyName is "F1" or "F2" or "F3" or "F4" or "F5" or "F6" or "F10" or "F11" or "F12";
     }
 
     private void ApplyProfileEditorToModel()
