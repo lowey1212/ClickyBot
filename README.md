@@ -58,13 +58,15 @@ The `ACTIVITY · Live engine log` panel is collapsed by default. Expand it when 
 
 ## Click a detected fishing target
 
-1. Choose `RegionSnapshotMatches`, then `SELECT AREA TO WATCH` around the region where the target may appear (maximum 1200×800). Image conditions show only this one area selector; F8 selects the same area.
+1. Choose `RegionSnapshotMatches`, then `SELECT AREA TO WATCH` around the region where the target may appear (maximum 3840×2160). Image conditions show only this one area selector; F8 selects the same area.
 2. Use `CAPTURE REFERENCE` to select a tight rectangle around the target image. Capturing or replacing the reference does not change the area to watch. The reference filename and size appear below the capture button.
 3. Set `THEN` to `MouseClick`, `Mouse target` to `MatchedLocation`, and `Mouse button` to `Left`. The cursor moves to the centre of the found image before clicking. Choose `MouseMove` to move without clicking.
 4. Optionally set a short wait before clicking, and uncheck `Restore pointer after click` if the cursor should stay at the target. Use `TEST CONDITION` to see the detected screen coordinates without moving or clicking.
-5. Adjust the image color tolerance and reference match percentage as needed. `OnRisingEdge` acts once when the target appears; `WhileTrue` acts repeatedly with the configured cooldown while it remains visible.
+5. Choose `ImageSimilarity` for visual-pattern matching that tolerates brightness changes, or `PixelColors` when the RGB colors should match closely. Adjust the similarity or pixel-color threshold as needed. `OnRisingEdge` acts once when the target appears; `WhileTrue` acts repeatedly with the configured cooldown while it remains visible.
 
-Search uses up to 256 evenly distributed reference pixels and returns the first qualifying location in top-to-bottom, left-to-right order. Capture a distinctive target at the same size it appears in the game and keep the search rectangle tight. It does not compensate for scaling or rotation. No match or a failed AND gate prevents the mouse action. Existing macros retain their fixed-coordinate defaults.
+ImageSimilarity searches up to 256 evenly distributed reference pixels and returns the strongest qualifying location. It compares the visual pattern rather than requiring identical RGB values, so it tolerates overall brightness changes. Capture a distinctive target at the same size it appears in the game and keep the search rectangle tight. It does not compensate for scaling or rotation. No match or a failed AND gate prevents the mouse action. Existing macros retain their fixed-coordinate defaults.
+
+The reference rectangle must be inside the selected watch area. If it is captured elsewhere, ClickyBot warns you and leaves the existing watch area unchanged. The activity log and TEST CONDITION show the similarity score and detected coordinates, which helps distinguish a target outside the area from a target that needs a lower threshold.
 
 Mouse movement sets the cursor position and sends an absolute movement event across the virtual desktop, including monitors with negative coordinates. The activity log reports detection transitions and action coordinates, and reports rejected input instead of claiming success. TEST CONDITION detects only; start the engine to perform the selected action. Some games lock/recentre the cursor or reject generated input; successful desktop movement does not guarantee that a game will accept it.
 

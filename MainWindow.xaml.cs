@@ -64,6 +64,7 @@ public partial class MainWindow : Window
         RepeatCombo.ItemsSource = Enum.GetValues<RepeatMode>();
         MouseButtonCombo.ItemsSource = Enum.GetValues<MouseButtonType>();
         MouseTargetCombo.ItemsSource = Enum.GetValues<MouseTargetType>();
+        ImageMatchMethodCombo.ItemsSource = Enum.GetValues<ImageMatchMethod>();
         _engine.Log += message => Dispatcher.BeginInvoke(() => AppendLog(message));
         LoadStarterProfile();
         RestoreLastProfile();
@@ -1037,11 +1038,14 @@ public partial class MainWindow : Window
             TestResultText.Text = "Checking…";
             var result = await Task.Run(() => _engine.EvaluateNow(testRule));
             if (RulesListBox.SelectedItem != rule) return;
-            TestResultText.Text = result
+            var scoreText = testRule.LastImageScore is { } score ? $" · {score:F1}% similarity" : "";
+            TestResultText.Text = (result
                 ? testRule.CurrentMatch is { } match ? $"PASS · target {match.X}, {match.Y}" : "PASS · action would run"
-                : "FALSE · action would not run";
+                : "FALSE · action would not run") + scoreText;
+            if (!result && !string.IsNullOrWhiteSpace(testRule.ImageSearchDiagnostic))
+                TestResultText.Text = "FALSE · " + testRule.ImageSearchDiagnostic;
             TestResultText.Foreground = (Brush)FindResource(result ? "AccentBrush" : "MutedTextBrush");
-            AppendLog($"Tested '{rule.Name}': condition {(result ? "passed" : "did not pass")}.");
+            AppendLog($"Tested '{rule.Name}': condition {(result ? "passed" : "did not pass")}. {testRule.ImageSearchDiagnostic}");
         }
         catch (OperationCanceledException)
         {
@@ -1096,13 +1100,17 @@ public partial class MainWindow : Window
 
     private void MouseTarget_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateEditorState();
 
+    private void ImageMatchMethod_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateEditorState();
+
     private void SelectSearchArea_Click(object sender, RoutedEventArgs e)
     {
         var selection = SelectScreenArea();
         if (selection is null) return;
-        if (selection.Width > 1200 || selection.Height > 800)
+        if (selection.Width > ScreenProbe.MaxSearchWidth || selection.Height > ScreenProbe.MaxSearchHeight)
         {
-            AppendLog("Select a search area no larger than 1200 by 800 pixels.");
+            var message = $"Select an area no larger than {ScreenProbe.MaxSearchWidth} by {ScreenProbe.MaxSearchHeight} pixels. The previous area has not changed.";
+            AppendLog(message);
+            MessageBox.Show(this, message, "Area too large", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         SearchXBox.Text = selection.X.ToString();
@@ -1332,6 +1340,17 @@ public partial class MainWindow : Window
             _watchReferenceRgb = result.Reference;
             _watchReferenceImagePath = result.Path;
             CoverageThresholdBox.Text = "90";
+            if (SearchReferenceCheckIsActive()
+                && !ContainsRectangle(
+                    ReadInt(SearchXBox, 0), ReadInt(SearchYBox, 0),
+                    ReadInt(SearchWidthBox, 1), ReadInt(SearchHeightBox, 1),
+                    selection.X, selection.Y, selection.Width, selection.Height))
+            {
+                AppendLog($"Warning: the captured reference at {selection.X},{selection.Y} is outside the area to watch. Select an area containing the target (reference centre {selection.X + selection.Width / 2},{selection.Y + selection.Height / 2}).");
+                MessageBox.Show(this,
+                    "The reference image was captured outside the selected area to watch. Select a watch area that contains the target, then capture the reference again.",
+                    "Reference outside watch area", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         ApplyEditorToSelectedRule();
@@ -1339,6 +1358,17 @@ public partial class MainWindow : Window
 
         UpdateEditorState();
         AppendLog($"Captured a {selection.Width}×{selection.Height} reference image: {Path.GetFileName(result.Path)}.");
+    }
+
+    private bool SearchReferenceCheckIsActive() => ConditionCombo.SelectedItem is ConditionType.RegionSnapshotMatches;
+
+    private static bool ContainsRectangle(int outerX, int outerY, int outerWidth, int outerHeight,
+        int innerX, int innerY, int innerWidth, int innerHeight)
+    {
+        return innerX >= outerX
+            && innerY >= outerY
+            && (long)innerX + innerWidth <= (long)outerX + outerWidth
+            && (long)innerY + innerHeight <= (long)outerY + outerHeight;
     }
 
     private static (bool Success, byte[] Reference, string Path, string Error) CaptureAndSaveReference(ScreenSelection selection, string folder, string ruleName, bool gate)
@@ -1385,6 +1415,7 @@ public partial class MainWindow : Window
         TargetBlueBox.Text = rule.TargetBlue.ToString();
         ToleranceBox.Text = rule.Tolerance.ToString();
         ImageToleranceBox.Text = rule.Tolerance.ToString();
+        ImageMatchMethodCombo.SelectedItem = rule.ImageMatchMethod;
         SearchXBox.Text = rule.SearchX.ToString();
         SearchYBox.Text = rule.SearchY.ToString();
         SearchWidthBox.Text = rule.SearchWidth.ToString();
@@ -1439,10 +1470,11 @@ public partial class MainWindow : Window
         rule.TargetBlue = (byte)ReadInt(TargetBlueBox, rule.TargetBlue, 0, 255);
         rule.Tolerance = ReadInt(rule.Condition == ConditionType.RegionSnapshotMatches ? ImageToleranceBox : ToleranceBox, rule.Tolerance, 0, 255);
         rule.SearchReference = rule.Condition == ConditionType.RegionSnapshotMatches;
+        rule.ImageMatchMethod = ImageMatchMethodCombo.SelectedItem is ImageMatchMethod method ? method : ImageMatchMethod.ImageSimilarity;
         rule.SearchX = ReadInt(SearchXBox, rule.SearchX);
         rule.SearchY = ReadInt(SearchYBox, rule.SearchY);
-        rule.SearchWidth = ReadInt(SearchWidthBox, rule.SearchWidth, 1, 1200);
-        rule.SearchHeight = ReadInt(SearchHeightBox, rule.SearchHeight, 1, 800);
+        rule.SearchWidth = ReadInt(SearchWidthBox, rule.SearchWidth, 1, ScreenProbe.MaxSearchWidth);
+        rule.SearchHeight = ReadInt(SearchHeightBox, rule.SearchHeight, 1, ScreenProbe.MaxSearchHeight);
         rule.CoverageThreshold = ReadInt(CoverageThresholdBox, rule.CoverageThreshold, 0, 100);
         rule.ReferenceRgb = _watchReferenceRgb.ToArray();
         rule.ReferenceImagePath = _watchReferenceImagePath;
@@ -1481,17 +1513,20 @@ public partial class MainWindow : Window
         var snapshotCondition = condition == ConditionType.RegionSnapshotMatches;
         ImageSearchPanel.Visibility = snapshotCondition ? Visibility.Visible : Visibility.Collapsed;
         PixelWatchPanel.Visibility = snapshotCondition ? Visibility.Collapsed : Visibility.Visible;
+        var pixelColors = ImageMatchMethodCombo.SelectedItem is ImageMatchMethod.PixelColors;
+        ImageTolerancePanel.Visibility = pixelColors ? Visibility.Visible : Visibility.Collapsed;
         ReferenceSummaryText.Text = _watchReferenceRgb.Length == 0
             ? "No reference captured. Capture the image you want to find."
             : $"{Path.GetFileName(_watchReferenceImagePath)} · {WatchWidthBox.Text} × {WatchHeightBox.Text} pixels";
         CoverageHelpText.Text = snapshotCondition
-            ? "Minimum sampled match percentage needed to locate this reference in the area above. TEST CONDITION only detects; START runs the action."
+            ? pixelColors ? "Percentage of sampled RGB pixels within the color tolerance. TEST CONDITION detects only; START runs the action."
+                : "Visual pattern similarity, not a percentage of identical RGB pixels. Finds the best location and reports its score. TEST CONDITION detects only; START runs the action."
             : "Coverage counts pixels close to the target color, useful for mana bars and lit/unlit icons.";
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
-        CoverageThresholdLabel.Content = snapshotCondition ? "Reference match threshold (%)" : "Region coverage / match threshold (%)";
+        CoverageThresholdLabel.Content = snapshotCondition ? pixelColors ? "Pixel-color match threshold (%)" : "Image similarity threshold (%)" : "Region coverage / match threshold (%)";
         var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;
         KeyPanel.Visibility = isKeyAction ? Visibility.Visible : Visibility.Collapsed;
         KeyLabel.Content = action == ActionType.KeyHold ? "Key to hold" : "Key to press";

@@ -49,6 +49,12 @@ public enum MouseTargetType
     MatchedLocation
 }
 
+public enum ImageMatchMethod
+{
+    ImageSimilarity,
+    PixelColors
+}
+
 public readonly record struct MatchLocation(int X, int Y);
 
 public sealed class MacroProfile
@@ -79,6 +85,13 @@ public sealed class MacroRule
     public int CoverageThreshold { get; set; } = 50;
     public string ReferenceImagePath { get; set; } = "";
     public bool SearchReference { get; set; }
+    public ImageMatchMethod ImageMatchMethod { get; set; } = ImageMatchMethod.ImageSimilarity;
+
+    [JsonIgnore]
+    public double? LastImageScore { get; set; }
+
+    [JsonIgnore]
+    public string ImageSearchDiagnostic { get; set; } = "";
     public int SearchX { get; set; }
     public int SearchY { get; set; }
     public int SearchWidth { get; set; } = 400;

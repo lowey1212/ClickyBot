@@ -5,6 +5,8 @@ namespace ClickyBot;
 internal static class ScreenProbe
 {
     public const int MaxReferencePixels = 100_000;
+    public const int MaxSearchWidth = 3840;
+    public const int MaxSearchHeight = 2160;
 
     public static bool TryReadPixel(int x, int y, out RgbColor color)
     {
@@ -120,10 +122,8 @@ internal static class ScreenProbe
     public static bool TryCaptureRegion(int x, int y, int width, int height, out byte[] rgb, int maxPixels = MaxReferencePixels)
     {
         rgb = [];
-        width = Math.Clamp(width, 1, 1200);
-        height = Math.Clamp(height, 1, 800);
         var pixelCount = (long)width * height;
-        if (pixelCount > maxPixels)
+        if (width < 1 || height < 1 || pixelCount > maxPixels)
         {
             return false;
         }
@@ -167,6 +167,9 @@ internal static class ScreenProbe
             };
             try
             {
+                // GetDIBits requires the bitmap not to be selected into a DC.
+                NativeMethods.SelectObject(memoryDc, previousObject);
+                previousObject = IntPtr.Zero;
                 if (NativeMethods.GetDIBits(memoryDc, bitmap, 0, (uint)height, bgr, ref info, NativeMethods.DibRgbColors) != height)
                 {
                     return false;
@@ -209,17 +212,49 @@ internal static class ScreenProbe
 
     public static MatchLocation? FindReference(MacroRule rule, CancellationToken token)
     {
+        rule.LastImageScore = null;
+        rule.ImageSearchDiagnostic = "";
         var x = rule.SearchX;
         var y = rule.SearchY;
         var width = rule.SearchWidth;
         var height = rule.SearchHeight;
-        if (width is < 1 or > 1200 || height is < 1 or > 800)
+        if (width is < 1 or > MaxSearchWidth || height is < 1 or > MaxSearchHeight)
+        {
+            rule.ImageSearchDiagnostic = $"Select an area between 1×1 and {MaxSearchWidth}×{MaxSearchHeight} pixels.";
             return null;
+        }
+        if (rule.ReferenceRgb.LongLength != (long)rule.WatchWidth * rule.WatchHeight * 3 || rule.ReferenceRgb.Length == 0)
+        {
+            rule.ImageSearchDiagnostic = "The reference is missing or its dimensions changed. Capture the reference again.";
+            return null;
+        }
+        if (rule.WatchWidth > width || rule.WatchHeight > height)
+        {
+            rule.ImageSearchDiagnostic = "The reference is larger than the area to watch. Select a larger area.";
+            return null;
+        }
         token.ThrowIfCancellationRequested();
-        if (!TryCaptureRegion(x, y, width, height, out var frame, 1200 * 800))
+        if (!TryCaptureRegion(x, y, width, height, out var frame, MaxSearchWidth * MaxSearchHeight))
+        {
+            rule.ImageSearchDiagnostic = "Windows could not capture the selected area.";
             return null;
-        var match = ImageMatcher.Find(frame, width, height, rule.ReferenceRgb,
-            rule.WatchWidth, rule.WatchHeight, rule.Tolerance, rule.CoverageThreshold, token);
+        }
+        MatchLocation? match;
+        if (rule.ImageMatchMethod == ImageMatchMethod.ImageSimilarity)
+        {
+            var result = ImageMatcher.FindSimilar(frame, width, height, rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight, token);
+            rule.LastImageScore = result.Score;
+            rule.ImageSearchDiagnostic = result.Location is null
+                ? "No distinctive pattern found. Capture a detailed reference or choose PixelColors for flat colors."
+                : $"Best image similarity {result.Score:F1}% (requires {rule.CoverageThreshold}%).";
+            match = result.Score + 0.000001 >= Math.Clamp(rule.CoverageThreshold, 1, 100) ? result.Location : null;
+        }
+        else
+        {
+            match = ImageMatcher.Find(frame, width, height, rule.ReferenceRgb,
+                rule.WatchWidth, rule.WatchHeight, rule.Tolerance, rule.CoverageThreshold, token);
+            rule.ImageSearchDiagnostic = match.HasValue ? "Pixel colors matched." : "No location met the pixel-color threshold and tolerance.";
+        }
         return match is { } point ? new MatchLocation(x + point.X, y + point.Y) : null;
     }
 

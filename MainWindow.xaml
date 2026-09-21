@@ -163,24 +163,28 @@
                                 <StackPanel x:Name="ImageSearchPanel" Visibility="Collapsed">
                                     <Label Content="1. Area to watch" />
                                     <StackPanel x:Name="SearchAreaPanel">
-                                        <Button Content="SELECT AREA TO WATCH" Click="SelectSearchArea_Click" ToolTip="Select the area where the target can appear. Maximum 1200 by 800 screen pixels. Capturing a reference will not change this area." />
+                                        <Button Content="SELECT AREA TO WATCH" Click="SelectSearchArea_Click" ToolTip="Select the area where the target can appear, up to 3840 by 2160 screen pixels. Capturing a reference will not change this area." />
                                         <UniformGrid Columns="4">
                                             <TextBox x:Name="SearchXBox" ToolTip="Search area left X coordinate." />
                                             <TextBox x:Name="SearchYBox" ToolTip="Search area top Y coordinate." />
-                                            <TextBox x:Name="SearchWidthBox" ToolTip="Search area width, up to 1200 pixels." />
-                                            <TextBox x:Name="SearchHeightBox" ToolTip="Search area height, up to 800 pixels." />
+                                            <TextBox x:Name="SearchWidthBox" ToolTip="Search area width, up to 3840 pixels." />
+                                            <TextBox x:Name="SearchHeightBox" ToolTip="Search area height, up to 2160 pixels." />
                                         </UniformGrid>
                                         <UniformGrid Columns="4" Margin="0,0,0,8">
                                             <TextBlock Text="X" FontSize="10" /><TextBlock Text="Y" FontSize="10" />
                                             <TextBlock Text="WIDTH" FontSize="10" /><TextBlock Text="HEIGHT" FontSize="10" />
                                         </UniformGrid>
-                                        <TextBlock Text="Finds the first matching image, scanning top to bottom. Keep the search area tight for faster detection. Uses up to 256 sampled pixels; capture a distinctive target at its actual game size." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
+                                        <TextBlock Text="Keep this area tight for faster detection. Capture a distinctive target at its actual game size. The target must remain visible inside this area when testing or running." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
                                     </StackPanel>
                                     <Label Content="2. Reference image to find" />
                                     <Button Content="CAPTURE REFERENCE" Click="CaptureWatchReferenceButton_Click" ToolTip="Draw a tight rectangle around the image to find. Only the reference is replaced; the area to watch stays unchanged." />
                                     <TextBlock x:Name="ReferenceSummaryText" Text="No reference captured." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
+                                    <Label Content="Match method" />
+                                    <ComboBox x:Name="ImageMatchMethodCombo" SelectionChanged="ImageMatchMethod_Changed" ToolTip="ImageSimilarity finds the closest visual pattern, allowing brightness changes. PixelColors requires sampled RGB colors to match within the tolerance." />
+                                    <StackPanel x:Name="ImageTolerancePanel">
                                     <Label Content="Image color tolerance (0–255)" />
                                     <TextBox x:Name="ImageToleranceBox" ToolTip="Allowed difference per red, green and blue channel when matching the reference. Lower values require a closer match." />
+                                    </StackPanel>
                                 </StackPanel>
                                 <StackPanel x:Name="ColorPanel">
                                     <Label Content="Target color + tolerance" />

@@ -46,7 +46,8 @@ internal sealed class MacroEngine
                 if (observedRules.Add(rule.Id) || condition != rule.LastCondition)
                 {
                     var detail = rule.CurrentMatch is { } location ? $" at {location.X},{location.Y}" : "";
-                    Log?.Invoke(condition ? $"{rule.Name}: condition passed{detail}." : $"{rule.Name}: waiting for a match (including any AND gate).");
+                    Log?.Invoke(condition ? $"{rule.Name}: condition passed{detail}. {rule.ImageSearchDiagnostic}"
+                        : $"{rule.Name}: waiting for a match (including any AND gate). {rule.ImageSearchDiagnostic}");
                 }
 
                 if (rule.Action == ActionType.KeyHold)
@@ -130,6 +131,8 @@ internal sealed class MacroEngine
     private bool Evaluate(MacroRule rule, CancellationToken token)
     {
         rule.CurrentMatch = null;
+        rule.LastImageScore = null;
+        rule.ImageSearchDiagnostic = "";
         MatchLocation? match = null;
         bool primary;
         if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)

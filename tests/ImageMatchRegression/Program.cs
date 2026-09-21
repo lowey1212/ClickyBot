@@ -3,6 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ClickyBot;
 
+if (args.Length == 2)
+{
+    ImageFileDiagnostic.Run(args[0], args[1]);
+    return;
+}
+
 static void Check(bool value, string message)
 {
     if (!value) throw new Exception(message);
@@ -116,3 +122,32 @@ oldImage.WatchWidth = 75;
 oldImage.UseImageSearch();
 Check(oldImage.SearchWidth == 500, "Reference changes must not overwrite the selected search area.");
 Console.WriteLine("PASS: absolute movement, multiple monitors, invalid coordinates, and independent area/reference migration.");
+
+var random = new Random(1234);
+var pattern = new byte[tw * th * 3];
+for (int i = 0; i < pattern.Length; i += 3)
+{
+    byte level = (byte)random.Next(30, 160);
+    pattern[i] = pattern[i + 1] = pattern[i + 2] = level;
+}
+var litFrame = new byte[width * height * 3];
+for (int row = 0; row < th; row++)
+for (int column = 0; column < tw; column++)
+for (int channel = 0; channel < 3; channel++)
+    litFrame[((row + 6) * width + column + 7) * 3 + channel] = (byte)(pattern[(row * tw + column) * 3 + channel] + 40);
+var visualMatch = ImageMatcher.FindSimilar(litFrame, width, height, pattern, tw, th, default);
+Check(visualMatch.Location == new MatchLocation(9, 7) && visualMatch.Score > 99.99,
+    "Visual similarity must locate the same pattern under changed brightness.");
+Check(ImageMatcher.FindSimilar(new byte[litFrame.Length], width, height, pattern, tw, th, default).Location is null,
+    "A flat frame must not produce a visual match.");
+Check(ImageMatcher.FindSimilar(litFrame, width, height, new byte[pattern.Length], tw, th, default).Location is null,
+    "A flat reference must not produce arbitrary high similarity.");
+Check(ImageMatcher.FindSimilar([], width, height, pattern, tw, th, default).Location is null,
+    "Invalid image input must fail closed.");
+try
+{
+    ImageMatcher.FindSimilar(litFrame, width, height, pattern, tw, th, cancelled.Token);
+    throw new Exception("Cancelled similarity scan continued.");
+}
+catch (OperationCanceledException) { }
+Console.WriteLine("PASS: image similarity survives brightness changes, rejects flat/invalid data, and honours cancellation.");
