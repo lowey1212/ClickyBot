@@ -246,7 +246,7 @@ internal static class ScreenProbe
             rule.LastImageScore = result.Score;
             rule.ImageSearchDiagnostic = result.Location is null
                 ? "No distinctive pattern found. Capture a detailed reference or choose PixelColors for flat colors."
-                : $"Best image similarity {result.Score:F1}% (requires {rule.CoverageThreshold}%).";
+                : $"Best image similarity {result.Score:F1}% at {x + result.Location.Value.X},{y + result.Location.Value.Y} (requires {rule.CoverageThreshold}%).";
             match = result.Score + 0.000001 >= Math.Clamp(rule.CoverageThreshold, 1, 100) ? result.Location : null;
         }
         else

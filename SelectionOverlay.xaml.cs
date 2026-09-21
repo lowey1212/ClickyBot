@@ -20,6 +20,7 @@ public partial class SelectionOverlay : Window
     private readonly double _screenLeft;
     private readonly double _screenTop;
     private WpfPoint _start;
+    private NativeMethods.POINT _startScreenPixels;
     private bool _selecting;
 
     public ScreenSelection? Selection { get; private set; }
@@ -40,6 +41,7 @@ public partial class SelectionOverlay : Window
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _start = e.GetPosition(this);
+        NativeMethods.GetCursorPos(out _startScreenPixels);
         _selecting = true;
         CaptureMouse();
         SelectionRectangle.Visibility = Visibility.Visible;
@@ -69,15 +71,16 @@ public partial class SelectionOverlay : Window
         var end = e.GetPosition(this);
         _selecting = false;
         ReleaseMouseCapture();
-        var left = Math.Min(_start.X, end.X);
-        var top = Math.Min(_start.Y, end.Y);
-        var width = Math.Max(1, Math.Round(Math.Abs(end.X - _start.X)));
-        var height = Math.Max(1, Math.Round(Math.Abs(end.Y - _start.Y)));
-        Selection = new ScreenSelection(
-            (int)Math.Round(_screenLeft + left),
-            (int)Math.Round(_screenTop + top),
-            (int)width,
-            (int)height);
+        // WPF mouse positions are device-independent pixels, while BitBlt,
+        // GetPixel, and SendInput use physical desktop pixels. Read the
+        // native cursor position so selection remains correct at 125%, 150%,
+        // and mixed-DPI display settings.
+        NativeMethods.GetCursorPos(out var endScreenPixels);
+        var leftPixels = Math.Min(_startScreenPixels.X, endScreenPixels.X);
+        var topPixels = Math.Min(_startScreenPixels.Y, endScreenPixels.Y);
+        var widthPixels = Math.Max(1, Math.Abs(endScreenPixels.X - _startScreenPixels.X));
+        var heightPixels = Math.Max(1, Math.Abs(endScreenPixels.Y - _startScreenPixels.Y));
+        Selection = new ScreenSelection(leftPixels, topPixels, widthPixels, heightPixels);
         DialogResult = true;
         e.Handled = true;
     }
