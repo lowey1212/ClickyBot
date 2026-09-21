@@ -25,6 +25,9 @@ internal static class ImageMatcher
         int count = columns * rows;
         var offsets = new int[count];
         var values = new int[count];
+        var referenceRed = new byte[count];
+        var referenceGreen = new byte[count];
+        var referenceBlue = new byte[count];
         int referenceSum = 0, referenceSquares = 0, index = 0;
         for (int row = 0; row < rows; row++)
         for (int column = 0; column < columns; column++)
@@ -35,6 +38,9 @@ internal static class ImageMatcher
             int value = (reference[source] + reference[source + 1] + reference[source + 2]) / 3;
             offsets[index] = py * width + px;
             values[index++] = value;
+            referenceRed[index - 1] = reference[source];
+            referenceGreen[index - 1] = reference[source + 1];
+            referenceBlue[index - 1] = reference[source + 2];
             referenceSum += value;
             referenceSquares += value * value;
         }
@@ -60,9 +66,28 @@ internal static class ImageMatcher
                 double covariance = (double)count * cross - (double)sum * referenceSum;
                 double variance = (double)count * squares - (double)sum * sum;
                 double product = variance * referenceVariance;
-                if (variance <= count * count || covariance <= 0 || covariance * covariance <= best * best * product)
+                if (variance <= count * count || covariance <= 0)
                     continue;
-                best = Math.Clamp(covariance / Math.Sqrt(product), 0, 1);
+                var luminanceScore = Math.Clamp(covariance / Math.Sqrt(product), 0, 1);
+                double colorDistance = 0;
+                var colorStep = Math.Max(1, count / 64);
+                var colorSamples = 0;
+                for (int i = 0; i < count; i += colorStep)
+                {
+                    var frameOffset = origin + offsets[i];
+                    var frameTotal = Math.Max(1, gray[frameOffset] * 3);
+                    var referenceTotal = Math.Max(1, referenceRed[i] + referenceGreen[i] + referenceBlue[i]);
+                    var rgbOffset = frameOffset * 3;
+                    var redDelta = frame[rgbOffset] / (double)frameTotal - referenceRed[i] / (double)referenceTotal;
+                    var greenDelta = frame[rgbOffset + 1] / (double)frameTotal - referenceGreen[i] / (double)referenceTotal;
+                    var blueDelta = frame[rgbOffset + 2] / (double)frameTotal - referenceBlue[i] / (double)referenceTotal;
+                    colorDistance += redDelta * redDelta + greenDelta * greenDelta + blueDelta * blueDelta;
+                    colorSamples++;
+                }
+                var colorScore = Math.Clamp(1d - Math.Sqrt(colorDistance / colorSamples / 2d), 0, 1);
+                var score = luminanceScore * 0.7 + colorScore * 0.3;
+                if (score <= best) continue;
+                best = score;
                 location = new MatchLocation(x + referenceWidth / 2, y + referenceHeight / 2);
                 if (best >= 0.999999999) return (location, 100);
             }
