@@ -131,6 +131,7 @@
                             <ComboBox x:Name="ConditionCombo" SelectionChanged="ConditionCombo_SelectionChanged" ToolTip="Choose what the watch area must look like before the action can run." />
 
                             <StackPanel x:Name="ConditionTargetPanel">
+                                <StackPanel x:Name="PixelWatchPanel">
                                 <Label Content="Watch location / region (screen pixels)" />
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -156,13 +157,13 @@
                                 <WrapPanel>
                                     <Button Content="SELECT WATCH AREA" Click="CaptureWatchButton_Click" />
                                     <Button Content="SAMPLE COLOR" Click="SamplePixelButton_Click" />
-                                    <Button Content="CAPTURE REFERENCE" Click="CaptureWatchReferenceButton_Click" />
                                 </WrapPanel>
+                                </StackPanel>
 
                                 <StackPanel x:Name="ImageSearchPanel" Visibility="Collapsed">
-                                    <CheckBox x:Name="SearchReferenceCheckBox" Content="Find reference anywhere in a search area" Checked="SearchReference_Changed" Unchecked="SearchReference_Changed" ToolTip="Capture a tight reference around the target first, then select the larger area where it may appear." />
+                                    <Label Content="1. Area to watch" />
                                     <StackPanel x:Name="SearchAreaPanel">
-                                        <Button Content="SELECT SEARCH AREA" Click="SelectSearchArea_Click" ToolTip="Select the area to scan. This does not replace the captured reference. Maximum 1200 by 800 pixels." />
+                                        <Button Content="SELECT AREA TO WATCH" Click="SelectSearchArea_Click" ToolTip="Select the area where the target can appear. Maximum 1200 by 800 screen pixels. Capturing a reference will not change this area." />
                                         <UniformGrid Columns="4">
                                             <TextBox x:Name="SearchXBox" ToolTip="Search area left X coordinate." />
                                             <TextBox x:Name="SearchYBox" ToolTip="Search area top Y coordinate." />
@@ -175,6 +176,9 @@
                                         </UniformGrid>
                                         <TextBlock Text="Finds the first matching image, scanning top to bottom. Keep the search area tight for faster detection. Uses up to 256 sampled pixels; capture a distinctive target at its actual game size." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
                                     </StackPanel>
+                                    <Label Content="2. Reference image to find" />
+                                    <Button Content="CAPTURE REFERENCE" Click="CaptureWatchReferenceButton_Click" ToolTip="Draw a tight rectangle around the image to find. Only the reference is replaced; the area to watch stays unchanged." />
+                                    <TextBlock x:Name="ReferenceSummaryText" Text="No reference captured." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
                                     <Label Content="Image color tolerance (0–255)" />
                                     <TextBox x:Name="ImageToleranceBox" ToolTip="Allowed difference per red, green and blue channel when matching the reference. Lower values require a closer match." />
                                 </StackPanel>
@@ -202,7 +206,7 @@
                                 <StackPanel x:Name="CoveragePanel">
                                     <Label x:Name="CoverageThresholdLabel" Content="Region coverage / match threshold (%)" />
                                     <TextBox x:Name="CoverageThresholdBox" ToolTip="Minimum or maximum percentage of matching pixels required by the selected condition." />
-                                    <TextBlock Text="Coverage counts sampled pixels close to the target color. This works well for mana bars and lit/unlit icons when the watch region is tight." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                    <TextBlock x:Name="CoverageHelpText" Text="Coverage counts sampled pixels close to the target color." Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
                                 </StackPanel>
                             </StackPanel>
 

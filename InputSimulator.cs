@@ -239,8 +239,30 @@ internal static class InputSimulator
 
     private static void MovePointer(int x, int y)
     {
+        var left = NativeMethods.GetSystemMetrics(76); // SM_XVIRTUALSCREEN
+        var top = NativeMethods.GetSystemMetrics(77); // SM_YVIRTUALSCREEN
+        var width = NativeMethods.GetSystemMetrics(78); // SM_CXVIRTUALSCREEN
+        var height = NativeMethods.GetSystemMetrics(79); // SM_CYVIRTUALSCREEN
+        if (width <= 1 || height <= 1 || x < left || y < top
+            || (long)x >= (long)left + width || (long)y >= (long)top + height)
+            throw new InvalidOperationException($"Mouse target {x},{y} is outside the current desktop. Select the area to watch again.");
         if (!NativeMethods.SetCursorPos(x, y))
             throw new InvalidOperationException("Windows could not move the pointer to the target.");
+        // Also send a real mouse movement event. Setting the cursor position
+        // alone does not provide the same input event to every application.
+        EnsureSent([new NativeMethods.INPUT
+        {
+            Type = InputMouse,
+            Union = new NativeMethods.InputUnion
+            {
+                Mouse = new NativeMethods.MOUSEINPUT
+                {
+                    DeltaX = (int)Math.Round(((long)x - left) * 65535d / (width - 1)),
+                    DeltaY = (int)Math.Round(((long)y - top) * 65535d / (height - 1)),
+                    Flags = 0x0001 | 0x8000 | 0x4000 // MOVE | ABSOLUTE | VIRTUALDESK
+                }
+            }
+        }]);
     }
 
     private static async Task ClickAsync(int x, int y, MouseButtonType button, bool restorePointer, int moveDelayMs, CancellationToken token)
@@ -330,7 +352,7 @@ internal static class InputSimulator
         var sent = NativeMethods.SendInput((uint)count, inputs, InputSize);
         if (sent != count)
         {
-            throw new InvalidOperationException("Windows rejected the generated input event.");
+            throw new InvalidOperationException("Windows rejected the generated input event. Check whether the target app is running elevated or blocking synthetic input.");
         }
 
         lock (HeldInputLock)

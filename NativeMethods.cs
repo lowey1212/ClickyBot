@@ -78,6 +78,9 @@ internal static class NativeMethods
     public static extern bool SetCursorPos(int x, int y);
 
     [DllImport("user32.dll")]
+    public static extern int GetSystemMetrics(int index);
+
+    [DllImport("user32.dll")]
     public static extern IntPtr WindowFromPoint(POINT point);
 
     [DllImport("user32.dll")]

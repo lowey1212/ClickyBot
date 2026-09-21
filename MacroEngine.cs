@@ -8,6 +8,7 @@ internal sealed class MacroEngine
 
     public async Task RunAsync(MacroProfile profile, CancellationToken token)
     {
+        var observedRules = new HashSet<Guid>();
         foreach (var rule in profile.Rules)
         {
             rule.LastCondition = false;
@@ -42,6 +43,11 @@ internal sealed class MacroEngine
                     : Evaluate(rule, token);
                 token.ThrowIfCancellationRequested();
                 var risingEdge = condition && !rule.LastCondition;
+                if (observedRules.Add(rule.Id) || condition != rule.LastCondition)
+                {
+                    var detail = rule.CurrentMatch is { } location ? $" at {location.X},{location.Y}" : "";
+                    Log?.Invoke(condition ? $"{rule.Name}: condition passed{detail}." : $"{rule.Name}: waiting for a match (including any AND gate).");
+                }
 
                 if (rule.Action == ActionType.KeyHold)
                 {
@@ -78,7 +84,9 @@ internal sealed class MacroEngine
                     {
                         await InputSimulator.ExecuteAsync(rule, token);
                         rule.LastTriggeredUtc = DateTime.UtcNow;
-                        Log?.Invoke($"{rule.Name}: sent {rule.ActionSummary}");
+                        var targetDetail = rule.Action is ActionType.MouseClick or ActionType.MouseMove
+                            ? $" at {rule.ResolveMouseTarget().X},{rule.ResolveMouseTarget().Y}" : "";
+                        Log?.Invoke($"{rule.Name}: sent {rule.ActionSummary}{targetDetail}");
                         if (rule.DelayAfterActionMs > 0)
                         {
                             await Task.Delay(rule.DelayAfterActionMs, token);

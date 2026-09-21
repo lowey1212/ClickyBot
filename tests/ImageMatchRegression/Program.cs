@@ -69,12 +69,12 @@ rule.Action = ActionType.MouseClick;
 rule.MouseMoveDelayMs = 0;
 rule.RestorePointerAfterClick = true;
 await InputSimulator.ExecuteAsync(rule, default);
-Check(NativeMethods.Events.SequenceEqual(new[] { "move:250,175", "input:0:2", "input:0:4", "move:10,20" }),
+Check(NativeMethods.Events.SequenceEqual(new[] { "move:250,175", "input:0:49153", "input:0:2", "input:0:4", "move:10,20" }),
     "Mouse action must move to the match, left-click, then restore the pointer.");
 NativeMethods.Events.Clear();
 rule.Action = ActionType.MouseMove;
 await InputSimulator.ExecuteAsync(rule, default);
-Check(NativeMethods.Events.SequenceEqual(new[] { "move:250,175" }), "Move-only must leave the cursor at the match without clicking.");
+Check(NativeMethods.Events.SequenceEqual(new[] { "move:250,175", "input:0:49153" }), "Move-only must send a movement event without clicking.");
 NativeMethods.Events.Clear();
 rule.CurrentMatch = null;
 try { await InputSimulator.ExecuteAsync(rule, default); throw new Exception("Mouse action accepted missing match."); }
@@ -88,6 +88,31 @@ var pendingClick = InputSimulator.ExecuteAsync(rule, stop.Token);
 stop.Cancel();
 try { await pendingClick; throw new Exception("Stopped delayed click was not cancelled."); }
 catch (OperationCanceledException) { }
-Check(NativeMethods.Events.SequenceEqual(new[] { "move:80,90", "move:250,175" }),
+Check(NativeMethods.Events.SequenceEqual(new[] { "move:80,90", "input:0:49153", "move:250,175" }),
     "Stop must cancel the pending click and restore the original pointer.");
 Console.WriteLine("PASS: production mouse action ordering, move-only, missing-target guard, and stop during pre-click delay (simulated input sink).");
+
+NativeMethods.DesktopLeft = -1920;
+rule.Action = ActionType.MouseMove;
+rule.CurrentMatch = new MatchLocation(-1920, 0);
+await InputSimulator.ExecuteAsync(rule, default);
+Check(NativeMethods.MouseInputs.Last().DeltaX == 0 && NativeMethods.MouseInputs.Last().DeltaY == 0,
+    "Virtual-desktop movement must include negative monitor origins.");
+rule.CurrentMatch = new MatchLocation(1919, 2159);
+await InputSimulator.ExecuteAsync(rule, default);
+Check(NativeMethods.MouseInputs.Last().DeltaX == 65535 && NativeMethods.MouseInputs.Last().DeltaY == 65535,
+    "Virtual-desktop endpoints must map to absolute mouse endpoints.");
+NativeMethods.Events.Clear();
+rule.CurrentMatch = new MatchLocation(5000, 3000);
+try { await InputSimulator.ExecuteAsync(rule, default); throw new Exception("Offscreen target was accepted."); }
+catch (InvalidOperationException) { }
+Check(NativeMethods.Events.Count == 0, "Offscreen target generated input.");
+var oldImage = new MacroRule { Condition = ConditionType.RegionSnapshotMatches, WatchX = -120, WatchY = 80, WatchWidth = 29, WatchHeight = 43 };
+oldImage.UseImageSearch();
+Check(oldImage.SearchReference && oldImage.SearchX == -120 && oldImage.SearchY == 80
+    && oldImage.SearchWidth == 29 && oldImage.SearchHeight == 43, "Legacy watched region changed during migration.");
+oldImage.SearchWidth = 500;
+oldImage.WatchWidth = 75;
+oldImage.UseImageSearch();
+Check(oldImage.SearchWidth == 500, "Reference changes must not overwrite the selected search area.");
+Console.WriteLine("PASS: absolute movement, multiple monitors, invalid coordinates, and independent area/reference migration.");

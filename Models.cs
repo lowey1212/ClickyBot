@@ -84,6 +84,17 @@ public sealed class MacroRule
     public int SearchWidth { get; set; } = 400;
     public int SearchHeight { get; set; } = 300;
 
+    public void UseImageSearch()
+    {
+        if (Condition != ConditionType.RegionSnapshotMatches || SearchReference) return;
+        // Preserve the exact region watched by profiles from before image search.
+        SearchX = WatchX;
+        SearchY = WatchY;
+        SearchWidth = WatchWidth;
+        SearchHeight = WatchHeight;
+        SearchReference = true;
+    }
+
     [JsonIgnore]
     public byte[] ReferenceRgb { get; set; } = [];
 

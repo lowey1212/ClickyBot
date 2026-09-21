@@ -58,13 +58,15 @@ The `ACTIVITY · Live engine log` panel is collapsed by default. Expand it when 
 
 ## Click a detected fishing target
 
-1. Use `CAPTURE REFERENCE` to select a tight rectangle around the target image. This selects `RegionSnapshotMatches`.
-2. Enable `Find reference anywhere in a search area`, then `SELECT SEARCH AREA` around the region where it may appear. This keeps the reference image separate from the search area (maximum 1200×800).
+1. Choose `RegionSnapshotMatches`, then `SELECT AREA TO WATCH` around the region where the target may appear (maximum 1200×800). Image conditions show only this one area selector; F8 selects the same area.
+2. Use `CAPTURE REFERENCE` to select a tight rectangle around the target image. Capturing or replacing the reference does not change the area to watch. The reference filename and size appear below the capture button.
 3. Set `THEN` to `MouseClick`, `Mouse target` to `MatchedLocation`, and `Mouse button` to `Left`. The cursor moves to the centre of the found image before clicking. Choose `MouseMove` to move without clicking.
 4. Optionally set a short wait before clicking, and uncheck `Restore pointer after click` if the cursor should stay at the target. Use `TEST CONDITION` to see the detected screen coordinates without moving or clicking.
 5. Adjust the image color tolerance and reference match percentage as needed. `OnRisingEdge` acts once when the target appears; `WhileTrue` acts repeatedly with the configured cooldown while it remains visible.
 
 Search uses up to 256 evenly distributed reference pixels and returns the first qualifying location in top-to-bottom, left-to-right order. Capture a distinctive target at the same size it appears in the game and keep the search rectangle tight. It does not compensate for scaling or rotation. No match or a failed AND gate prevents the mouse action. Existing macros retain their fixed-coordinate defaults.
+
+Mouse movement sets the cursor position and sends an absolute movement event across the virtual desktop, including monitors with negative coordinates. The activity log reports detection transitions and action coordinates, and reports rejected input instead of claiming success. TEST CONDITION detects only; start the engine to perform the selected action. Some games lock/recentre the cursor or reject generated input; successful desktop movement does not guarantee that a game will accept it.
 
 ## Build a Windows release
 
@@ -76,8 +78,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.24.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.24-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.25.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.25-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

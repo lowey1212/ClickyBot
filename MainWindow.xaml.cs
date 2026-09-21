@@ -1096,8 +1096,6 @@ public partial class MainWindow : Window
 
     private void MouseTarget_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateEditorState();
 
-    private void SearchReference_Changed(object sender, RoutedEventArgs e) => UpdateEditorState();
-
     private void SelectSearchArea_Click(object sender, RoutedEventArgs e)
     {
         var selection = SelectScreenArea();
@@ -1210,10 +1208,22 @@ public partial class MainWindow : Window
 
     private void SelectWatchArea(bool sampleColor = false, bool captureReference = false)
     {
+        if (!captureReference && ConditionCombo.SelectedItem is ConditionType.RegionSnapshotMatches)
+        {
+            SelectSearchArea_Click(this, new RoutedEventArgs());
+            return;
+        }
         var selection = SelectScreenArea();
         if (selection is null)
         {
             AppendLog("Screen selection cancelled.");
+            return;
+        }
+
+        if (captureReference)
+        {
+            ConditionCombo.SelectedItem = ConditionType.RegionSnapshotMatches;
+            CaptureReferenceInto(selection, gate: false);
             return;
         }
 
@@ -1224,11 +1234,6 @@ public partial class MainWindow : Window
         if (sampleColor)
         {
             SampleColorInto(TargetRedBox, TargetGreenBox, TargetBlueBox, selection);
-        }
-        if (captureReference)
-        {
-            ConditionCombo.SelectedItem = ConditionType.RegionSnapshotMatches;
-            CaptureReferenceInto(selection, gate: false);
         }
         UpdateEditorState();
         AppendLog($"Watch area selected: {selection.X},{selection.Y} {selection.Width}×{selection.Height}.");
@@ -1318,6 +1323,12 @@ public partial class MainWindow : Window
         }
         else
         {
+            // These dimensions describe the reference image only. The selected
+            // area to watch is stored separately and must not change here.
+            WatchXBox.Text = selection.X.ToString();
+            WatchYBox.Text = selection.Y.ToString();
+            WatchWidthBox.Text = selection.Width.ToString();
+            WatchHeightBox.Text = selection.Height.ToString();
             _watchReferenceRgb = result.Reference;
             _watchReferenceImagePath = result.Path;
             CoverageThresholdBox.Text = "90";
@@ -1326,6 +1337,7 @@ public partial class MainWindow : Window
         ApplyEditorToSelectedRule();
         RulesListBox.Items.Refresh();
 
+        UpdateEditorState();
         AppendLog($"Captured a {selection.Width}×{selection.Height} reference image: {Path.GetFileName(result.Path)}.");
     }
 
@@ -1360,6 +1372,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        rule.UseImageSearch();
         RuleNameBox.Text = rule.Name;
         RuleEnabledCheckBox.IsChecked = rule.Enabled;
         ConditionCombo.SelectedItem = rule.Condition;
@@ -1372,7 +1385,6 @@ public partial class MainWindow : Window
         TargetBlueBox.Text = rule.TargetBlue.ToString();
         ToleranceBox.Text = rule.Tolerance.ToString();
         ImageToleranceBox.Text = rule.Tolerance.ToString();
-        SearchReferenceCheckBox.IsChecked = rule.SearchReference;
         SearchXBox.Text = rule.SearchX.ToString();
         SearchYBox.Text = rule.SearchY.ToString();
         SearchWidthBox.Text = rule.SearchWidth.ToString();
@@ -1426,7 +1438,7 @@ public partial class MainWindow : Window
         rule.TargetGreen = (byte)ReadInt(TargetGreenBox, rule.TargetGreen, 0, 255);
         rule.TargetBlue = (byte)ReadInt(TargetBlueBox, rule.TargetBlue, 0, 255);
         rule.Tolerance = ReadInt(rule.Condition == ConditionType.RegionSnapshotMatches ? ImageToleranceBox : ToleranceBox, rule.Tolerance, 0, 255);
-        rule.SearchReference = SearchReferenceCheckBox.IsChecked == true;
+        rule.SearchReference = rule.Condition == ConditionType.RegionSnapshotMatches;
         rule.SearchX = ReadInt(SearchXBox, rule.SearchX);
         rule.SearchY = ReadInt(SearchYBox, rule.SearchY);
         rule.SearchWidth = ReadInt(SearchWidthBox, rule.SearchWidth, 1, 1200);
@@ -1468,7 +1480,13 @@ public partial class MainWindow : Window
         ConditionTargetPanel.IsEnabled = condition != ConditionType.Always;
         var snapshotCondition = condition == ConditionType.RegionSnapshotMatches;
         ImageSearchPanel.Visibility = snapshotCondition ? Visibility.Visible : Visibility.Collapsed;
-        SearchAreaPanel.Visibility = SearchReferenceCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        PixelWatchPanel.Visibility = snapshotCondition ? Visibility.Collapsed : Visibility.Visible;
+        ReferenceSummaryText.Text = _watchReferenceRgb.Length == 0
+            ? "No reference captured. Capture the image you want to find."
+            : $"{Path.GetFileName(_watchReferenceImagePath)} · {WatchWidthBox.Text} × {WatchHeightBox.Text} pixels";
+        CoverageHelpText.Text = snapshotCondition
+            ? "Minimum sampled match percentage needed to locate this reference in the area above. TEST CONDITION only detects; START runs the action."
+            : "Coverage counts pixels close to the target color, useful for mana bars and lit/unlit icons.";
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || snapshotCondition
@@ -1499,6 +1517,7 @@ public partial class MainWindow : Window
     {
         foreach (var rule in profile.Rules)
         {
+            rule.UseImageSearch();
             if (ReferenceImageService.TryLoadFromRule(rule, _settings.ReferenceImageFolder, gate: false, out var reference, out var resolvedPath))
             {
                 rule.ReferenceRgb = reference;
