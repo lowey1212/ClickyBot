@@ -52,6 +52,10 @@ var restored = JsonSerializer.Deserialize<MacroRule>(JsonSerializer.Serialize(ru
 Check(restored.CurrentMatch is null && restored.SearchReference && restored.SearchX == -500
     && restored.MouseMoveDelayMs == 75 && restored.MouseTarget == MouseTargetType.MatchedLocation,
     "Profile roundtrip must preserve configuration but discard live match coordinates.");
+var navigationProfile = new MacroProfile { ResourceNavigation = new ResourceNavigationSettings { Enabled = true, PromptReferenceImagePath = "prompt.png" } };
+var navigationRestored = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(navigationProfile, options), options)!;
+Check(navigationRestored.ResourceNavigation.Enabled && navigationRestored.ResourceNavigation.PromptReferenceImagePath == "prompt.png",
+    "Resource navigation settings must survive a profile save/load cycle.");
 var legacy = JsonSerializer.Deserialize<MacroRule>("{\"ClickX\":12,\"ClickY\":34}")!;
 Check(legacy.ResolveMouseTarget() == new MatchLocation(12, 34) && !legacy.SearchReference,
     "Existing macros must retain their fixed-coordinate behavior.");
@@ -108,6 +112,10 @@ rule.CurrentMatch = new MatchLocation(1919, 2159);
 await InputSimulator.ExecuteAsync(rule, default);
 Check(NativeMethods.MouseInputs.Last().DeltaX == 65535 && NativeMethods.MouseInputs.Last().DeltaY == 65535,
     "Virtual-desktop endpoints must map to absolute mouse endpoints.");
+InputSimulator.MoveMouseRelative(75, -5);
+Check(NativeMethods.MouseInputs.Last().DeltaX == 75 && NativeMethods.MouseInputs.Last().DeltaY == -5
+    && NativeMethods.MouseInputs.Last().Flags == 1,
+    "Resource scan must use relative mouse movement for camera control.");
 NativeMethods.Events.Clear();
 rule.CurrentMatch = new MatchLocation(5000, 3000);
 try { await InputSimulator.ExecuteAsync(rule, default); throw new Exception("Offscreen target was accepted."); }

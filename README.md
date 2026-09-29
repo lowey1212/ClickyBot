@@ -26,6 +26,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
 - ClickyBot branding uses the supplied robot-and-mouse artwork in the window toolbar, executable icon, taskbar/desktop shortcut, and installer.
 - Bounded activity logging and optimized screen sampling/input replay to keep long-running profiles lighter on CPU and memory.
+- Experimental opt-in resource navigation: after an `E (Hold)` prompt disappears, release E, scan with relative mouse movement, and take a limited number of short forward steps to find another prompt.
 - GitHub release updates: use `CHECK FOR UPDATES` manually or enable the background startup check in `SETTINGS`; updates ask for confirmation before downloading and restarting the app.
 
 ## Licence
@@ -69,6 +70,14 @@ ImageSimilarity searches up to 256 evenly distributed reference pixels and retur
 The reference rectangle must be inside the selected watch area. If it is captured elsewhere, ClickyBot warns you and leaves the existing watch area unchanged. The activity log and TEST CONDITION show the similarity score and detected coordinates, which helps distinguish a target outside the area from a target that needs a lower threshold.
 
 Mouse movement sets the cursor position and sends an absolute movement event across the virtual desktop, including monitors with negative coordinates. The activity log reports detection transitions and action coordinates, and reports rejected input instead of claiming success. TEST CONDITION detects only; start the engine to perform the selected action. Some games lock/recentre the cursor or reject generated input; successful desktop movement does not guarantee that a game will accept it.
+
+## Experimental resource navigation
+
+This mode is disabled by default. Check **Find next E (Hold) resource** in the profile settings to use it. The profile must contain two enabled `RegionSnapshotMatches` image-search rules: one recorded E-up step for low stamina and one recorded E-down step for recovered stamina. Set `ResourceNavigation.PromptReferenceImagePath` in the profile JSON to a cropped PNG of the `E (Hold)` prompt; its width, height, search region, and matching threshold are configurable there too.
+
+Start with the global hotkey while the game is focused. Navigation holds E immediately, releases it at the low-stamina image, and resumes near the high-stamina image. When the interaction prompt has been absent for the configured delay, it releases E, turns the camera in short relative mouse movements, and probes forward in short steps. It resumes E after two matches at nearly the same prompt location. Search stops after its configured movement limit or if the game loses focus. `F7` releases all generated keys immediately.
+
+This is a bounded nearby search, not map-based pathfinding. It cannot tell whether an `E (Hold)` prompt belongs to a resource rather than another interactable object, and game camera capture/input behavior requires live calibration. The profile's `TurnPixels`, `TurnsBeforeStep`, `ForwardStepMs`, and `MaxForwardSteps` can be adjusted after testing.
 
 ## Build a Windows release
 

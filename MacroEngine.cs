@@ -8,6 +8,13 @@ internal sealed class MacroEngine
 
     public async Task RunAsync(MacroProfile profile, CancellationToken token)
     {
+        if (profile.ResourceNavigation?.Enabled == true)
+        {
+            var navigator = new ResourceNavigator(profile, Evaluate, message => Log?.Invoke(message));
+            await navigator.RunAsync(token);
+            return;
+        }
+
         var observedRules = new HashSet<Guid>();
         foreach (var rule in profile.Rules)
         {
