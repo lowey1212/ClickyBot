@@ -302,6 +302,11 @@ public partial class MainWindow : Window
         ApplyProfileEditorToModel();
         if (NativeMethods.GetForegroundWindow() == new WindowInteropHelper(this).Handle)
         {
+            if (_profile.ResourceNavigation?.Enabled == true)
+            {
+                AppendLog($"Focus the game and start with {_settings.StartStopHotKey} before using resource navigation.");
+                return;
+            }
             AppendLog($"Warning: ClickyBot is the foreground window. Start with {_settings.StartStopHotKey} while the game is focused so key input goes to the game.");
         }
         if (_profile.Rules.All(rule => !rule.Enabled))
@@ -455,6 +460,7 @@ public partial class MainWindow : Window
         GameCombo.Text = _profile.Game;
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
+        ResourceNavigationCheckBox.IsChecked = false;
         _rules.Clear();
         AddRuleToCollection(new MacroRule { Name = "New rule" });
         AppendLog(logMessage);
@@ -527,6 +533,7 @@ public partial class MainWindow : Window
         GameCombo.Text = _profile.Game;
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
+        ResourceNavigationCheckBox.IsChecked = false;
         _rules.Clear();
         foreach (var rule in _profile.Rules)
         {
@@ -615,6 +622,7 @@ public partial class MainWindow : Window
             GameCombo.Text = _profile.Game;
             ProfileNameCombo.Text = _profile.Name;
             PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
+            ResourceNavigationCheckBox.IsChecked = _profile.ResourceNavigation?.Enabled == true;
             _rules.Clear();
             foreach (var rule in _profile.Rules)
             {
@@ -704,6 +712,8 @@ public partial class MainWindow : Window
         _profile.Name = MacroDisplayName(ProfileNameCombo.Text);
         _profile.Game = NormalizeGameName(GameCombo.Text);
         _profile.PollIntervalMs = ReadInt(PollIntervalBox, 80, 20, 2000);
+        _profile.ResourceNavigation ??= new ResourceNavigationSettings();
+        _profile.ResourceNavigation.Enabled = ResourceNavigationCheckBox.IsChecked == true;
         _profile.Rules = _rules.ToList();
     }
 

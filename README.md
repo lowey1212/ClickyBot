@@ -26,6 +26,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
 - ClickyBot branding uses the supplied robot-and-mouse artwork in the window toolbar, executable icon, taskbar/desktop shortcut, and installer.
 - Bounded activity logging and optimized screen sampling/input replay to keep long-running profiles lighter on CPU and memory.
+- Experimental opt-in resource navigation: after an `E (Hold)` prompt disappears, release E, scan with relative mouse movement, and take a limited number of short forward steps to find another prompt.
 - GitHub release updates: use `CHECK FOR UPDATES` manually or enable the background startup check in `SETTINGS`; updates ask for confirmation before downloading and restarting the app.
 
 ## Licence
@@ -70,6 +71,14 @@ The reference rectangle must be inside the selected watch area. If it is capture
 
 Mouse movement sets the cursor position and sends an absolute movement event across the virtual desktop, including monitors with negative coordinates. The activity log reports detection transitions and action coordinates, and reports rejected input instead of claiming success. TEST CONDITION detects only; start the engine to perform the selected action. Some games lock/recentre the cursor or reject generated input; successful desktop movement does not guarantee that a game will accept it.
 
+## Experimental resource navigation
+
+This mode is disabled by default. Check **Find next E (Hold) resource** in the profile settings to use it. The profile must contain two enabled `RegionSnapshotMatches` image-search rules: one recorded E-up step for low stamina and one recorded E-down step for recovered stamina. Set `ResourceNavigation.PromptReferenceImagePath` in the profile JSON to a cropped PNG of the `E (Hold)` prompt; its width, height, search region, and matching threshold are configurable there too.
+
+Start with the global hotkey while the game is focused. Navigation holds E immediately, releases it at the low-stamina image, and resumes near the high-stamina image. When the interaction prompt has been absent for the configured delay, it releases E, turns the camera in short relative mouse movements, and probes forward in short steps. It resumes E after two matches at nearly the same prompt location. Search stops after its configured movement limit or if the game loses focus. `F7` releases all generated keys immediately.
+
+This is a bounded nearby search, not map-based pathfinding. It cannot tell whether an `E (Hold)` prompt belongs to a resource rather than another interactable object, and game camera capture/input behavior requires live calibration. The profile's `TurnPixels`, `TurnsBeforeStep`, `ForwardStepMs`, and `MaxForwardSteps` can be adjusted after testing.
+
 ## Build a Windows release
 
 To create a self-contained app and installer on Windows:
@@ -80,14 +89,14 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.25.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.25-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.29.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.29-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 
 The installed app checks the latest GitHub release through the `SETTINGS` option when enabled. It only downloads a newer trusted ClickyBot installer after confirmation, then closes and opens the normal installer wizard so you can review and accept the ClickyBot licence before installation. The installer controls whether ClickyBot is launched after the update, so accepting its launch prompt starts only one app instance.
 
-GitHub Actions can build the same Windows artifacts from `.github/workflows/build-windows.yml` when a `v*` tag is pushed or the workflow is run manually.
+GitHub Actions can build the same Windows artifacts from `.github/workflows/build-windows.yml` when a `v*` tag is pushed or the workflow is run manually. Publish the installer and portable package as a GitHub release for the installed app to detect the update.
 
 ## Important limitations of this MVP
 

@@ -173,6 +173,23 @@ internal static class InputSimulator
         EnsureSent([CreateKeyInput(text, KeyUp)]);
     }
 
+    internal static void MoveMouseRelative(int deltaX, int deltaY)
+    {
+        EnsureSent([new NativeMethods.INPUT
+        {
+            Type = InputMouse,
+            Union = new NativeMethods.InputUnion
+            {
+                Mouse = new NativeMethods.MOUSEINPUT
+                {
+                    DeltaX = deltaX,
+                    DeltaY = deltaY,
+                    Flags = 0x0001 // MOUSEEVENTF_MOVE, using relative movement.
+                }
+            }
+        }]);
+    }
+
     internal static bool ReleaseAllHeldInputs()
     {
         ushort[] scanCodes;

@@ -65,6 +65,25 @@ public sealed class MacroProfile
     public string Game { get; set; } = DefaultGameName;
     public int PollIntervalMs { get; set; } = 80;
     public List<MacroRule> Rules { get; set; } = [];
+    public ResourceNavigationSettings ResourceNavigation { get; set; } = new();
+}
+
+public sealed class ResourceNavigationSettings
+{
+    public bool Enabled { get; set; }
+    public string PromptReferenceImagePath { get; set; } = "";
+    public int PromptWidth { get; set; } = 63;
+    public int PromptHeight { get; set; } = 26;
+    public int PromptThreshold { get; set; } = 82;
+    public int PromptSearchX { get; set; } = 500;
+    public int PromptSearchY { get; set; } = 500;
+    public int PromptSearchWidth { get; set; } = 950;
+    public int PromptSearchHeight { get; set; } = 400;
+    public int PromptLostMs { get; set; } = 1500;
+    public int TurnPixels { get; set; } = 75;
+    public int TurnsBeforeStep { get; set; } = 8;
+    public int ForwardStepMs { get; set; } = 250;
+    public int MaxForwardSteps { get; set; } = 6;
 }
 
 public sealed class MacroRule
