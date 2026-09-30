@@ -9,20 +9,26 @@ internal sealed class ResourceNavigator
     private readonly MacroProfile _profile;
     private readonly Func<MacroRule, CancellationToken, bool> _evaluate;
     private readonly Action<string> _log;
+    private readonly Func<CancellationToken, Task<StaminaBarReading>>? _readBar;
 
-    public ResourceNavigator(MacroProfile profile, Func<MacroRule, CancellationToken, bool> evaluate, Action<string> log)
+    public ResourceNavigator(MacroProfile profile, Func<MacroRule, CancellationToken, bool> evaluate, Action<string> log,
+        Func<CancellationToken, Task<StaminaBarReading>>? readBar = null)
     {
         _profile = profile;
         _evaluate = evaluate;
         _log = log;
+        _readBar = readBar;
     }
 
     public async Task RunAsync(CancellationToken token)
     {
         var settings = _profile.ResourceNavigation;
-        var low = FindStaminaRule(RecordedStepType.KeyUp);
-        var high = FindStaminaRule(RecordedStepType.KeyDown);
-        if (low is null || high is null || low.ReferenceRgb.Length == 0 || high.ReferenceRgb.Length == 0)
+        var useFill = settings.UseBarFillForStamina;
+        var low = useFill ? null : FindStaminaRule(RecordedStepType.KeyUp);
+        var high = useFill ? null : FindStaminaRule(RecordedStepType.KeyDown);
+        if (useFill && _readBar is null)
+            throw new InvalidOperationException("Bar fill stamina control needs a readable stamina bar reference.");
+        if (!useFill && (low is null || high is null || low.ReferenceRgb.Length == 0 || high.ReferenceRgb.Length == 0))
             throw new InvalidOperationException("Resource search needs enabled 8/50 E-up and 48/50 E-down image rules with loaded references.");
 
         Validate(settings);
@@ -72,6 +78,13 @@ internal sealed class ResourceNavigator
                 }
 
                 var promptVisible = _evaluate(promptRule, token);
+                var bar = useFill ? await _readBar!(token) : default;
+                var lowStamina = useFill
+                    ? bar.Visible == true && bar.FillPercent <= settings.LowFillPercent
+                    : state == State.Harvest && _evaluate(low!, token);
+                var highStamina = useFill
+                    ? bar.Visible == true && bar.FillPercent >= settings.HighFillPercent
+                    : state != State.Harvest && _evaluate(high!, token);
                 var now = DateTime.UtcNow;
                 if (state != State.Search)
                 {
@@ -86,21 +99,21 @@ internal sealed class ResourceNavigator
                         promptCandidate = null;
                         _log("Resource prompt disappeared; searching nearby. E is released.");
                     }
-                    else if (state == State.Harvest && _evaluate(low, token))
+                    else if (state == State.Harvest && lowStamina)
                     {
                         InputSimulator.SendKeyUp("E");
                         state = State.Rest;
                         staminaReady = false;
-                        _log("Stamina near 8/50; resting.");
+                        _log(useFill ? $"Stamina bar near {bar.FillPercent}% fill; resting." : "Stamina near 8/50; resting.");
                     }
-                    else if (state == State.Rest && _evaluate(high, token))
+                    else if (state == State.Rest && highStamina)
                     {
                         staminaReady = true;
                         if (promptVisible)
                         {
                             InputSimulator.SendKeyDown("E");
                             state = State.Harvest;
-                            _log("Stamina near 48/50; holding E again.");
+                            _log(useFill ? $"Stamina bar near {bar.FillPercent}% fill; holding E again." : "Stamina near 48/50; holding E again.");
                         }
                         else
                         {
@@ -111,7 +124,7 @@ internal sealed class ResourceNavigator
                 }
                 else
                 {
-                    if (!staminaReady && _evaluate(high, token))
+                    if (!staminaReady && highStamina)
                         staminaReady = true;
 
                     if (promptVisible)

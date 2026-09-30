@@ -56,6 +56,12 @@ var navigationProfile = new MacroProfile { ResourceNavigation = new ResourceNavi
 var navigationRestored = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(navigationProfile, options), options)!;
 Check(navigationRestored.ResourceNavigation.Enabled && navigationRestored.ResourceNavigation.PromptReferenceImagePath == "prompt.png",
     "Resource navigation settings must survive a profile save/load cycle.");
+navigationProfile.ResourceNavigation.RestartWhenBarMissing = true;
+navigationProfile.ResourceNavigation.BarReferenceImagePath = "bar.png";
+navigationRestored = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(navigationProfile, options), options)!;
+Check(navigationRestored.ResourceNavigation.RestartWhenBarMissing
+    && navigationRestored.ResourceNavigation.BarReferenceImagePath == "bar.png",
+    "Missing-bar recovery settings must survive a profile save/load cycle.");
 var legacy = JsonSerializer.Deserialize<MacroRule>("{\"ClickX\":12,\"ClickY\":34}")!;
 Check(legacy.ResolveMouseTarget() == new MatchLocation(12, 34) && !legacy.SearchReference,
     "Existing macros must retain their fixed-coordinate behavior.");

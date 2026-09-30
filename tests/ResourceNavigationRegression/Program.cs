@@ -68,3 +68,38 @@ var resumedHarvest = events.FindIndex(forwardRelease + 1, item => item == "down:
 if (forwardRelease < 0 || resumedHarvest <= forwardRelease || events.LastOrDefault() != "release-all")
     throw new Exception($"New resource was not acquired after moving: {string.Join(", ", events)}");
 Console.WriteLine("PASS: a new prompt after movement resumes E and Stop releases held input.");
+
+events.Clear();
+profile.ResourceNavigation.UseBarFillForStamina = true;
+profile.ResourceNavigation.LowFillPercent = 17;
+profile.ResourceNavigation.HighFillPercent = 95;
+var fill = 80;
+using var fillStop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+navigator = new ResourceNavigator(profile, (rule, _) => rule.Name == "E (Hold) prompt", _ => { },
+    _ => Task.FromResult(new StaminaBarReading(true, Volatile.Read(ref fill))));
+var fillTask = navigator.RunAsync(fillStop.Token);
+
+async Task WaitForEventCount(string eventName, int expected)
+{
+    var deadline = DateTime.UtcNow.AddSeconds(2);
+    while (events.Count(item => item == eventName) < expected && DateTime.UtcNow < deadline)
+        await Task.Delay(20);
+    if (events.Count(item => item == eventName) < expected)
+        throw new Exception($"Timed out waiting for {eventName}: {string.Join(", ", events)}");
+}
+
+await WaitForEventCount("down:E", 1);
+Interlocked.Exchange(ref fill, 15);
+await WaitForEventCount("up:E", 1);
+Interlocked.Exchange(ref fill, 80);
+await Task.Delay(120);
+if (events.Count(item => item == "down:E") != 1)
+    throw new Exception("Bar fill resumed E before reaching the high threshold.");
+Interlocked.Exchange(ref fill, 96);
+await WaitForEventCount("down:E", 2);
+fillStop.Cancel();
+try { await fillTask; }
+catch (OperationCanceledException) { }
+if (events.LastOrDefault() != "release-all")
+    throw new Exception("Bar fill mode did not release inputs on Stop.");
+Console.WriteLine("PASS: E uses low/high bar fill percentages without reading stamina numbers.");
