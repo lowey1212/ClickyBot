@@ -346,7 +346,8 @@ public partial class MainWindow : Window
                     releaseInputs: () => InputSimulator.ReleaseAllHeldInputs(),
                     log: message => Dispatcher.BeginInvoke(() => AppendLog(message)),
                     missingMs: settings.BarMissingMs,
-                    checkIntervalMs: settings.BarCheckIntervalMs);
+                    checkIntervalMs: settings.BarCheckIntervalMs,
+                    restartOnlyAfterMacroStops: settings.Enabled);
                 AppendLog("Stamina bar recovery is active. Manual Stop and F7 disable it.");
                 await runner.RunAsync(token);
             }
