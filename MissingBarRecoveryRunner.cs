@@ -10,6 +10,7 @@ internal sealed class MissingBarRecoveryRunner
     private readonly Action<string> _log;
     private readonly int _missingMs;
     private readonly int _checkIntervalMs;
+    private readonly bool _restartOnlyAfterMacroStops;
 
     public MissingBarRecoveryRunner(
         Func<CancellationToken, Task> runMacro,
@@ -17,7 +18,8 @@ internal sealed class MissingBarRecoveryRunner
         Action releaseInputs,
         Action<string> log,
         int missingMs,
-        int checkIntervalMs)
+        int checkIntervalMs,
+        bool restartOnlyAfterMacroStops = false)
     {
         _runMacro = runMacro;
         _barVisible = barVisible;
@@ -25,6 +27,7 @@ internal sealed class MissingBarRecoveryRunner
         _log = log;
         _missingMs = missingMs;
         _checkIntervalMs = checkIntervalMs;
+        _restartOnlyAfterMacroStops = restartOnlyAfterMacroStops;
     }
 
     public async Task RunAsync(CancellationToken token)
@@ -76,6 +79,15 @@ internal sealed class MissingBarRecoveryRunner
                 {
                     await FinishMacroAsync(cancel: false);
                     _log("Macro stopped; watching for the stamina bar to disappear before restarting.");
+                }
+
+                // Resource navigation handles a depleted node and a missing bar
+                // while it is running. Restarting it mid-search loses its target.
+                if (_restartOnlyAfterMacroStops && currentRun is not null)
+                {
+                    missingSince = null;
+                    await Task.Delay(_checkIntervalMs, token);
+                    continue;
                 }
 
                 var visible = await _barVisible(token);

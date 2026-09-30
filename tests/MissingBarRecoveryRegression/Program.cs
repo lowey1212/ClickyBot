@@ -75,3 +75,35 @@ stoppedSession.Cancel();
 try { await stoppedTask; }
 catch (OperationCanceledException) { }
 Console.WriteLine("PASS: a macro that already ended waits for bar absence, then starts again.");
+
+var navigationStarts = 0;
+var completeNavigation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+using var navigationStop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+var navigationRunner = new MissingBarRecoveryRunner(
+    runMacro: async token =>
+    {
+        if (Interlocked.Increment(ref navigationStarts) == 1)
+            await completeNavigation.Task.WaitAsync(token);
+        else
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+    },
+    barVisible: _ => Task.FromResult<bool?>(false),
+    releaseInputs: () => { },
+    log: _ => { },
+    missingMs: 150,
+    checkIntervalMs: 30,
+    restartOnlyAfterMacroStops: true);
+var navigationTask = navigationRunner.RunAsync(navigationStop.Token);
+await Task.Delay(350);
+if (Volatile.Read(ref navigationStarts) != 1)
+    throw new Exception("Missing bar interrupted active resource navigation.");
+completeNavigation.SetResult();
+var navigationDeadline = DateTime.UtcNow.AddSeconds(2);
+while (Volatile.Read(ref navigationStarts) < 2 && DateTime.UtcNow < navigationDeadline)
+    await Task.Delay(20);
+if (Volatile.Read(ref navigationStarts) != 2)
+    throw new Exception("A finished navigator did not restart after bar absence.");
+navigationStop.Cancel();
+try { await navigationTask; }
+catch (OperationCanceledException) { }
+Console.WriteLine("PASS: bar absence does not interrupt navigation but can recover an ended run.");

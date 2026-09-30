@@ -63,6 +63,8 @@ internal sealed class ResourceNavigator
         MatchLocation? promptCandidate = null;
         var turns = 0;
         var forwardSteps = 0;
+        var movementLimitReached = false;
+        DateTime? barMissingSince = null;
         InputSimulator.SendKeyDown("E");
         _log("Resource navigation: holding E. F7 stops and releases all keys.");
 
@@ -86,6 +88,10 @@ internal sealed class ResourceNavigator
                     ? bar.Visible == true && bar.FillPercent >= settings.HighFillPercent
                     : state != State.Harvest && _evaluate(high!, token);
                 var now = DateTime.UtcNow;
+                if (useFill && bar.Visible == false)
+                    barMissingSince ??= now;
+                else
+                    barMissingSince = null;
                 if (state != State.Search)
                 {
                     if (promptVisible) lastPromptSeen = now;
@@ -95,9 +101,23 @@ internal sealed class ResourceNavigator
                         state = State.Search;
                         turns = 0;
                         forwardSteps = 0;
+                        movementLimitReached = false;
                         promptConfirmations = 0;
                         promptCandidate = null;
                         _log("Resource prompt disappeared; searching nearby. E is released.");
+                    }
+                    else if (state == State.Harvest && barMissingSince is { } missingSince
+                        && (now - missingSince).TotalMilliseconds >= settings.BarMissingMs)
+                    {
+                        InputSimulator.SendKeyUp("E");
+                        state = State.Search;
+                        turns = 0;
+                        forwardSteps = 0;
+                        movementLimitReached = false;
+                        promptConfirmations = 0;
+                        promptCandidate = null;
+                        barMissingSince = null;
+                        _log("Stamina bar disappeared while harvesting; releasing E and seeking a fresh E (Hold) prompt.");
                     }
                     else if (state == State.Harvest && lowStamina)
                     {
@@ -150,6 +170,7 @@ internal sealed class ResourceNavigator
                             {
                                 InputSimulator.SendKeyDown("E");
                                 state = State.Harvest;
+                                barMissingSince = null;
                                 _log("Found another E (Hold) prompt; harvesting.");
                             }
                             else
@@ -159,7 +180,7 @@ internal sealed class ResourceNavigator
                             }
                         }
                     }
-                    else
+                    else if (!movementLimitReached)
                     {
                         promptConfirmations = 0;
                         promptCandidate = null;
@@ -181,8 +202,8 @@ internal sealed class ResourceNavigator
                             _log($"Resource search: short forward step {forwardSteps}/{settings.MaxForwardSteps}.");
                             if (forwardSteps >= settings.MaxForwardSteps)
                             {
-                                _log("No nearby E (Hold) prompt found within the movement limit. Stopping.");
-                                return;
+                                movementLimitReached = true;
+                                _log("Movement limit reached. Holding position and watching for another E (Hold) prompt.");
                             }
                         }
                     }
