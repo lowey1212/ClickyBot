@@ -1,5 +1,7 @@
 namespace ClickyBot;
 
+internal readonly record struct StaminaBarReading(bool? Visible, int FillPercent);
+
 internal static class ScreenProbe
 {
     public const int MaxSearchWidth = 3840;

@@ -6,11 +6,14 @@ internal sealed class MacroEngine
 
     internal bool EvaluateNow(MacroRule rule) => Evaluate(rule, CancellationToken.None);
 
-    public async Task RunAsync(MacroProfile profile, CancellationToken token)
+    public async Task RunAsync(MacroProfile profile, CancellationToken token, BarPresenceProbe? barProbe = null)
     {
         if (profile.ResourceNavigation?.Enabled == true)
         {
-            var navigator = new ResourceNavigator(profile, Evaluate, message => Log?.Invoke(message));
+            if (profile.ResourceNavigation.UseBarFillForStamina)
+                barProbe ??= BarPresenceProbe.Create(profile.ResourceNavigation);
+            var navigator = new ResourceNavigator(profile, Evaluate, message => Log?.Invoke(message),
+                barProbe is null ? null : barProbe.ReadAsync);
             await navigator.RunAsync(token);
             return;
         }

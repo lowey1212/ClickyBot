@@ -71,6 +71,27 @@ public sealed class MacroProfile
 public sealed class ResourceNavigationSettings
 {
     public bool Enabled { get; set; }
+    public bool RestartWhenBarMissing { get; set; }
+    public bool UseBarFillForStamina { get; set; }
+    public string BarReferenceImagePath { get; set; } = "";
+    public int BarReferenceWidth { get; set; } = 341;
+    public int BarReferenceHeight { get; set; } = 44;
+    public int BarCropX { get; set; } = 23;
+    public int BarCropY { get; set; } = 12;
+    public int BarCropWidth { get; set; } = 22;
+    public int BarCropHeight { get; set; } = 16;
+    public int BarMatchThreshold { get; set; } = 90;
+    public int BarSearchX { get; set; } = 350;
+    public int BarSearchY { get; set; } = 730;
+    public int BarSearchWidth { get; set; } = 900;
+    public int BarSearchHeight { get; set; } = 300;
+    public int BarMissingMs { get; set; } = 1800;
+    public int BarCheckIntervalMs { get; set; } = 350;
+    public int BarFillStartX { get; set; } = 2;
+    public int BarFillRowY { get; set; } = 13;
+    public int BarFillWidth { get; set; } = 305;
+    public int LowFillPercent { get; set; } = 17;
+    public int HighFillPercent { get; set; } = 95;
     public string PromptReferenceImagePath { get; set; } = "";
     public int PromptWidth { get; set; } = 63;
     public int PromptHeight { get; set; } = 26;

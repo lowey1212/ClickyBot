@@ -328,7 +328,32 @@ public partial class MainWindow : Window
     {
         try
         {
-            await _engine.RunAsync(_profile, token);
+            var profile = _profile;
+            var settings = profile.ResourceNavigation;
+            var needsBarProbe = settings is not null
+                && (settings.RestartWhenBarMissing || (settings.Enabled && settings.UseBarFillForStamina));
+            var probe = needsBarProbe ? BarPresenceProbe.Create(settings!) : null;
+            if (settings?.RestartWhenBarMissing == true)
+            {
+                var gameWindow = NativeMethods.GetForegroundWindow();
+                if (gameWindow == IntPtr.Zero)
+                    throw new InvalidOperationException("No foreground game window was found for stamina bar recovery.");
+
+                var runner = new MissingBarRecoveryRunner(
+                    runMacro: runToken => _engine.RunAsync(profile, runToken, probe),
+                    barVisible: async checkToken => NativeMethods.GetForegroundWindow() == gameWindow
+                        ? (await probe!.ReadAsync(checkToken)).Visible : null,
+                    releaseInputs: () => InputSimulator.ReleaseAllHeldInputs(),
+                    log: message => Dispatcher.BeginInvoke(() => AppendLog(message)),
+                    missingMs: settings.BarMissingMs,
+                    checkIntervalMs: settings.BarCheckIntervalMs);
+                AppendLog("Stamina bar recovery is active. Manual Stop and F7 disable it.");
+                await runner.RunAsync(token);
+            }
+            else
+            {
+                await _engine.RunAsync(profile, token, probe);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -461,6 +486,8 @@ public partial class MainWindow : Window
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
         ResourceNavigationCheckBox.IsChecked = false;
+        RestartWhenBarMissingCheckBox.IsChecked = false;
+        UseBarFillForStaminaCheckBox.IsChecked = false;
         _rules.Clear();
         AddRuleToCollection(new MacroRule { Name = "New rule" });
         AppendLog(logMessage);
@@ -534,6 +561,8 @@ public partial class MainWindow : Window
         ProfileNameCombo.Text = _profile.Name;
         PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
         ResourceNavigationCheckBox.IsChecked = false;
+        RestartWhenBarMissingCheckBox.IsChecked = false;
+        UseBarFillForStaminaCheckBox.IsChecked = false;
         _rules.Clear();
         foreach (var rule in _profile.Rules)
         {
@@ -623,6 +652,8 @@ public partial class MainWindow : Window
             ProfileNameCombo.Text = _profile.Name;
             PollIntervalBox.Text = _profile.PollIntervalMs.ToString();
             ResourceNavigationCheckBox.IsChecked = _profile.ResourceNavigation?.Enabled == true;
+            RestartWhenBarMissingCheckBox.IsChecked = _profile.ResourceNavigation?.RestartWhenBarMissing == true;
+            UseBarFillForStaminaCheckBox.IsChecked = _profile.ResourceNavigation?.UseBarFillForStamina == true;
             _rules.Clear();
             foreach (var rule in _profile.Rules)
             {
@@ -714,6 +745,8 @@ public partial class MainWindow : Window
         _profile.PollIntervalMs = ReadInt(PollIntervalBox, 80, 20, 2000);
         _profile.ResourceNavigation ??= new ResourceNavigationSettings();
         _profile.ResourceNavigation.Enabled = ResourceNavigationCheckBox.IsChecked == true;
+        _profile.ResourceNavigation.RestartWhenBarMissing = RestartWhenBarMissingCheckBox.IsChecked == true;
+        _profile.ResourceNavigation.UseBarFillForStamina = UseBarFillForStaminaCheckBox.IsChecked == true;
         _profile.Rules = _rules.ToList();
     }
 
