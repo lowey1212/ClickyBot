@@ -33,13 +33,19 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 
 ## Throne combat
 
-Choose the `Throne` (or `Throne and Liberty`) game and open your macro. **USE 1920 × 1080 PRESET** uses the supplied screenshot's V area (1260,610,110×110) and main play area for Q (0,140,1540×710). For another layout, click **SET UP THRONE COMBAT**, draw a tight watch area where the V badge appears, then draw the area where the purple Q defence circle appears. The mode uses only `Always → 1`, `V badge → V`, and `PurpleRingMatches → Q`; your other rules are preserved but ignored while this mode is on.
+Choose the `Throne` (or `Throne and Liberty`) game and open your macro. **USE 1920 × 1080 PRESET** uses the supplied screenshot's V area (1260,610,110×110) and main play area for Q (0,140,1540×710). For another layout, click **SET UP THRONE COMBAT**, draw a tight watch area where the V badge appears, then draw the area where the purple Q defence circle appears. The mode uses `Always → 1`, `V badge → V`, `PurpleRingMatches → Q`, and optional ready-image 7/8 healing; your other rules are preserved and ignored while this mode is on.
 
 The bundled V reference matches the key badge rather than the changing skill artwork. If your UI size differs, select the V rule and **CAPTURE REFERENCE** around just the V badge. Use **TEST CONDITION** for V and Q with the game visible before starting. The Q detector looks for a hollow purple arc with radii from 12 to 120 pixels, allowing the outside circle to shrink without requiring an exact screenshot match. Keep the Q area tight to avoid unrelated purple effects.
 
 Each Q/V appearance is handled once. After either response, 1 resumes while the animation disappears. A prompt must stay absent for at least 120 ms to rearm; failed screen captures do not rearm it. The 1 rule's cooldown controls the minimum tap interval (100 ms minimum), with 70 ms key taps and the profile poll interval contributing to the actual pace. No E or 2/3/4 keys are sent by this mode.
 
 Start using your configured hotkey while the game is focused. Combat pauses when a different window takes focus; F7 and the configured start/stop key cancel it as usual. Setup updates an opened macro; use **SAVE MACRO** for a new profile.
+
+Click **SET UP 7 / 8 HEALING** to load the supplied HP frame and the ready centres of the two skill icons. The default low-HP threshold is 82%, matching the supplied 2746/3381 screenshot (about 81%). Change **Heal at or below HP (%)** for another threshold. Healing runs only when **Use 7 and 8 at low HP, when ready** and Throne combat mode are enabled.
+
+The HP reader locates the gold HP frame near the upper-left HUD and measures green fill, excluding the changing numbers. A missing bar or failed capture blocks healing. At low HP it checks 7 and 8 independently against their ready images; a countdown/dimmed icon does not match. Q retains priority, followed by ready 7, ready 8, V and 1. A one-second debounce allows the game to display its cooldown and prevents rapidly repeating a rejected tap; the visual readiness check decides when a skill is usable again. If HP recovers or both skills are cooling down, combat continues normally.
+
+The supplied skill areas are 984,990,58×58 for 7 and 1042,990,58×58 for 8. If your layout differs, adjust each skill's watch area and capture its ready centre; **TEST CONDITION** tests that icon's readiness, while the running mode also requires low HP. **CAPTURE HP BAR** selects the entire bordered green HP bar, excluding the portrait and mana bar, and watches that selected location.
 
 ## Licence
 
@@ -103,8 +109,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.33.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.33-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.34.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.34-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

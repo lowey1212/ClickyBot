@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../../Models.cs" Link="Models.cs" />
     <Compile Include="../../ThroneCombatRunner.cs" Link="ThroneCombatRunner.cs" />
+    <Compile Include="../../ThroneHealthMatcher.cs" Link="ThroneHealthMatcher.cs" />
     <Compile Include="../../PurpleRingMatcher.cs" Link="PurpleRingMatcher.cs" />
     <Compile Include="../../ImageMatcher.cs" Link="ImageMatcher.cs" />
     <Content Include="../../Assets/Throne/*.png" Link="fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

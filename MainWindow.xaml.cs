@@ -807,6 +807,9 @@ public partial class MainWindow : Window
         _profile.ResourceNavigation.RestartWhenBarMissing = isPax && RestartWhenBarMissingCheckBox.IsChecked == true;
         _profile.ResourceNavigation.UseBarFillForStamina = isPax && UseBarFillForStaminaCheckBox.IsChecked == true;
         _profile.ThroneCombatMode = IsThroneGame(_profile.Game) && ThroneCombatCheckBox.IsChecked == true;
+        _profile.ThroneHealing ??= new ThroneHealingSettings();
+        _profile.ThroneHealing.Enabled = IsThroneGame(_profile.Game) && ThroneHealingCheckBox.IsChecked == true;
+        _profile.ThroneHealing.LowHpPercent = ReadInt(ThroneLowHpBox, 82, 1, 100);
         _profile.Rules = _rules.ToList();
     }
 
@@ -815,6 +818,8 @@ public partial class MainWindow : Window
         PaxResourceOptionsPanel.Visibility = IsPaxGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         ThroneOptionsPanel.Visibility = IsThroneGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
+        ThroneHealingCheckBox.IsChecked = _profile.ThroneHealing?.Enabled == true;
+        ThroneLowHpBox.Text = (_profile.ThroneHealing?.LowHpPercent ?? 82).ToString();
     }
 
     private static bool IsThroneGame(string? game) => NormalizeGameName(game).Equals("Throne", StringComparison.OrdinalIgnoreCase)
@@ -865,6 +870,47 @@ public partial class MainWindow : Window
             AppendLog("Throne setup ready: tap 1, V chains, Q defence. The supplied V sample is loaded. Test both prompt areas; re-capture V if your UI scale differs.");
         }
         catch (Exception ex) { AppendLog($"Throne setup failed: {ex.Message}"); }
+    }
+
+    private void SetupThroneHealing_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop combat before changing healing setup."); return; }
+        ApplyEditorToSelectedRule(); ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            ThroneProfileSetup.ConfigureHealing(prepared, _settings.ReferenceImageFolder);
+            _profile = prepared;
+            _rules.Clear(); foreach (var rule in prepared.Rules) _rules.Add(rule);
+            ThroneHealingCheckBox.IsChecked = true;
+            RulesListBox.SelectedItem = _rules.First(rule => rule.Key == "7");
+            UpdateRuleCount(); PersistCurrentMacro();
+            AppendLog($"Healing configured at ≤ {prepared.ThroneHealing.LowHpPercent}% HP. Test 7/8 while ready and on cooldown; re-capture their ready centres if your layout differs.");
+        }
+        catch (Exception ex) { AppendLog($"Healing setup failed: {ex.Message}"); }
+    }
+
+    private async void CaptureThroneHealth_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop combat before capturing the HP bar."); return; }
+        var selection = SelectScreenArea("SELECT THE WHOLE BORDERED GREEN HP BAR — EXCLUDE PORTRAIT AND MANA");
+        if (selection is null) return;
+        if (selection.Width is < 40 or > 500 || selection.Height is < 12 or > 100)
+        { AppendLog("HP reference must be 40–500 × 12–100 pixels, including its gold frame."); return; }
+        var currentProfile = _profile;
+        var captured = await Task.Run(() => CaptureAndSaveReference(selection, _settings.ReferenceImageFolder, "Throne-HP-bar", false));
+        if (!captured.Success) { AppendLog(captured.Error); return; }
+        if (_profile != currentProfile) { AppendLog("HP reference saved; the active profile changed before capture finished."); return; }
+        ApplyProfileEditorToModel();
+        var healing = _profile.ThroneHealing;
+        healing.HealthReferenceImagePath = captured.Path;
+        healing.HealthReferenceWidth = selection.Width; healing.HealthReferenceHeight = selection.Height;
+        healing.HealthReferenceRgb = captured.Reference;
+        healing.SearchX = selection.X; healing.SearchY = selection.Y;
+        healing.SearchWidth = selection.Width; healing.SearchHeight = selection.Height;
+        PersistCurrentMacro();
+        AppendLog("HP reference captured. Health uses the green fill, independently of the changing numbers.");
     }
 
     private static bool IsPaxGame(string? game)
@@ -1722,6 +1768,14 @@ public partial class MainWindow : Window
 
     private void HydrateProfileReferences(MacroProfile profile)
     {
+        profile.ThroneHealing ??= new ThroneHealingSettings();
+        var healing = profile.ThroneHealing;
+        var healthPath = healing.HealthReferenceImagePath;
+        var healthFallback = Path.Combine(_settings.ReferenceImageFolder, Path.GetFileName(healthPath));
+        healing.HealthReferenceRgb = [];
+        foreach (var candidate in new[] { healthPath, healthFallback })
+            if (ReferenceImageService.TryLoadRgb(candidate, healing.HealthReferenceWidth, healing.HealthReferenceHeight, out var hpRgb))
+            { healing.HealthReferenceRgb = hpRgb; healing.HealthReferenceImagePath = candidate; break; }
         foreach (var rule in profile.Rules)
         {
             rule.UseImageSearch();

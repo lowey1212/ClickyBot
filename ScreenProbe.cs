@@ -4,6 +4,15 @@ namespace ClickyBot;
 
 internal static class ScreenProbe
 {
+    internal static double? ReadThroneHealth(ThroneHealingSettings settings, CancellationToken token)
+    {
+        if (settings.SearchWidth is < 1 or > 1200 || settings.SearchHeight is < 1 or > 800
+            || settings.LowHpPercent is < 1 or > 100 || settings.HealthReferenceRgb.Length == 0) return null;
+        if (!TryCaptureRegion(settings.SearchX, settings.SearchY, settings.SearchWidth, settings.SearchHeight,
+            out var rgb, 1200 * 800)) return null;
+        return ThroneHealthMatcher.Read(rgb, settings.SearchWidth, settings.SearchHeight,
+            settings.HealthReferenceRgb, settings.HealthReferenceWidth, settings.HealthReferenceHeight, token);
+    }
     public const int MaxReferencePixels = 100_000;
     public const int MaxSearchWidth = 3840;
     public const int MaxSearchHeight = 2160;

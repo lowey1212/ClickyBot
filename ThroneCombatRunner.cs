@@ -13,7 +13,7 @@ internal sealed class ThroneCombatRunner
 
     private readonly Dictionary<Guid, State> _states = [];
 
-    internal MacroRule? Choose(IReadOnlyList<(MacroRule Rule, bool? Ready)> observations, long nowMs)
+    internal MacroRule? Choose(IReadOnlyList<(MacroRule Rule, bool? Ready)> observations, long nowMs, bool lowHealth = false)
     {
         foreach (var (rule, ready) in observations)
         {
@@ -36,11 +36,12 @@ internal sealed class ThroneCombatRunner
             var rule = item.Rule;
             var state = _states[rule.Id];
             return item.Ready == true && rule.Key.Equals(key, StringComparison.OrdinalIgnoreCase)
-                && (!state.Spent || key == "1")
+                && (key is not "7" and not "8" || lowHealth)
+                && (!state.Spent || key is "1" or "7" or "8")
                 && (state.LastSent == long.MinValue || nowMs - state.LastSent >= Math.Max(100, rule.CooldownMs));
         }).Rule;
 
-        foreach (var key in new[] { "Q", "V" })
+        foreach (var key in new[] { "Q", "7", "8", "V" })
             if (ReadyKey(key) is { } prompt) return prompt;
         return ReadyKey("1");
     }
@@ -55,5 +56,6 @@ internal sealed class ThroneCombatRunner
     internal static bool Supports(MacroRule rule) => rule.Enabled && rule.Action == ActionType.KeyPress
         && (rule.Key.Equals("1", StringComparison.OrdinalIgnoreCase) && rule.Condition == ConditionType.Always
             || rule.Key.Equals("V", StringComparison.OrdinalIgnoreCase) && rule.Condition == ConditionType.RegionSnapshotMatches && rule.SearchReference
+            || (rule.Key == "7" || rule.Key == "8") && rule.ThroneHealingOnly && rule.Condition == ConditionType.RegionSnapshotMatches && rule.SearchReference
             || rule.Key.Equals("Q", StringComparison.OrdinalIgnoreCase) && rule.Condition == ConditionType.PurpleRingMatches);
 }

@@ -113,6 +113,20 @@ internal static class Program
         typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
         Check(Control<StackPanel>("ThroneOptionsPanel").Visibility == Visibility.Collapsed,
             "Other games must hide Throne setup controls.");
+        var healingFolder = System.IO.Path.Combine(referenceFolder, "healing");
+        assembly.GetType("ClickyBot.ThroneProfileSetup")!.GetMethod("ConfigureHealing", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, [profile, healingFolder]);
+        Check(profile.ThroneHealing.Enabled && profile.ThroneHealing.LowHpPercent == 82
+            && profile.ThroneHealing.HealthReferenceRgb.Length == 224 * 18 * 3
+            && profile.Rules.Single(rule => rule.Key == "7").ReferenceRgb.Length == 32 * 32 * 3
+            && profile.Rules.Single(rule => rule.Key == "7").ThroneHealingOnly
+            && profile.Rules.Single(rule => rule.Key == "8").CooldownMs == 1000,
+            "Healing setup must load the HP frame and independent ready icons with visual cooldown protection.");
+        Check(profile.Rules.Contains(legacyE) && profile.Rules.Contains(qRule) && profile.Rules.Contains(vRule)
+            && vRule.SearchX == 850 && qRule.WatchX == 600,
+            "Adding healing must preserve the existing defence/chain watch areas and unrelated rules.");
+        foreach (var file in System.IO.Directory.EnumerateFiles(healingFolder)) System.IO.File.Delete(file);
+        System.IO.Directory.Delete(healingFolder);
         System.IO.File.Delete(vRule.ReferenceImagePath);
         System.IO.Directory.Delete(referenceFolder);
         Console.WriteLine("PASS: real WPF Throne setup, bundled V reference, Q watch editor, game-specific controls and preservation of original rules.");

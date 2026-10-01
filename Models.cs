@@ -68,6 +68,22 @@ public sealed class MacroProfile
     public List<MacroRule> Rules { get; set; } = [];
     public ResourceNavigationSettings ResourceNavigation { get; set; } = new();
     public bool ThroneCombatMode { get; set; }
+    public ThroneHealingSettings ThroneHealing { get; set; } = new();
+}
+
+public sealed class ThroneHealingSettings
+{
+    public bool Enabled { get; set; }
+    public int LowHpPercent { get; set; } = 82;
+    public string HealthReferenceImagePath { get; set; } = "";
+    public int HealthReferenceWidth { get; set; } = 224;
+    public int HealthReferenceHeight { get; set; } = 18;
+    public int SearchX { get; set; }
+    public int SearchY { get; set; }
+    public int SearchWidth { get; set; } = 360;
+    public int SearchHeight { get; set; } = 160;
+    [JsonIgnore]
+    public byte[] HealthReferenceRgb { get; set; } = [];
 }
 
 public sealed class ResourceNavigationSettings
@@ -114,6 +130,7 @@ public sealed class MacroRule
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New rule";
     public bool Enabled { get; set; } = true;
+    public bool ThroneHealingOnly { get; set; }
 
     public ConditionType Condition { get; set; } = ConditionType.Always;
     public int WatchX { get; set; } = 0;

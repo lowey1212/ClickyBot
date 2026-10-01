@@ -46,7 +46,7 @@ internal sealed class MacroEngine
         {
             foreach (var rule in profile.Rules)
             {
-                if (!rule.Enabled)
+                if (!rule.Enabled || rule.ThroneHealingOnly)
                 {
                     ReleaseHeldKey(rule);
                     continue;
@@ -128,8 +128,8 @@ internal sealed class MacroEngine
         var gameWindow = NativeMethods.GetForegroundWindow();
         var rules = profile.Rules.Where(ThroneCombatRunner.Supports).ToList();
         foreach (var rule in profile.Rules.Where(rule => rule.Enabled && !ThroneCombatRunner.Supports(rule)))
-            Log?.Invoke($"{rule.Name}: skipped in Throne mode. This mode runs only Always → 1, V image → V, and purple ring → Q.");
-        Log?.Invoke("Throne combat: continuously tap 1; Q defence takes priority over V chains, then resume 1.");
+            Log?.Invoke($"{rule.Name}: skipped in Throne mode. Use 1, V, Q, or ready-image 7/8 healing rules.");
+        Log?.Invoke("Throne combat: Q defence, ready 7/8 at low HP, V chains, then continuous 1.");
         foreach (var rule in rules.Where(rule => rule.Condition == ConditionType.RegionSnapshotMatches && rule.ReferenceRgb.Length == 0))
             Log?.Invoke($"{rule.Name}: capture its ready reference and select its watch area before it can run.");
         while (true)
@@ -137,13 +137,21 @@ internal sealed class MacroEngine
             token.ThrowIfCancellationRequested();
             if (NativeMethods.GetForegroundWindow() == gameWindow && gameWindow != IntPtr.Zero)
             {
-                var observations = await Task.Run(() => profile.Rules.Where(ThroneCombatRunner.Supports).Select(rule =>
+                var snapshot = await Task.Run(() =>
                 {
-                    var ready = Evaluate(rule, token);
-                    return (Rule: rule, Ready: rule.ObservationValid ? (bool?)ready : null);
-                }).ToList(), token);
+                    var healing = profile.ThroneHealing;
+                    var hp = healing?.Enabled == true ? ScreenProbe.ReadThroneHealth(healing, token) : null;
+                    var observations = profile.Rules.Where(ThroneCombatRunner.Supports).Select(rule =>
+                    {
+                        if (rule.Key is "7" or "8" && (healing?.Enabled != true || hp is null || hp > healing.LowHpPercent))
+                            return (Rule: rule, Ready: (bool?)false);
+                        var ready = Evaluate(rule, token);
+                        return (Rule: rule, Ready: rule.ObservationValid ? (bool?)ready : null);
+                    }).ToList();
+                    return (Observations: observations, LowHealth: healing?.Enabled == true && hp is not null && hp <= healing.LowHpPercent);
+                }, token);
                 token.ThrowIfCancellationRequested();
-                var chosen = runner.Choose(observations, clock.ElapsedMilliseconds);
+                var chosen = runner.Choose(snapshot.Observations, clock.ElapsedMilliseconds, snapshot.LowHealth);
                 if (chosen is not null && NativeMethods.GetForegroundWindow() == gameWindow)
                 {
                     await InputSimulator.ExecuteAsync(chosen, token);

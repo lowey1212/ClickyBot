@@ -41,6 +41,9 @@ Check(new ThroneCombatRunner().Choose(Observe(), 0) is null, "No ready icons mus
 Check(ThroneCombatRunner.Supports(new MacroRule { Key = "1", Condition = ConditionType.Always }), "1 must run without a cooldown image.");
 foreach (var key in new[] { "E", "2", "3", "4" })
     Check(!ThroneCombatRunner.Supports(new MacroRule { Key = key, Condition = ConditionType.Always }), "Combat must ignore E/2/3/4.");
+Check(ThroneCombatRunner.Supports(new MacroRule { Key = "7", Condition = ConditionType.RegionSnapshotMatches, SearchReference = true, ThroneHealingOnly = true })
+    && !ThroneCombatRunner.Supports(new MacroRule { Key = "7", Condition = ConditionType.RegionSnapshotMatches, SearchReference = true }),
+    "Only configured healing rules may run as low-HP skills.");
 Check(JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(new MacroProfile { ThroneCombatMode = true }))!.ThroneCombatMode,
     "Combat mode must round-trip through saved profiles.");
 Console.WriteLine("PASS: Q/V priority, continuous 1, immediate resumption, prompt debounce, capture failure, no E/2/3/4 and profile persistence.");
@@ -88,3 +91,55 @@ using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
 try { PurpleRingMatcher.Find(prompt.Rgb, prompt.Width, prompt.Height, cancelled.Token); throw new Exception("Cancellation was ignored."); }
 catch (OperationCanceledException) { }
 Console.WriteLine($"PASS: real Q prompt, rings at 7 shrinking sizes, beam/solid negatives, invalid captures and cancellation ({timer.ElapsedMilliseconds} ms total).");
+
+var hpImage = Read("HP-low.png"); var hpRef = Read("HP-bar.png");
+var hp = ThroneHealthMatcher.Read(hpImage.Rgb, hpImage.Width, hpImage.Height, hpRef.Rgb, hpRef.Width, hpRef.Height, default);
+Console.WriteLine($"Actual supplied low HP fill: {hp:F2}%");
+Check(hp is >= 79 and <= 82, "The supplied 2746/3381 HP bar must trigger the 82% threshold.");
+var hud = new byte[360 * 160 * 3];
+for (var y = 0; y < 160; y++) Array.Copy(game.Rgb, y * game.Width * 3, hud, y * 360 * 3, 360 * 3);
+var oldHp = ThroneHealthMatcher.Read(hud, 360, 160, hpRef.Rgb, hpRef.Width, hpRef.Height, default);
+Console.WriteLine($"Shifted game HUD health: {oldHp:F2}%");
+Check(oldHp is >= 71 and <= 78, "HP location search must survive the crop's offset and ignore mana.");
+Check(ThroneHealthMatcher.Read(new byte[hud.Length], 360, 160, hpRef.Rgb, hpRef.Width, hpRef.Height, default) is null,
+    "A missing HP frame must be unknown, never low health.");
+var manaOnly = hpImage.Rgb.ToArray();
+for (var y = 64; y < 82; y++) Array.Clear(manaOnly, (y * hpImage.Width + 84) * 3, 224 * 3);
+Check(ThroneHealthMatcher.Read(manaOnly, hpImage.Width, hpImage.Height, hpRef.Rgb, hpRef.Width, hpRef.Height, default) is null,
+    "The remaining mana bar must not masquerade as a low HP bar.");
+var fullHp = hpRef.Rgb.ToArray();
+for (var y = 3; y < hpRef.Height - 4; y++) for (var x = 8; x < hpRef.Width - 10; x++)
+{ var i = (y * hpRef.Width + x) * 3; fullHp[i] = 35; fullHp[i + 1] = 165; fullHp[i + 2] = 85; }
+Check(ThroneHealthMatcher.Read(fullHp, hpRef.Width, hpRef.Height, hpRef.Rgb, hpRef.Width, hpRef.Height, default) is >= 99,
+    "A recovered/full bar must stop the low-health trigger.");
+var cooling = Read("Heal-cooldowns.png");
+foreach (var key in new[] { "7", "8" })
+{
+    var ready = Read($"{key}-ready.png");
+    Check(ImageMatcher.Find(game.Rgb, game.Width, game.Height, ready.Rgb, ready.Width, ready.Height, 20, 90, default) is not null,
+        $"Ready skill {key} must match the actual game screenshot.");
+    Check(ImageMatcher.Find(cooling.Rgb, cooling.Width, cooling.Height, ready.Rgb, ready.Width, ready.Height, 20, 90, default) is null,
+        $"The supplied 9s/3s cooldowns must block skill {key}.");
+}
+var healRules = new[] { new MacroRule { Key = "Q" }, new MacroRule { Key = "7", CooldownMs = 1000 },
+    new MacroRule { Key = "8", CooldownMs = 1000 }, new MacroRule { Key = "V" }, new MacroRule { Key = "1" } };
+var healRunner = new ThroneCombatRunner();
+List<(MacroRule Rule, bool? Ready)> Healing(params string[] ready) => healRules.Select(rule => (rule, (bool?)ready.Contains(rule.Key))).ToList();
+Check(healRunner.Choose(Healing("7", "8", "1"), 0, lowHealth: false)?.Key == "1",
+    "Healthy, unknown or disabled HP healing must never press 7/8 even when their icons are ready.");
+chosen = healRunner.Choose(Healing("Q", "7", "8", "V", "1"), 0, lowHealth: hp <= 82);
+Check(chosen?.Key == "Q", "Q must still take priority over healing."); healRunner.MarkSent(chosen!, 0);
+chosen = healRunner.Choose(Healing("7", "8", "V", "1"), 100, lowHealth: true);
+Check(chosen?.Key == "7", "Ready 7 must be sent at low HP."); healRunner.MarkSent(chosen!, 100);
+chosen = healRunner.Choose(Healing("7", "8", "V", "1"), 200, lowHealth: true);
+Check(chosen?.Key == "8", "8 must have an independent readiness/debounce check."); healRunner.MarkSent(chosen!, 200);
+chosen = healRunner.Choose(Healing("7", "8", "V", "1"), 300, lowHealth: true);
+Check(chosen?.Key == "V", "Healing debounce must allow combat to continue."); healRunner.MarkSent(chosen!, 300);
+chosen = healRunner.Choose(Healing("8", "1"), 1300, lowHealth: true);
+Check(chosen?.Key == "8", "A recovered 8 must be usable again while HP remains low, even if 7 is still on cooldown.");
+Check(healRunner.Choose(Healing("1"), 1500, lowHealth: true)?.Key == "1", "Both skills on cooldown must leave continuous attack running.");
+var savedHealing = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(new MacroProfile
+    { ThroneHealing = new ThroneHealingSettings { Enabled = true, LowHpPercent = 82, HealthReferenceImagePath = "hp.png", HealthReferenceRgb = hpRef.Rgb } }))!;
+Check(savedHealing.ThroneHealing.Enabled && savedHealing.ThroneHealing.HealthReferenceImagePath == "hp.png"
+    && savedHealing.ThroneHealing.HealthReferenceRgb.Length == 0, "Healing settings must persist without writing runtime pixel caches into the macro.");
+Console.WriteLine("PASS: HP threshold/fill and shifted HUD, missing/full bar, actual ready/cooldown 7/8 images, Q priority and independent healing reuse.");
