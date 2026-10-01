@@ -16,6 +16,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Recorded combo actions containing timed keyboard and mouse input; held modifiers such as `Ctrl+C` are preserved as key-down/key-up events.
 - Rising-edge triggers so a ready icon is acted on once until it goes inactive again.
 - Optional repeat-while-true behavior with per-rule cooldowns.
+- Throne combat mode: tap 1 continuously, interrupt for the V chain badge or purple Q defence circle, then resume 1. Q takes priority, and the circle is detected at multiple shrinking sizes.
 - Optional AND gates, so a rule can require a ready pixel plus a mana threshold or a second UI pixel to be unlit.
 - Rule authoring helpers: test a condition without sending input, duplicate a rule, and move rules up or down to control top-to-bottom priority.
 - A compact editor layout with tooltips, separate collapsible profile and rule action panels, a collapsed optional gate section, and a collapsed activity log; drag the splitters to resize the rule editor, automation map, and activity area.
@@ -29,6 +30,16 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Experimental opt-in resource navigation: after an `E (Hold)` prompt disappears, release E, scan with relative mouse movement, and take a limited number of short forward steps to find another prompt.
 - Optional stamina bar recovery: if the bar stays absent while a macro session is started, release generated keys and restart the macro once. The watcher remains active if the inner macro stops; manual Stop and F7 cancel the session.
 - GitHub release updates: use `CHECK FOR UPDATES` manually or enable the background startup check in `SETTINGS`; updates ask for confirmation before downloading and restarting the app.
+
+## Throne combat
+
+Choose the `Throne` (or `Throne and Liberty`) game and open your macro. **USE 1920 × 1080 PRESET** uses the supplied screenshot's V area (1260,610,110×110) and main play area for Q (0,140,1540×710). For another layout, click **SET UP THRONE COMBAT**, draw a tight watch area where the V badge appears, then draw the area where the purple Q defence circle appears. The mode uses only `Always → 1`, `V badge → V`, and `PurpleRingMatches → Q`; your other rules are preserved but ignored while this mode is on.
+
+The bundled V reference matches the key badge rather than the changing skill artwork. If your UI size differs, select the V rule and **CAPTURE REFERENCE** around just the V badge. Use **TEST CONDITION** for V and Q with the game visible before starting. The Q detector looks for a hollow purple arc with radii from 12 to 120 pixels, allowing the outside circle to shrink without requiring an exact screenshot match. Keep the Q area tight to avoid unrelated purple effects.
+
+Each Q/V appearance is handled once. After either response, 1 resumes while the animation disappears. A prompt must stay absent for at least 120 ms to rearm; failed screen captures do not rearm it. The 1 rule's cooldown controls the minimum tap interval (100 ms minimum), with 70 ms key taps and the profile poll interval contributing to the actual pace. No E or 2/3/4 keys are sent by this mode.
+
+Start using your configured hotkey while the game is focused. Combat pauses when a different window takes focus; F7 and the configured start/stop key cancel it as usual. Setup updates an opened macro; use **SAVE MACRO** for a new profile.
 
 ## Licence
 
@@ -92,8 +103,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.32.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.32-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.33.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.33-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

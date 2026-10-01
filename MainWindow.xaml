@@ -91,6 +91,12 @@
                             <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="ProfileNameCombo_DropDownClosed" KeyDown="ProfileNameCombo_KeyDown" ToolTip="Choose a JSON macro for the selected game and it will open automatically, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
+                            <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
+                                <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />
+                                <Button Content="SET UP THRONE COMBAT" Click="SetupThroneCombat_Click" ToolTip="Select where the V chain icon and purple Q circle appear. Taps 1 continuously, responds to Q/V, then resumes 1." />
+                                <Button Content="USE 1920 × 1080 PRESET" Click="ThroneScreenshotPreset_Click" ToolTip="Use the supplied screenshot layout: V near 1313,692, Q in the main play area above the skill bar." />
+                                <TextBlock Text="Continuously taps 1. Presses V once when its chain prompt appears, then resumes 1. Q takes priority for the purple circle as it shrinks. This mode runs only these three rules. Select tight prompt areas and TEST CONDITION; if your UI scale differs, re-capture just the V key badge." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
+                            </StackPanel>
                             <StackPanel x:Name="PaxResourceOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ResourceNavigationCheckBox" Content="Find next E (Hold) resource" Margin="0,10,0,0" ToolTip="Experimental bounded search after the current resource disappears. Requires a prompt reference and either bar fill detection or low/high stamina image rules." />
                                 <CheckBox x:Name="RestartWhenBarMissingCheckBox" Content="Restart if stamina bar disappears" Margin="0,6,0,0" ToolTip="While started, watch for the stamina bar. If it stays absent, release held keys and restart the macro once. Requires a bar reference path in the macro JSON." />

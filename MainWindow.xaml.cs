@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         GameCombo.ItemsSource = _gameNames;
         ProfileNameCombo.ItemsSource = _macroNames;
         ConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
-        GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
+        GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>().Where(condition => condition != ConditionType.PurpleRingMatches);
         ActionCombo.ItemsSource = Enum.GetValues<ActionType>();
         RepeatCombo.ItemsSource = Enum.GetValues<RepeatMode>();
         MouseButtonCombo.ItemsSource = Enum.GetValues<MouseButtonType>();
@@ -350,6 +350,11 @@ public partial class MainWindow : Window
         ApplyProfileEditorToModel();
         if (NativeMethods.GetForegroundWindow() == new WindowInteropHelper(this).Handle)
         {
+            if (_profile.ThroneCombatMode)
+            {
+                AppendLog($"Focus Throne and start with {_settings.StartStopHotKey} so combat stays bound to the game window.");
+                return;
+            }
             if (_profile.ResourceNavigation?.Enabled == true)
             {
                 AppendLog($"Focus the game and start with {_settings.StartStopHotKey} before using resource navigation.");
@@ -801,12 +806,65 @@ public partial class MainWindow : Window
         _profile.ResourceNavigation.Enabled = isPax && ResourceNavigationCheckBox.IsChecked == true;
         _profile.ResourceNavigation.RestartWhenBarMissing = isPax && RestartWhenBarMissingCheckBox.IsChecked == true;
         _profile.ResourceNavigation.UseBarFillForStamina = isPax && UseBarFillForStaminaCheckBox.IsChecked == true;
+        _profile.ThroneCombatMode = IsThroneGame(_profile.Game) && ThroneCombatCheckBox.IsChecked == true;
         _profile.Rules = _rules.ToList();
     }
 
     private void UpdatePaxResourceOptions()
     {
         PaxResourceOptionsPanel.Visibility = IsPaxGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
+        ThroneOptionsPanel.Visibility = IsThroneGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
+        ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
+    }
+
+    private static bool IsThroneGame(string? game) => NormalizeGameName(game).Equals("Throne", StringComparison.OrdinalIgnoreCase)
+        || NormalizeGameName(game).Equals("Throne and Liberty", StringComparison.OrdinalIgnoreCase);
+
+    private void SetupThroneCombat_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop combat before changing its setup."); return; }
+        ApplyEditorToSelectedRule();
+        ApplyProfileEditorToModel();
+        AppendLog("Select a tight area where the V chain icon appears.");
+        var skillArea = SelectScreenArea("STEP 1 OF 2 — SELECT WHERE THE V CHAIN ICON APPEARS");
+        if (skillArea is null) return;
+        if (skillArea.Width > ScreenProbe.MaxSearchWidth || skillArea.Height > ScreenProbe.MaxSearchHeight)
+        { AppendLog("Skill area is too large. Select up to 3840 × 2160 pixels."); return; }
+        AppendLog("Select the area where the purple Q defence circle appears, including its largest ring.");
+        var promptArea = SelectScreenArea("STEP 2 OF 2 — SELECT WHERE THE PURPLE Q CIRCLE APPEARS");
+        if (promptArea is null) return;
+        if (promptArea.Width is < 25 or > ScreenProbe.MaxSearchWidth || promptArea.Height is < 25 or > ScreenProbe.MaxSearchHeight)
+        { AppendLog("Q prompt area must be 25–3840 × 25–2160 pixels."); return; }
+        ConfigureThroneCombat(skillArea, promptArea);
+    }
+
+    private void ThroneScreenshotPreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop combat before changing its setup."); return; }
+        ApplyEditorToSelectedRule();
+        ApplyProfileEditorToModel();
+        ConfigureThroneCombat(new ScreenSelection(1260, 610, 110, 110), new ScreenSelection(0, 140, 1540, 710));
+    }
+
+    private void ConfigureThroneCombat(ScreenSelection skillArea, ScreenSelection promptArea)
+    {
+        try
+        {
+            // Prepare independently so a cancelled/failed setup leaves the profile intact.
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            ThroneProfileSetup.Configure(prepared, _settings.ReferenceImageFolder, skillArea, promptArea);
+            _profile = prepared;
+            _rules.Clear();
+            foreach (var rule in prepared.Rules) _rules.Add(rule);
+            ThroneCombatCheckBox.IsChecked = true;
+            PollIntervalBox.Text = prepared.PollIntervalMs.ToString();
+            RulesListBox.SelectedItem = _rules.First(rule => rule.Key == "V");
+            UpdateRuleCount();
+            PersistCurrentMacro();
+            AppendLog("Throne setup ready: tap 1, V chains, Q defence. The supplied V sample is loaded. Test both prompt areas; re-capture V if your UI scale differs.");
+        }
+        catch (Exception ex) { AppendLog($"Throne setup failed: {ex.Message}"); }
     }
 
     private static bool IsPaxGame(string? game)
@@ -1302,9 +1360,10 @@ public partial class MainWindow : Window
 
     private void CaptureGateReferenceButton_Click(object sender, RoutedEventArgs e) => SelectGateArea(captureReference: true);
 
-    private ScreenSelection? SelectScreenArea()
+    private ScreenSelection? SelectScreenArea(string? title = null)
     {
         var overlay = new SelectionOverlay { Owner = this };
+        if (title is not null) overlay.SelectionTitleText.Text = title;
         try
         {
             var accepted = overlay.ShowDialog() == true;
@@ -1570,8 +1629,8 @@ public partial class MainWindow : Window
         rule.Condition = ConditionCombo.SelectedItem is ConditionType condition ? condition : ConditionType.Always;
         rule.WatchX = ReadInt(WatchXBox, rule.WatchX);
         rule.WatchY = ReadInt(WatchYBox, rule.WatchY);
-        rule.WatchWidth = ReadInt(WatchWidthBox, rule.WatchWidth, 1, 1200);
-        rule.WatchHeight = ReadInt(WatchHeightBox, rule.WatchHeight, 1, 800);
+        rule.WatchWidth = ReadInt(WatchWidthBox, rule.WatchWidth, 1, rule.Condition == ConditionType.PurpleRingMatches ? ScreenProbe.MaxSearchWidth : 1200);
+        rule.WatchHeight = ReadInt(WatchHeightBox, rule.WatchHeight, 1, rule.Condition == ConditionType.PurpleRingMatches ? ScreenProbe.MaxSearchHeight : 800);
         rule.TargetRed = (byte)ReadInt(TargetRedBox, rule.TargetRed, 0, 255);
         rule.TargetGreen = (byte)ReadInt(TargetGreenBox, rule.TargetGreen, 0, 255);
         rule.TargetBlue = (byte)ReadInt(TargetBlueBox, rule.TargetBlue, 0, 255);
@@ -1629,11 +1688,17 @@ public partial class MainWindow : Window
             ? pixelColors ? "Percentage of sampled RGB pixels within the color tolerance. TEST CONDITION detects only; START runs the action."
                 : "Visual pattern similarity, not a percentage of identical RGB pixels. Finds the best location and reports its score. TEST CONDITION detects only; START runs the action."
             : "Coverage counts pixels close to the target color, useful for mana bars and lit/unlit icons.";
+        if (condition == ConditionType.PurpleRingMatches)
+        {
+            CoverageHelpText.Text = "Finds a purple circular arc as it shrinks (radius 12–120 pixels). Select the full area where the defence prompt appears. No image reference is needed.";
+        }
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
-        CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || snapshotCondition
+        CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost or ConditionType.PurpleRingMatches || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
         CoverageThresholdLabel.Content = snapshotCondition ? pixelColors ? "Pixel-color match threshold (%)" : "Image similarity threshold (%)" : "Region coverage / match threshold (%)";
+        CoverageThresholdLabel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
+        CoverageThresholdBox.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;
         KeyPanel.Visibility = isKeyAction ? Visibility.Visible : Visibility.Collapsed;
         KeyLabel.Content = action == ActionType.KeyHold ? "Key to hold" : "Key to press";

@@ -212,6 +212,7 @@ internal static class ScreenProbe
 
     public static MatchLocation? FindReference(MacroRule rule, CancellationToken token)
     {
+        rule.ObservationValid = false;
         rule.LastImageScore = null;
         rule.ImageSearchDiagnostic = "";
         var x = rule.SearchX;
@@ -239,6 +240,7 @@ internal static class ScreenProbe
             rule.ImageSearchDiagnostic = "Windows could not capture the selected area.";
             return null;
         }
+        rule.ObservationValid = true;
         MatchLocation? match;
         if (rule.ImageMatchMethod == ImageMatchMethod.ImageSimilarity)
         {
@@ -256,6 +258,24 @@ internal static class ScreenProbe
             rule.ImageSearchDiagnostic = match.HasValue ? "Pixel colors matched." : "No location met the pixel-color threshold and tolerance.";
         }
         return match is { } point ? new MatchLocation(x + point.X, y + point.Y) : null;
+    }
+
+    public static MatchLocation? FindPurpleRing(MacroRule rule, CancellationToken token)
+    {
+        rule.ObservationValid = false;
+        if (rule.WatchWidth is < 25 or > MaxSearchWidth || rule.WatchHeight is < 25 or > MaxSearchHeight)
+        {
+            rule.ImageSearchDiagnostic = $"Select the area where the purple Q prompt appears (25–{MaxSearchWidth} by 25–{MaxSearchHeight} pixels).";
+            return null;
+        }
+        if (!TryCaptureRegion(rule.WatchX, rule.WatchY, rule.WatchWidth, rule.WatchHeight, out var rgb, MaxSearchWidth * MaxSearchHeight))
+        {
+            rule.ImageSearchDiagnostic = "Windows could not capture the purple-ring area.";
+            return null;
+        }
+        rule.ObservationValid = true;
+        var match = PurpleRingMatcher.Find(rgb, rule.WatchWidth, rule.WatchHeight, token);
+        return match is { } point ? new MatchLocation(rule.WatchX + point.X, rule.WatchY + point.Y) : null;
     }
 
     public static int ReferenceMatchPercent(int x, int y, int width, int height, byte[] referenceRgb, int tolerance, CancellationToken token)

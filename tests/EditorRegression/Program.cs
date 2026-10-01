@@ -83,6 +83,39 @@ internal static class Program
             "Deleting the last row must produce an empty combo.");
         combo.Close();
         Console.WriteLine("PASS: real combo row buttons delete middle, first, and last steps while preserving delays and original rule data.");
+
+        var legacyE = new MacroRule { Name = "Original E", Key = "E", CooldownMs = 20 };
+        var profile = new MacroProfile { Game = "Throne", Rules = [legacyE, new MacroRule { Key = "1", CooldownMs = 20 }] };
+        var referenceFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClickyBot-Throne-" + Guid.NewGuid());
+        var assembly = typeof(MainWindow).Assembly;
+        assembly.GetType("ClickyBot.ThroneProfileSetup")!.GetMethod("Configure", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, [profile, referenceFolder, new ScreenSelection(850, 800, 300, 150), new ScreenSelection(600, 250, 500, 400)]);
+        Check(profile.ThroneCombatMode && profile.Rules.Single(rule => rule.Key == "1").Condition == ConditionType.Always,
+            "Throne setup must tap 1 continuously without ready images.");
+        var vRule = profile.Rules.Single(rule => rule.Key == "V");
+        var qRule = profile.Rules.Single(rule => rule.Key == "Q");
+        Check(vRule.ReferenceRgb.Length == 18 * 18 * 3 && System.IO.File.Exists(vRule.ReferenceImagePath)
+            && vRule.SearchX == 850 && vRule.ImageMatchMethod == ImageMatchMethod.PixelColors,
+            "Setup must extract the bundled V reference and preserve the selected prompt area.");
+        Check(qRule.Condition == ConditionType.PurpleRingMatches && qRule.WatchX == 600 && qRule.WatchWidth == 500
+            && qRule.ReferenceRgb.Length == 0 && profile.Rules.Contains(legacyE) && legacyE.CooldownMs == 20,
+            "Q needs a ring watch area without a reference; existing unrelated rules must be preserved.");
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [qRule]);
+        Check(Control<StackPanel>("PixelWatchPanel").Visibility == Visibility.Visible
+            && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Collapsed
+            && Control<TextBox>("CoverageThresholdBox").Visibility == Visibility.Collapsed,
+            "Q editor must show a watch area and ring help without irrelevant reference/threshold fields.");
+        Control<System.Windows.Controls.ComboBox>("GameCombo").Text = "Throne";
+        typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        Check(Control<StackPanel>("ThroneOptionsPanel").Visibility == Visibility.Visible,
+            "Throne profiles must show combat setup controls.");
+        Control<System.Windows.Controls.ComboBox>("GameCombo").Text = "soulframe";
+        typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        Check(Control<StackPanel>("ThroneOptionsPanel").Visibility == Visibility.Collapsed,
+            "Other games must hide Throne setup controls.");
+        System.IO.File.Delete(vRule.ReferenceImagePath);
+        System.IO.Directory.Delete(referenceFolder);
+        Console.WriteLine("PASS: real WPF Throne setup, bundled V reference, Q watch editor, game-specific controls and preservation of original rules.");
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)

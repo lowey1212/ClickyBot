@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Models.cs" Link="Models.cs" />
+    <Compile Include="../../ThroneCombatRunner.cs" Link="ThroneCombatRunner.cs" />
+    <Compile Include="../../PurpleRingMatcher.cs" Link="PurpleRingMatcher.cs" />
+    <Compile Include="../../ImageMatcher.cs" Link="ImageMatcher.cs" />
+    <Content Include="../../Assets/Throne/*.png" Link="fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="fixtures/*.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -9,7 +9,8 @@ public enum ConditionType
     PixelDiffers,
     RegionCoverageAtLeast,
     RegionCoverageAtMost,
-    RegionSnapshotMatches
+    RegionSnapshotMatches,
+    PurpleRingMatches
 }
 
 public enum ActionType
@@ -66,6 +67,7 @@ public sealed class MacroProfile
     public int PollIntervalMs { get; set; } = 80;
     public List<MacroRule> Rules { get; set; } = [];
     public ResourceNavigationSettings ResourceNavigation { get; set; } = new();
+    public bool ThroneCombatMode { get; set; }
 }
 
 public sealed class ResourceNavigationSettings
@@ -132,6 +134,9 @@ public sealed class MacroRule
 
     [JsonIgnore]
     public string ImageSearchDiagnostic { get; set; } = "";
+
+    [JsonIgnore]
+    public bool ObservationValid { get; set; }
     public int SearchX { get; set; }
     public int SearchY { get; set; }
     public int SearchWidth { get; set; } = 400;
@@ -208,6 +213,7 @@ public sealed class MacroRule
         ConditionType.RegionCoverageAtMost => $"region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} ≤ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches when SearchReference => $"find reference in {SearchX},{SearchY} {SearchWidth}×{SearchHeight} ≥ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches => $"sampled region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} matches ≥ {CoverageThreshold}%",
+        ConditionType.PurpleRingMatches => $"purple ring in {WatchX},{WatchY} {WatchWidth}×{WatchHeight}",
         _ => "condition"
     } + (GateEnabled ? $" + gate: {GateCondition} at {GateX},{GateY}" : "")
       + (Condition == ConditionType.RegionSnapshotMatches && ReferenceRgb.Length == 0 ? " (capture a reference)" : "")

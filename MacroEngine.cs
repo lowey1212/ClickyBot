@@ -8,6 +8,11 @@ internal sealed class MacroEngine
 
     public async Task RunAsync(MacroProfile profile, CancellationToken token, BarPresenceProbe? barProbe = null)
     {
+        if (profile.ThroneCombatMode)
+        {
+            await RunThroneCombatAsync(profile, token);
+            return;
+        }
         if (profile.ResourceNavigation?.Enabled == true)
         {
             if (profile.ResourceNavigation.UseBarFillForStamina)
@@ -116,6 +121,41 @@ internal sealed class MacroEngine
         }
     }
 
+    private async Task RunThroneCombatAsync(MacroProfile profile, CancellationToken token)
+    {
+        var runner = new ThroneCombatRunner();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var gameWindow = NativeMethods.GetForegroundWindow();
+        var rules = profile.Rules.Where(ThroneCombatRunner.Supports).ToList();
+        foreach (var rule in profile.Rules.Where(rule => rule.Enabled && !ThroneCombatRunner.Supports(rule)))
+            Log?.Invoke($"{rule.Name}: skipped in Throne mode. This mode runs only Always → 1, V image → V, and purple ring → Q.");
+        Log?.Invoke("Throne combat: continuously tap 1; Q defence takes priority over V chains, then resume 1.");
+        foreach (var rule in rules.Where(rule => rule.Condition == ConditionType.RegionSnapshotMatches && rule.ReferenceRgb.Length == 0))
+            Log?.Invoke($"{rule.Name}: capture its ready reference and select its watch area before it can run.");
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            if (NativeMethods.GetForegroundWindow() == gameWindow && gameWindow != IntPtr.Zero)
+            {
+                var observations = await Task.Run(() => profile.Rules.Where(ThroneCombatRunner.Supports).Select(rule =>
+                {
+                    var ready = Evaluate(rule, token);
+                    return (Rule: rule, Ready: rule.ObservationValid ? (bool?)ready : null);
+                }).ToList(), token);
+                token.ThrowIfCancellationRequested();
+                var chosen = runner.Choose(observations, clock.ElapsedMilliseconds);
+                if (chosen is not null && NativeMethods.GetForegroundWindow() == gameWindow)
+                {
+                    await InputSimulator.ExecuteAsync(chosen, token);
+                    runner.MarkSent(chosen, clock.ElapsedMilliseconds);
+                    Log?.Invoke($"{chosen.Name}: sent {chosen.Key}");
+                    if (chosen.DelayAfterActionMs > 0) await Task.Delay(chosen.DelayAfterActionMs, token);
+                }
+            }
+            await Task.Delay(Math.Clamp(profile.PollIntervalMs, 20, 2000), token);
+        }
+    }
+
     private static void ReleaseHeldKey(MacroRule rule)
     {
         if (!rule.KeyHoldActive)
@@ -143,15 +183,22 @@ internal sealed class MacroEngine
         rule.CurrentMatch = null;
         rule.LastImageScore = null;
         rule.ImageSearchDiagnostic = "";
+        rule.ObservationValid = false;
         MatchLocation? match = null;
         bool primary;
-        if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)
+        if (rule.Condition == ConditionType.PurpleRingMatches)
+        {
+            match = ScreenProbe.FindPurpleRing(rule, token);
+            primary = match.HasValue;
+        }
+        else if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)
         {
             match = ScreenProbe.FindReference(rule, token);
             primary = match.HasValue;
         }
         else
         {
+            rule.ObservationValid = true;
             primary = EvaluateCondition(
                 rule.Condition,
                 rule.WatchX,

@@ -17,7 +17,7 @@
     <Canvas x:Name="OverlayCanvas">
         <Border Canvas.Left="24" Canvas.Top="24" Background="#E6111926" BorderBrush="#6EE7C2" BorderThickness="1" CornerRadius="8" Padding="14,10">
             <StackPanel>
-                <TextBlock Text="SELECT SCREEN AREA" Foreground="#6EE7C2" FontWeight="Bold" FontSize="13" />
+                <TextBlock x:Name="SelectionTitleText" Text="SELECT SCREEN AREA" Foreground="#6EE7C2" FontWeight="Bold" FontSize="13" />
                 <TextBlock Text="Click for a 1×1 pixel, or click-drag a rectangle. Press Esc to cancel." Foreground="#F4F7FB" FontSize="12" Margin="0,4,0,0" />
             </StackPanel>
         </Border>
