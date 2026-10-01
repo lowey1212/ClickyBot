@@ -48,6 +48,32 @@ Check(JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(new Macr
     "Combat mode must round-trip through saved profiles.");
 Console.WriteLine("PASS: Q/V priority, continuous 1, immediate resumption, prompt debounce, capture failure, no E/2/3/4 and profile persistence.");
 
+var timing = new PurpleRingTiming();
+Check(!timing.Observe(true, 200, 1000) && !timing.Observe(true, 200, 1199)
+    && timing.Observe(true, 200, 1200), "Q must wait exactly the configured delay from first detection.");
+Check(!timing.Observe(false, 200, 1250) && !timing.Observe(false, 200, 1320)
+    && timing.Observe(true, 200, 1330), "A short circle flicker must preserve the original delay.");
+timing.Observe(false, 200, 1400); timing.Unknown(); timing.Observe(false, 200, 1600);
+Check(timing.Observe(true, 200, 1650), "Failed captures must not count as continuous absence.");
+timing.Observe(false, 200, 1700); timing.Observe(false, 200, 1820);
+Check(!timing.Observe(true, 200, 1900) && timing.Observe(true, 200, 2100), "A new circle must wait a fresh delay.");
+var expired = new PurpleRingTiming();
+expired.Observe(true, 200, 0);
+Check(!expired.Observe(false, 200, 200), "A vanished circle must never produce a queued Q.");
+Check(new PurpleRingTiming().Observe(true, 0, 0), "Zero delay must preserve immediate Q.");
+var delayedRunner = new ThroneCombatRunner(); var delayedTiming = new PurpleRingTiming();
+List<(MacroRule Rule, bool? Ready)> Delayed(long now) => rules.Select(rule =>
+    (rule, (bool?)(rule.Key == "Q" ? delayedTiming.Observe(true, 200, now) : rule.Key == "1"))).ToList();
+Check(delayedRunner.Choose(Delayed(0), 0)?.Key == "1", "Attack must continue while Q is waiting.");
+var delayedQ = delayedRunner.Choose(Delayed(200), 200);
+Check(delayedQ?.Key == "Q", "Q must regain priority once its delay expires.");
+delayedRunner.MarkSent(delayedQ!, 200);
+Check(delayedRunner.Choose(Delayed(600), 600)?.Key == "1", "Q must be sent only once per delayed circle.");
+Check(JsonSerializer.Deserialize<MacroRule>("{}")!.PurpleRingDelayMs == 200
+    && JsonSerializer.Deserialize<MacroRule>(JsonSerializer.Serialize(new MacroRule { PurpleRingDelayMs = 350 }))!.PurpleRingDelayMs == 350,
+    "Existing macros must default to 200 ms, and custom Q delays must persist.");
+Console.WriteLine("PASS: delayed Q boundary, circle flicker/rearm, unknown captures, vanished circle, zero/custom delay, attack while waiting and one Q per prompt.");
+
 var chain = Read("V-chain.png");
 var badge = new byte[18 * 18 * 3];
 for (var y = 0; y < 18; y++) Array.Copy(chain.Rgb, ((64 + y) * chain.Width + 36) * 3, badge, y * 18 * 3, 18 * 3);

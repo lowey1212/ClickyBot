@@ -101,6 +101,11 @@ internal static class Program
             && qRule.ReferenceRgb.Length == 0 && profile.Rules.Contains(legacyE) && legacyE.CooldownMs == 20,
             "Q needs a ring watch area without a reference; existing unrelated rules must be preserved.");
         typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [qRule]);
+        Check(Control<StackPanel>("RingTimingPanel").Visibility == Visibility.Visible
+            && Control<TextBox>("RingDelayBox").Text == "200", "Q editor must expose the default 200 ms delay.");
+        qRule.PurpleRingDelayMs = 350;
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [qRule]);
+        Check(Control<TextBox>("RingDelayBox").Text == "350", "Q editor must load a saved custom delay.");
         Check(Control<StackPanel>("PixelWatchPanel").Visibility == Visibility.Visible
             && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Collapsed
             && Control<TextBox>("CoverageThresholdBox").Visibility == Visibility.Collapsed,

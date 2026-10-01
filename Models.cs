@@ -131,6 +131,7 @@ public sealed class MacroRule
     public string Name { get; set; } = "New rule";
     public bool Enabled { get; set; } = true;
     public bool ThroneHealingOnly { get; set; }
+    public int PurpleRingDelayMs { get; set; } = 200;
 
     public ConditionType Condition { get; set; } = ConditionType.Always;
     public int WatchX { get; set; } = 0;
@@ -230,7 +231,7 @@ public sealed class MacroRule
         ConditionType.RegionCoverageAtMost => $"region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} ≤ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches when SearchReference => $"find reference in {SearchX},{SearchY} {SearchWidth}×{SearchHeight} ≥ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches => $"sampled region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} matches ≥ {CoverageThreshold}%",
-        ConditionType.PurpleRingMatches => $"purple ring in {WatchX},{WatchY} {WatchWidth}×{WatchHeight}",
+        ConditionType.PurpleRingMatches => $"purple ring + {PurpleRingDelayMs} ms in {WatchX},{WatchY} {WatchWidth}×{WatchHeight}",
         _ => "condition"
     } + (GateEnabled ? $" + gate: {GateCondition} at {GateX},{GateY}" : "")
       + (Condition == ConditionType.RegionSnapshotMatches && ReferenceRgb.Length == 0 ? " (capture a reference)" : "")

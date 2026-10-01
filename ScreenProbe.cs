@@ -1,9 +1,12 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace ClickyBot;
 
 internal static class ScreenProbe
 {
+    private static readonly ConditionalWeakTable<MacroRule, PurpleRingTiming> RingTimings = new();
+    internal static void ResetPurpleRingTiming(MacroRule rule) => RingTimings.Remove(rule);
     internal static double? ReadThroneHealth(ThroneHealingSettings settings, CancellationToken token)
     {
         if (settings.SearchWidth is < 1 or > 1200 || settings.SearchHeight is < 1 or > 800
@@ -269,22 +272,31 @@ internal static class ScreenProbe
         return match is { } point ? new MatchLocation(x + point.X, y + point.Y) : null;
     }
 
-    public static MatchLocation? FindPurpleRing(MacroRule rule, CancellationToken token)
+    public static MatchLocation? FindPurpleRing(MacroRule rule, CancellationToken token, bool applyTiming = true)
     {
         rule.ObservationValid = false;
         if (rule.WatchWidth is < 25 or > MaxSearchWidth || rule.WatchHeight is < 25 or > MaxSearchHeight)
         {
+            if (applyTiming) RingTimings.GetValue(rule, _ => new PurpleRingTiming()).Unknown();
             rule.ImageSearchDiagnostic = $"Select the area where the purple Q prompt appears (25–{MaxSearchWidth} by 25–{MaxSearchHeight} pixels).";
             return null;
         }
         if (!TryCaptureRegion(rule.WatchX, rule.WatchY, rule.WatchWidth, rule.WatchHeight, out var rgb, MaxSearchWidth * MaxSearchHeight))
         {
+            if (applyTiming) RingTimings.GetValue(rule, _ => new PurpleRingTiming()).Unknown();
             rule.ImageSearchDiagnostic = "Windows could not capture the purple-ring area.";
             return null;
         }
         rule.ObservationValid = true;
-        var match = PurpleRingMatcher.Find(rgb, rule.WatchWidth, rule.WatchHeight, token);
-        return match is { } point ? new MatchLocation(rule.WatchX + point.X, rule.WatchY + point.Y) : null;
+        var ring = PurpleRingMatcher.Find(rgb, rule.WatchWidth, rule.WatchHeight, token);
+        var ready = !applyTiming ? ring.HasValue
+            : RingTimings.GetValue(rule, _ => new PurpleRingTiming()).Observe(ring.HasValue, rule.PurpleRingDelayMs, Environment.TickCount64);
+        rule.ImageSearchDiagnostic = ring.HasValue
+            ? !applyTiming ? "Purple defence circle detected. START applies the configured delay."
+                : ready ? "Purple defence circle detected; delay elapsed." : $"Purple defence circle detected; waiting {rule.PurpleRingDelayMs} ms before Q."
+            : "Waiting for the purple defence circle.";
+        return ready && ring is { } match
+            ? new MatchLocation(rule.WatchX + match.X, rule.WatchY + match.Y) : null;
     }
 
     public static int ReferenceMatchPercent(int x, int y, int width, int height, byte[] referenceRgb, int tolerance, CancellationToken token)

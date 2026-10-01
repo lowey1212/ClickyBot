@@ -37,6 +37,8 @@ Choose the `Throne` (or `Throne and Liberty`) game and open your macro. **USE 19
 
 The bundled V reference matches the key badge rather than the changing skill artwork. If your UI size differs, select the V rule and **CAPTURE REFERENCE** around just the V badge. Use **TEST CONDITION** for V and Q with the game visible before starting. The Q detector looks for a hollow purple arc with radii from 12 to 120 pixels, allowing the outside circle to shrink without requiring an exact screenshot match. Keep the Q area tight to avoid unrelated purple effects.
 
+Q waits 200 ms after the circle first appears, giving it time to move inward. Select the Q rule and adjust **Q delay after circle appears (ms)** to tune it: larger values press later; 0 presses immediately. The timer runs while 1, V and healing continue. Q is sent only while the circle is still detected; a vanished prompt does not leave a queued key press. **TEST CONDITION** checks detection immediately without the delay. The delay is a fixed time, rather than a measurement of ring size, and the poll interval adds to actual response time.
+
 Each Q/V appearance is handled once. After either response, 1 resumes while the animation disappears. A prompt must stay absent for at least 120 ms to rearm; failed screen captures do not rearm it. The 1 rule's cooldown controls the minimum tap interval (100 ms minimum), with 70 ms key taps and the profile poll interval contributing to the actual pace. No E or 2/3/4 keys are sent by this mode.
 
 Start using your configured hotkey while the game is focused. Combat pauses when a different window takes focus; F7 and the configured start/stop key cancel it as usual. Setup updates an opened macro; use **SAVE MACRO** for a new profile.
@@ -109,8 +111,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.34.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.34-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.35.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.35-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

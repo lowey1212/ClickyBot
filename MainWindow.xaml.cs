@@ -1633,6 +1633,7 @@ public partial class MainWindow : Window
         SearchWidthBox.Text = rule.SearchWidth.ToString();
         SearchHeightBox.Text = rule.SearchHeight.ToString();
         CoverageThresholdBox.Text = rule.CoverageThreshold.ToString();
+        RingDelayBox.Text = rule.PurpleRingDelayMs.ToString();
         _watchReferenceRgb = rule.ReferenceRgb.ToArray();
         _watchReferenceImagePath = rule.ReferenceImagePath;
         GateEnabledCheckBox.IsChecked = rule.GateEnabled;
@@ -1688,6 +1689,7 @@ public partial class MainWindow : Window
         rule.SearchWidth = ReadInt(SearchWidthBox, rule.SearchWidth, 1, ScreenProbe.MaxSearchWidth);
         rule.SearchHeight = ReadInt(SearchHeightBox, rule.SearchHeight, 1, ScreenProbe.MaxSearchHeight);
         rule.CoverageThreshold = ReadInt(CoverageThresholdBox, rule.CoverageThreshold, 0, 100);
+        rule.PurpleRingDelayMs = ReadInt(RingDelayBox, rule.PurpleRingDelayMs, 0, 5000);
         rule.ReferenceRgb = _watchReferenceRgb.ToArray();
         rule.ReferenceImagePath = _watchReferenceImagePath;
         rule.GateEnabled = GateEnabledCheckBox.IsChecked == true;
@@ -1725,6 +1727,7 @@ public partial class MainWindow : Window
         var snapshotCondition = condition == ConditionType.RegionSnapshotMatches;
         ImageSearchPanel.Visibility = snapshotCondition ? Visibility.Visible : Visibility.Collapsed;
         PixelWatchPanel.Visibility = snapshotCondition ? Visibility.Collapsed : Visibility.Visible;
+        RingTimingPanel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Visible : Visibility.Collapsed;
         var pixelColors = ImageMatchMethodCombo.SelectedItem is ImageMatchMethod.PixelColors;
         ImageTolerancePanel.Visibility = pixelColors ? Visibility.Visible : Visibility.Collapsed;
         ReferenceSummaryText.Text = _watchReferenceRgb.Length == 0
@@ -1736,7 +1739,7 @@ public partial class MainWindow : Window
             : "Coverage counts pixels close to the target color, useful for mana bars and lit/unlit icons.";
         if (condition == ConditionType.PurpleRingMatches)
         {
-            CoverageHelpText.Text = "Finds a purple circular arc as it shrinks (radius 12–120 pixels). Select the full area where the defence prompt appears. No image reference is needed.";
+            CoverageHelpText.Text = "Finds a purple circular arc as it shrinks (radius 12–120 pixels). Q waits for the configured delay while combat continues. TEST CONDITION checks detection immediately. Select the full prompt area; no reference is needed.";
         }
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;

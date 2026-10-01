@@ -4,7 +4,7 @@ internal sealed class MacroEngine
 {
     public event Action<string>? Log;
 
-    internal bool EvaluateNow(MacroRule rule) => Evaluate(rule, CancellationToken.None);
+    internal bool EvaluateNow(MacroRule rule) => EvaluateCore(rule, CancellationToken.None, applyRingTiming: false);
 
     public async Task RunAsync(MacroProfile profile, CancellationToken token, BarPresenceProbe? barProbe = null)
     {
@@ -29,6 +29,7 @@ internal sealed class MacroEngine
             rule.LastCondition = false;
             rule.LastTriggeredUtc = DateTime.MinValue;
             rule.KeyHoldActive = false;
+            ScreenProbe.ResetPurpleRingTiming(rule);
         }
 
         var enabledRuleCount = 0;
@@ -127,6 +128,7 @@ internal sealed class MacroEngine
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var gameWindow = NativeMethods.GetForegroundWindow();
         var rules = profile.Rules.Where(ThroneCombatRunner.Supports).ToList();
+        foreach (var rule in profile.Rules) ScreenProbe.ResetPurpleRingTiming(rule);
         foreach (var rule in profile.Rules.Where(rule => rule.Enabled && !ThroneCombatRunner.Supports(rule)))
             Log?.Invoke($"{rule.Name}: skipped in Throne mode. Use 1, V, Q, or ready-image 7/8 healing rules.");
         Log?.Invoke("Throne combat: Q defence, ready 7/8 at low HP, V chains, then continuous 1.");
@@ -187,6 +189,9 @@ internal sealed class MacroEngine
     }
 
     private bool Evaluate(MacroRule rule, CancellationToken token)
+        => EvaluateCore(rule, token, applyRingTiming: true);
+
+    private bool EvaluateCore(MacroRule rule, CancellationToken token, bool applyRingTiming)
     {
         rule.CurrentMatch = null;
         rule.LastImageScore = null;
@@ -196,7 +201,7 @@ internal sealed class MacroEngine
         bool primary;
         if (rule.Condition == ConditionType.PurpleRingMatches)
         {
-            match = ScreenProbe.FindPurpleRing(rule, token);
+            match = ScreenProbe.FindPurpleRing(rule, token, applyRingTiming);
             primary = match.HasValue;
         }
         else if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)

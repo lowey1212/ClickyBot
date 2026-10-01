@@ -23,7 +23,7 @@ internal static class ThroneProfileSetup
             rule.Key = key;
             rule.Name = key switch
             {
-                "Q" => "Q — purple defence circle (any size)",
+                "Q" => "Q — delayed purple-circle defence",
                 "V" => "V — chain prompt",
                 _ => "1 — continuous attack"
             };

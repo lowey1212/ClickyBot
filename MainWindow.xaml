@@ -223,6 +223,10 @@
                                         <TextBlock Text="TOLERANCE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
                                     </UniformGrid>
                                 </StackPanel>
+                                <StackPanel x:Name="RingTimingPanel" Visibility="Collapsed">
+                                    <Label Content="Q delay after circle appears (ms)" />
+                                    <TextBox x:Name="RingDelayBox" Text="200" ToolTip="Wait before pressing Q: 0 to 5000 milliseconds. Increase to press later; 0 presses immediately." />
+                                </StackPanel>
                                 <StackPanel x:Name="CoveragePanel">
                                     <Label x:Name="CoverageThresholdLabel" Content="Region coverage / match threshold (%)" />
                                     <TextBox x:Name="CoverageThresholdBox" ToolTip="Minimum or maximum percentage of matching pixels required by the selected condition." />

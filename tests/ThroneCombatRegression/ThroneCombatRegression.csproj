@@ -11,6 +11,7 @@
     <Compile Include="../../ThroneCombatRunner.cs" Link="ThroneCombatRunner.cs" />
     <Compile Include="../../ThroneHealthMatcher.cs" Link="ThroneHealthMatcher.cs" />
     <Compile Include="../../PurpleRingMatcher.cs" Link="PurpleRingMatcher.cs" />
+    <Compile Include="../../PurpleRingTiming.cs" Link="PurpleRingTiming.cs" />
     <Compile Include="../../ImageMatcher.cs" Link="ImageMatcher.cs" />
     <Content Include="../../Assets/Throne/*.png" Link="fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/*.png" CopyToOutputDirectory="PreserveNewest" />
