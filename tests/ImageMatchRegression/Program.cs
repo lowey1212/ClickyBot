@@ -108,6 +108,39 @@ Check(NativeMethods.Events.SequenceEqual(new[] { "move:80,90", "input:0:49153", 
     "Stop must cancel the pending click and restore the original pointer.");
 Console.WriteLine("PASS: production mouse action ordering, move-only, missing-target guard, and stop during pre-click delay (simulated input sink).");
 
+NativeMethods.KeyboardInputs.Clear();
+var tapRule = new MacroRule { Action = ActionType.KeyPress, Key = "Q" };
+await InputSimulator.ExecuteAsync(tapRule, default);
+Check(NativeMethods.KeyboardInputs.Count == 2
+    && NativeMethods.KeyboardInputs[0].Flags == NativeMethods.KeyboardScanCode
+    && NativeMethods.KeyboardInputs[1].Flags == (NativeMethods.KeyboardScanCode | 2)
+    && NativeMethods.KeyboardInputs[0].ScanCode == NativeMethods.KeyboardInputs[1].ScanCode,
+    "A key tap must send one down and one matching up event.");
+var heldForMs = (NativeMethods.KeyboardInputs[1].Ticks - NativeMethods.KeyboardInputs[0].Ticks)
+    * 1000d / Stopwatch.Frequency;
+Check(heldForMs >= 40, "A key tap must remain down long enough for a game frame to observe it.");
+NativeMethods.KeyboardInputs.Clear();
+var comboRule = new MacroRule
+{
+    Action = ActionType.RecordedCombo,
+    RecordedSteps =
+    [
+        new RecordedStep { Type = RecordedStepType.KeyDown, Key = "LeftAlt" },
+        new RecordedStep { Type = RecordedStepType.KeyPress, Key = "1" },
+        new RecordedStep { Type = RecordedStepType.KeyUp, Key = "LeftAlt" }
+    ]
+};
+await InputSimulator.ExecuteAsync(comboRule, default);
+Check(NativeMethods.KeyboardInputs.Count == 4
+    && NativeMethods.KeyboardInputs[0].Flags == NativeMethods.KeyboardScanCode
+    && NativeMethods.KeyboardInputs[1].Flags == NativeMethods.KeyboardScanCode
+    && NativeMethods.KeyboardInputs[2].Flags == (NativeMethods.KeyboardScanCode | 2)
+    && NativeMethods.KeyboardInputs[3].Flags == (NativeMethods.KeyboardScanCode | 2)
+    && NativeMethods.KeyboardInputs[0].ScanCode == NativeMethods.KeyboardInputs[3].ScanCode
+    && NativeMethods.KeyboardInputs[1].ScanCode == NativeMethods.KeyboardInputs[2].ScanCode,
+    "Recorded Alt+1 must hold Alt around a distinct 1 key tap.");
+Console.WriteLine("PASS: keyboard taps have a visible duration and recorded combos preserve modifier order.");
+
 NativeMethods.DesktopLeft = -1920;
 rule.Action = ActionType.MouseMove;
 rule.CurrentMatch = new MatchLocation(-1920, 0);

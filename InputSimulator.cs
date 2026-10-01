@@ -5,6 +5,7 @@ namespace ClickyBot;
 
 internal static class InputSimulator
 {
+    private const int KeyTapDurationMs = 70;
     private const uint InputKeyboard = 1;
     private const uint InputMouse = 0;
     private const uint KeyUp = 0x0002;
@@ -26,7 +27,7 @@ internal static class InputSimulator
         switch (rule.Action)
         {
             case ActionType.KeyPress:
-                PressKey(rule.Key);
+                await PressKeyAsync(rule.Key, token);
                 break;
             case ActionType.MouseClick:
                 var clickTarget = rule.ResolveMouseTarget();
@@ -56,8 +57,8 @@ internal static class InputSimulator
                         switch (step.Type)
                         {
                             case RecordedStepType.KeyPress:
-                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, 0));
-                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, KeyUp));
+                                FlushPendingKeyboard(pendingKeyboard, ref pendingCount);
+                                await PressKeyAsync(step.Key, token);
                                 break;
                             case RecordedStepType.KeyDown:
                                 AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, 0));
@@ -158,9 +159,18 @@ internal static class InputSimulator
         return virtualKey;
     }
 
-    private static void PressKey(string text)
+    private static async Task PressKeyAsync(string text, CancellationToken token)
     {
-        EnsureSent([CreateKeyInput(text, 0), CreateKeyInput(text, KeyUp)]);
+        token.ThrowIfCancellationRequested();
+        SendKeyDown(text);
+        try
+        {
+            await Task.Delay(KeyTapDurationMs, token);
+        }
+        finally
+        {
+            SendKeyUp(text);
+        }
     }
 
     internal static void SendKeyDown(string text)

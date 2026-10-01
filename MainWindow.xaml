@@ -91,9 +91,11 @@
                             <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="ProfileNameCombo_DropDownClosed" KeyDown="ProfileNameCombo_KeyDown" ToolTip="Choose a JSON macro for the selected game and it will open automatically, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
-                            <CheckBox x:Name="ResourceNavigationCheckBox" Content="Find next E (Hold) resource" Margin="0,10,0,0" ToolTip="Experimental bounded search after the current resource disappears. Requires a prompt reference and either bar fill detection or low/high stamina image rules." />
-                            <CheckBox x:Name="RestartWhenBarMissingCheckBox" Content="Restart if stamina bar disappears" Margin="0,6,0,0" ToolTip="While started, watch for the stamina bar. If it stays absent, release held keys and restart the macro once. Requires a bar reference path in the macro JSON." />
-                            <CheckBox x:Name="UseBarFillForStaminaCheckBox" Content="Use stamina bar fill for low/high checks" Margin="0,6,0,0" ToolTip="With resource navigation, release E near the configured low fill percentage and hold E again near the high percentage. Ignores changing stamina numbers." />
+                            <StackPanel x:Name="PaxResourceOptionsPanel" Visibility="Collapsed">
+                                <CheckBox x:Name="ResourceNavigationCheckBox" Content="Find next E (Hold) resource" Margin="0,10,0,0" ToolTip="Experimental bounded search after the current resource disappears. Requires a prompt reference and either bar fill detection or low/high stamina image rules." />
+                                <CheckBox x:Name="RestartWhenBarMissingCheckBox" Content="Restart if stamina bar disappears" Margin="0,6,0,0" ToolTip="While started, watch for the stamina bar. If it stays absent, release held keys and restart the macro once. Requires a bar reference path in the macro JSON." />
+                                <CheckBox x:Name="UseBarFillForStaminaCheckBox" Content="Use stamina bar fill for low/high checks" Margin="0,6,0,0" ToolTip="With resource navigation, release E near the configured low fill percentage and hold E again near the high percentage. Ignores changing stamina numbers." />
+                            </StackPanel>
                         </StackPanel>
                     </Expander>
 

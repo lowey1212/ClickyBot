@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace ClickyBot;
 
 internal readonly record struct StaminaBarReading(bool? Visible, int FillPercent);
@@ -24,9 +26,9 @@ internal static class NativeMethods
 
 internal static class InputSimulator
 {
-    public static readonly List<string> Events = [];
-    public static void SendKeyDown(string key) => Events.Add($"down:{key}");
-    public static void SendKeyUp(string key) => Events.Add($"up:{key}");
-    public static void MoveMouseRelative(int x, int y) => Events.Add($"turn:{x},{y}");
-    public static bool ReleaseAllHeldInputs() { Events.Add("release-all"); return true; }
+    public static readonly ConcurrentQueue<string> Events = new();
+    public static void SendKeyDown(string key) => Events.Enqueue($"down:{key}");
+    public static void SendKeyUp(string key) => Events.Enqueue($"up:{key}");
+    public static void MoveMouseRelative(int x, int y) => Events.Enqueue($"turn:{x},{y}");
+    public static bool ReleaseAllHeldInputs() { Events.Enqueue("release-all"); return true; }
 }

@@ -56,13 +56,14 @@
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="80" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="#" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
                     <TextBlock Grid.Column="1" Text="TYPE" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
                     <TextBlock Grid.Column="2" Text="ACTION" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
                     <TextBlock Grid.Column="3" Text="DELAY BEFORE (MS)" Foreground="{StaticResource MutedTextBrush}" FontSize="11" FontWeight="Bold" />
                 </Grid>
-                <ListBox x:Name="StepsListBox" Grid.Row="2" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListBox x:Name="StepsListBox" Grid.Row="2" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Background="#162131" BorderBrush="#263449" BorderThickness="1" Margin="0,0,0,6" Padding="8">
@@ -72,11 +73,13 @@
                                         <ColumnDefinition Width="170" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="80" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding SequenceNumber}" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1" Text="{Binding TypeLabel}" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                     <TextBox Grid.Column="3" Text="{Binding DelayBeforeMs, UpdateSourceTrigger=PropertyChanged}" ToolTip="Milliseconds to wait before this step. Type a custom value here." Margin="8,0,0,0" VerticalContentAlignment="Center" />
+                                    <Button Grid.Column="4" Content="DELETE" Click="DeleteStepButton_Click" ToolTip="Remove only this step. Stop recording before editing steps." Margin="8,0,0,0" Padding="8,6" VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
                         </DataTemplate>

@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
@@ -50,10 +51,16 @@ public partial class MainWindow : Window
     private string _activeGame = MacroProfile.DefaultGameName;
     private int _registeredStartStopVirtualKey;
     private readonly RunningStopHotkeys _runningStopHotkeys = new();
+    private readonly PhysicalStartStopHotkeys _physicalHotkeys;
+    private uint _lastHotkeySignal;
+    private long _lastHotkeySignalTicks;
 
     public MainWindow()
     {
         _settings = AppSettingsStore.Load();
+        _physicalHotkeys = new PhysicalStartStopHotkeys(
+            () => (uint)GetStartStopVirtualKey(),
+            key => Dispatcher.BeginInvoke(() => HandlePhysicalHotkey(key)));
         InitializeComponent();
         RulesListBox.ItemsSource = _rules;
         GameCombo.ItemsSource = _gameNames;
@@ -74,6 +81,7 @@ public partial class MainWindow : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         AppendLog("Ready. Load the starter profile or add a rule.");
+        AppendLog("Keyboard support active: 70 ms key taps and physical F-key fallback.");
         UpdateStatus(false);
         if (_settings.CheckForUpdatesOnStartup)
         {
@@ -106,6 +114,8 @@ public partial class MainWindow : Window
                 _registeredStartStopVirtualKey = (int)hotkey.Key;
             }
         }
+        if (!_physicalHotkeys.Start(out var hookError))
+            AppendLog($"Physical F-key fallback could not start (Windows error {hookError}).");
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -120,6 +130,7 @@ public partial class MainWindow : Window
         NativeMethods.UnregisterHotKey(handle, CapturePixelHotKeyId);
         NativeMethods.UnregisterHotKey(handle, CaptureClickHotKeyId);
         NativeMethods.UnregisterHotKey(handle, CaptureGateHotKeyId);
+        _physicalHotkeys.Dispose();
         _windowSource?.RemoveHook(WindowMessageHook);
     }
 
@@ -233,7 +244,9 @@ public partial class MainWindow : Window
         {
             if (_runningStopHotkeys.IsStopMessage(wParam.ToInt32()))
             {
-                StopEngine("Stopped by hotkey while a modifier was held.");
+                var key = wParam.ToInt32() >= 0x200 ? NativeMethods.VkF7 : (uint)GetStartStopVirtualKey();
+                if (ShouldHandleHotkeySignal(key))
+                    StopEngine("Stopped by hotkey while a modifier was held.");
                 handled = true;
                 return IntPtr.Zero;
             }
@@ -241,12 +254,16 @@ public partial class MainWindow : Window
             switch (wParam.ToInt32())
             {
                 case ToggleHotKeyId:
-                    AppendLog($"Start/stop hotkey {_settings.StartStopHotKey} received.");
-                    ToggleEngine();
+                    if (ShouldHandleHotkeySignal((uint)GetStartStopVirtualKey()))
+                    {
+                        AppendLog($"Start/stop hotkey {_settings.StartStopHotKey} received.");
+                        ToggleEngine();
+                    }
                     handled = true;
                     break;
                 case PanicHotKeyId:
-                    StopEngine("Panic stop pressed.");
+                    if (ShouldHandleHotkeySignal(NativeMethods.VkF7))
+                        StopEngine("Panic stop pressed.");
                     handled = true;
                     break;
                 case CapturePixelHotKeyId:
@@ -265,6 +282,37 @@ public partial class MainWindow : Window
         }
 
         return IntPtr.Zero;
+    }
+
+    private void HandlePhysicalHotkey(uint key)
+    {
+        if (key == NativeMethods.VkF7)
+        {
+            if (ShouldHandleHotkeySignal(key)) StopEngine("Panic stop pressed.");
+            return;
+        }
+        if (key != (uint)GetStartStopVirtualKey() || AnyModifierHeld()
+            || !ShouldHandleHotkeySignal(key)) return;
+        AppendLog($"Physical {_settings.StartStopHotKey} hotkey received.");
+        ToggleEngine();
+    }
+
+    private static bool AnyModifierHeld() =>
+        (NativeMethods.GetAsyncKeyState(0x10) & 0x8000) != 0
+        || (NativeMethods.GetAsyncKeyState(0x11) & 0x8000) != 0
+        || (NativeMethods.GetAsyncKeyState(0x12) & 0x8000) != 0
+        || (NativeMethods.GetAsyncKeyState(0x5B) & 0x8000) != 0
+        || (NativeMethods.GetAsyncKeyState(0x5C) & 0x8000) != 0;
+
+    private bool ShouldHandleHotkeySignal(uint key)
+    {
+        var now = Stopwatch.GetTimestamp();
+        if (_lastHotkeySignal == key
+            && now - _lastHotkeySignalTicks < Stopwatch.Frequency / 3)
+            return false;
+        _lastHotkeySignal = key;
+        _lastHotkeySignalTicks = now;
+        return true;
     }
 
     private void StartStopButton_Click(object sender, RoutedEventArgs e) => ToggleEngine();
@@ -443,6 +491,7 @@ public partial class MainWindow : Window
     private void HandleGameSelectionChanged()
     {
         var selectedGame = NormalizeGameName(GameCombo.Text);
+        UpdatePaxResourceOptions();
         if (string.Equals(selectedGame, _activeGame, StringComparison.OrdinalIgnoreCase))
         {
             RefreshMacroList(ProfileNameCombo.Text);
@@ -489,6 +538,7 @@ public partial class MainWindow : Window
         ResourceNavigationCheckBox.IsChecked = false;
         RestartWhenBarMissingCheckBox.IsChecked = false;
         UseBarFillForStaminaCheckBox.IsChecked = false;
+        UpdatePaxResourceOptions();
         _rules.Clear();
         AddRuleToCollection(new MacroRule { Name = "New rule" });
         AppendLog(logMessage);
@@ -564,6 +614,7 @@ public partial class MainWindow : Window
         ResourceNavigationCheckBox.IsChecked = false;
         RestartWhenBarMissingCheckBox.IsChecked = false;
         UseBarFillForStaminaCheckBox.IsChecked = false;
+        UpdatePaxResourceOptions();
         _rules.Clear();
         foreach (var rule in _profile.Rules)
         {
@@ -655,6 +706,7 @@ public partial class MainWindow : Window
             ResourceNavigationCheckBox.IsChecked = _profile.ResourceNavigation?.Enabled == true;
             RestartWhenBarMissingCheckBox.IsChecked = _profile.ResourceNavigation?.RestartWhenBarMissing == true;
             UseBarFillForStaminaCheckBox.IsChecked = _profile.ResourceNavigation?.UseBarFillForStamina == true;
+            UpdatePaxResourceOptions();
             _rules.Clear();
             foreach (var rule in _profile.Rules)
             {
@@ -745,10 +797,21 @@ public partial class MainWindow : Window
         _profile.Game = NormalizeGameName(GameCombo.Text);
         _profile.PollIntervalMs = ReadInt(PollIntervalBox, 80, 20, 2000);
         _profile.ResourceNavigation ??= new ResourceNavigationSettings();
-        _profile.ResourceNavigation.Enabled = ResourceNavigationCheckBox.IsChecked == true;
-        _profile.ResourceNavigation.RestartWhenBarMissing = RestartWhenBarMissingCheckBox.IsChecked == true;
-        _profile.ResourceNavigation.UseBarFillForStamina = UseBarFillForStaminaCheckBox.IsChecked == true;
+        var isPax = IsPaxGame(_profile.Game);
+        _profile.ResourceNavigation.Enabled = isPax && ResourceNavigationCheckBox.IsChecked == true;
+        _profile.ResourceNavigation.RestartWhenBarMissing = isPax && RestartWhenBarMissingCheckBox.IsChecked == true;
+        _profile.ResourceNavigation.UseBarFillForStamina = isPax && UseBarFillForStaminaCheckBox.IsChecked == true;
         _profile.Rules = _rules.ToList();
+    }
+
+    private void UpdatePaxResourceOptions()
+    {
+        PaxResourceOptionsPanel.Visibility = IsPaxGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private static bool IsPaxGame(string? game)
+    {
+        return string.Equals(NormalizeGameName(game), "pax", StringComparison.OrdinalIgnoreCase);
     }
 
     private void PersistCurrentMacro()

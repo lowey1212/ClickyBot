@@ -37,6 +37,7 @@ public partial class ComboRecorderWindow : Window
             _isRecording = true;
             StartRecordingButton.Content = "RECORDING…";
             StopRecordingButton.IsEnabled = true;
+            StepsListBox.IsEnabled = false;
             RecordingStatusText.Text = "Recording — input passes through";
             RecordingStatusText.Foreground = (System.Windows.Media.Brush)FindResource("WarningBrush");
             UpdateSummary();
@@ -55,6 +56,7 @@ public partial class ComboRecorderWindow : Window
         _isRecording = false;
         StartRecordingButton.Content = "RECORD / REPLACE";
         StopRecordingButton.IsEnabled = false;
+        StepsListBox.IsEnabled = true;
         RecordingStatusText.Text = message;
         RecordingStatusText.Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush");
         UpdateSummary();
@@ -86,6 +88,19 @@ public partial class ComboRecorderWindow : Window
     {
         Steps.Clear();
         RenumberSteps();
+        UpdateSummary();
+    }
+
+    private void DeleteStepButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRecording || sender is not FrameworkElement { DataContext: RecordedStep step }
+            || !Steps.Remove(step))
+        {
+            return;
+        }
+
+        RenumberSteps();
+        StepsListBox.Items.Refresh();
         UpdateSummary();
     }
 

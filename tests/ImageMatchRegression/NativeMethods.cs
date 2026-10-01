@@ -10,6 +10,7 @@ internal static class NativeMethods
     internal static POINT Cursor = new() { X = 10, Y = 20 };
     internal static readonly List<string> Events = [];
     internal static readonly List<MOUSEINPUT> MouseInputs = [];
+    internal static readonly List<(ushort ScanCode, uint Flags, long Ticks)> KeyboardInputs = [];
     internal static int DesktopLeft;
     internal static int GetSystemMetrics(int index) => index switch
     {
@@ -29,6 +30,8 @@ internal static class NativeMethods
         {
             Events.Add($"input:{inputs[i].Type}:{inputs[i].Union.Mouse.Flags}");
             if (inputs[i].Type == 0) MouseInputs.Add(inputs[i].Union.Mouse);
+            if (inputs[i].Type == 1) KeyboardInputs.Add((inputs[i].Union.Keyboard.ScanCode,
+                inputs[i].Union.Keyboard.Flags, System.Diagnostics.Stopwatch.GetTimestamp()));
         }
         return count;
     }

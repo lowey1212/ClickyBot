@@ -75,8 +75,9 @@ navigator = new ResourceNavigator(profile,
     message => { if (message.Contains("Found another", StringComparison.Ordinal)) foundStop.Cancel(); });
 try { await navigator.RunAsync(foundStop.Token); }
 catch (OperationCanceledException) { }
-var forwardRelease = events.IndexOf("up:W");
-var resumedHarvest = events.FindIndex(forwardRelease + 1, item => item == "down:E");
+var completedEvents = events.ToArray();
+var forwardRelease = Array.IndexOf(completedEvents, "up:W");
+var resumedHarvest = Array.FindIndex(completedEvents, forwardRelease + 1, item => item == "down:E");
 if (forwardRelease < 0 || resumedHarvest <= forwardRelease || events.LastOrDefault() != "release-all")
     throw new Exception($"New resource was not acquired after moving: {string.Join(", ", events)}");
 Console.WriteLine("PASS: a new prompt after movement resumes E and Stop releases held input.");
