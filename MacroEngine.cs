@@ -3,6 +3,22 @@ namespace ClickyBot;
 internal sealed class MacroEngine
 {
     public event Action<string>? Log;
+    internal event Action<RuleObservation>? InspectionUpdated;
+
+    internal RuleObservation Inspect(MacroRule rule, CancellationToken token)
+    {
+        EvaluateCore(rule, token, applyRingTiming: false, inspectAllConditions: true);
+        return rule.LastInspection! with { ActionStatus = "Preview only — no input sent. Conditions do not include runtime cooldowns or priorities." };
+    }
+
+    private void ReportAction(MacroRule rule, string status)
+    {
+        if (rule.LastInspection is { } observation)
+        {
+            rule.LastInspection = observation with { ActionStatus = status, ObservedUtc = DateTime.UtcNow };
+            InspectionUpdated?.Invoke(rule.LastInspection);
+        }
+    }
 
     internal bool EvaluateNow(MacroRule rule) => EvaluateCore(rule, CancellationToken.None, applyRingTiming: false);
 
@@ -74,11 +90,13 @@ internal sealed class MacroEngine
                         {
                             InputSimulator.SendKeyDown(rule.Key);
                             rule.KeyHoldActive = true;
+                            ReportAction(rule, $"Holding {rule.Key}.");
                             rule.LastTriggeredUtc = DateTime.UtcNow;
                             Log?.Invoke($"{rule.Name}: holding {rule.Key}");
                         }
                         catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
                         {
+                            ReportAction(rule, $"Action failed: {ex.Message}");
                             Log?.Invoke($"{rule.Name}: action failed — {ex.Message}");
                         }
                     }
@@ -87,6 +105,7 @@ internal sealed class MacroEngine
                         ReleaseHeldKey(rule);
                     }
 
+                    if (condition && rule.KeyHoldActive) ReportAction(rule, $"Holding {rule.Key}.");
                     rule.LastCondition = condition;
                     continue;
                 }
@@ -99,7 +118,9 @@ internal sealed class MacroEngine
                 {
                     try
                     {
+                        ReportAction(rule, $"Running {rule.ActionSummary}.");
                         await InputSimulator.ExecuteAsync(rule, token);
+                        ReportAction(rule, "Action completed.");
                         rule.LastTriggeredUtc = DateTime.UtcNow;
                         var targetDetail = rule.Action is ActionType.MouseClick or ActionType.MouseMove
                             ? $" at {rule.ResolveMouseTarget().X},{rule.ResolveMouseTarget().Y}" : "";
@@ -111,10 +132,14 @@ internal sealed class MacroEngine
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
                     {
+                        ReportAction(rule, $"Action failed: {ex.Message}");
                         Log?.Invoke($"{rule.Name}: action failed — {ex.Message}");
                     }
                 }
 
+                if (!shouldTrigger && condition) ReportAction(rule, "Already handled this appearance; waiting for the condition to reset.");
+                else if (shouldTrigger && DateTime.UtcNow - rule.LastTriggeredUtc < TimeSpan.FromMilliseconds(Math.Max(0, rule.CooldownMs)))
+                    ReportAction(rule, "Cooling down.");
                 rule.LastCondition = condition;
             }
 
@@ -146,8 +171,22 @@ internal sealed class MacroEngine
                     var observations = profile.Rules.Where(ThroneCombatRunner.Supports).Select(rule =>
                     {
                         if (rule.Key is "7" or "8" && (healing?.Enabled != true || hp is null || hp > healing.LowHpPercent))
+                        {
+                            var detail = healing?.Enabled != true ? "Low-HP healing is disabled."
+                                : hp is null ? "HP bar unavailable; healing blocked."
+                                : $"HP {hp}% is above the healing threshold {healing.LowHpPercent}%.";
+                            var blocked = new RuleObservation(rule.Id, DateTime.UtcNow,
+                                new(null, "Not checked while the HP requirement blocks healing."), null, "Healing blocked.", detail);
+                            rule.LastInspection = blocked;
+                            InspectionUpdated?.Invoke(blocked);
                             return (Rule: rule, Ready: (bool?)false);
+                        }
                         var ready = Evaluate(rule, token);
+                        if (rule.Key is "7" or "8" && rule.LastInspection is { } observed)
+                        {
+                            rule.LastInspection = observed with { Context = $"HP {hp}% · heals at or below {healing!.LowHpPercent}%." };
+                            InspectionUpdated?.Invoke(rule.LastInspection);
+                        }
                         return (Rule: rule, Ready: rule.ObservationValid ? (bool?)ready : null);
                     }).ToList();
                     return (Observations: observations, LowHealth: healing?.Enabled == true && hp is not null && hp <= healing.LowHpPercent);
@@ -156,7 +195,9 @@ internal sealed class MacroEngine
                 var chosen = runner.Choose(snapshot.Observations, clock.ElapsedMilliseconds, snapshot.LowHealth);
                 if (chosen is not null && NativeMethods.GetForegroundWindow() == gameWindow)
                 {
+                    ReportAction(chosen, $"Running {chosen.ActionSummary}.");
                     await InputSimulator.ExecuteAsync(chosen, token);
+                    ReportAction(chosen, "Action completed; Throne controls priority and rearming.");
                     runner.MarkSent(chosen, clock.ElapsedMilliseconds);
                     Log?.Invoke($"{chosen.Name}: sent {chosen.Key}");
                     if (chosen.DelayAfterActionMs > 0) await Task.Delay(chosen.DelayAfterActionMs, token);
@@ -189,112 +230,83 @@ internal sealed class MacroEngine
     }
 
     private bool Evaluate(MacroRule rule, CancellationToken token)
-        => EvaluateCore(rule, token, applyRingTiming: true);
-
-    private bool EvaluateCore(MacroRule rule, CancellationToken token, bool applyRingTiming)
     {
+        var result = EvaluateCore(rule, token, applyRingTiming: true);
+        if (rule.LastInspection is { } observation) InspectionUpdated?.Invoke(observation);
+        return result;
+    }
+
+    private bool EvaluateCore(MacroRule rule, CancellationToken token, bool applyRingTiming, bool inspectAllConditions = false)
+    {
+        token.ThrowIfCancellationRequested();
         rule.CurrentMatch = null;
         rule.LastImageScore = null;
         rule.ImageSearchDiagnostic = "";
         rule.ObservationValid = false;
         MatchLocation? match = null;
-        bool primary;
+        ConditionObservation primary;
         if (rule.Condition == ConditionType.PurpleRingMatches)
         {
             match = ScreenProbe.FindPurpleRing(rule, token, applyRingTiming);
-            primary = match.HasValue;
+            primary = new(rule.ObservationValid ? match.HasValue : null, rule.ImageSearchDiagnostic);
         }
         else if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)
         {
             match = ScreenProbe.FindReference(rule, token);
-            primary = match.HasValue;
+            primary = new(rule.ObservationValid ? match.HasValue : null, rule.ImageSearchDiagnostic);
         }
         else
         {
-            rule.ObservationValid = true;
-            primary = EvaluateCondition(
-                rule.Condition,
-                rule.WatchX,
-                rule.WatchY,
-                rule.WatchWidth,
-                rule.WatchHeight,
-                new RgbColor(rule.TargetRed, rule.TargetGreen, rule.TargetBlue),
-                rule.ReferenceRgb,
-                rule.Tolerance,
-                rule.CoverageThreshold,
-                token);
-
-            if (primary)
+            primary = ObserveCondition(rule.Condition, rule.WatchX, rule.WatchY, rule.WatchWidth, rule.WatchHeight,
+                new RgbColor(rule.TargetRed, rule.TargetGreen, rule.TargetBlue), rule.ReferenceRgb,
+                rule.Tolerance, rule.CoverageThreshold, token);
+            if (primary.Passed == true)
             {
-                if (rule.Condition == ConditionType.PixelMatches)
-                    match = new MatchLocation(rule.WatchX, rule.WatchY);
+                if (rule.Condition == ConditionType.PixelMatches) match = new(rule.WatchX, rule.WatchY);
                 else if (rule.Condition == ConditionType.RegionSnapshotMatches)
-                    match = new MatchLocation(rule.WatchX + rule.WatchWidth / 2, rule.WatchY + rule.WatchHeight / 2);
+                    match = new(rule.WatchX + rule.WatchWidth / 2, rule.WatchY + rule.WatchHeight / 2);
             }
         }
 
-        if (!primary) return false;
+        ConditionObservation? gate = null;
+        if (rule.GateEnabled)
+            gate = primary.Passed == true || inspectAllConditions
+                ? ObserveCondition(rule.GateCondition, rule.GateX, rule.GateY, rule.GateWidth, rule.GateHeight,
+                    new RgbColor(rule.GateTargetRed, rule.GateTargetGreen, rule.GateTargetBlue), rule.GateReferenceRgb,
+                    rule.GateTolerance, rule.GateCoverageThreshold, token)
+                : new(null, "Not checked because the main condition has not passed.");
 
-        if (rule.GateEnabled && !EvaluateCondition(
-            rule.GateCondition,
-            rule.GateX,
-            rule.GateY,
-            rule.GateWidth,
-            rule.GateHeight,
-            new RgbColor(rule.GateTargetRed, rule.GateTargetGreen, rule.GateTargetBlue),
-            rule.GateReferenceRgb,
-            rule.GateTolerance,
-            rule.GateCoverageThreshold,
-            token)) return false;
-
-        rule.CurrentMatch = match;
-        return true;
+        var passed = primary.Passed == true && (!rule.GateEnabled || gate?.Passed == true);
+        rule.ObservationValid = primary.Passed.HasValue && (primary.Passed != true || !rule.GateEnabled || gate!.Passed.HasValue);
+        rule.CurrentMatch = passed ? match : null;
+        rule.LastInspection = new(rule.Id, DateTime.UtcNow, primary, gate,
+            !rule.Enabled ? "Rule disabled."
+            : !passed ? "Waiting for conditions."
+            : "Conditions passed; engine applies timing, repeat mode and priority.");
+        return passed;
     }
 
-    private static bool EvaluateCondition(
-        ConditionType condition,
-        int x,
-        int y,
-        int width,
-        int height,
-        RgbColor target,
-        byte[] referenceRgb,
-        int tolerance,
-        int coverageThreshold,
-        CancellationToken token)
+    private static ConditionObservation ObserveCondition(ConditionType condition, int x, int y, int width, int height,
+        RgbColor target, byte[] referenceRgb, int tolerance, int threshold, CancellationToken token)
     {
-        return condition switch
+        token.ThrowIfCancellationRequested();
+        switch (condition)
         {
-            ConditionType.Always => true,
-            ConditionType.PixelMatches => ScreenProbe.TryReadPixel(x, y, out var pixel)
-                && pixel.IsCloseTo(target, Math.Clamp(tolerance, 0, 255)),
-            // A failed capture must fail closed. Treating an unreadable pixel as
-            // "different" could fire an action while the desktop is unavailable.
-            ConditionType.PixelDiffers => ScreenProbe.TryReadPixel(x, y, out var differentPixel)
-                && !differentPixel.IsCloseTo(target, Math.Clamp(tolerance, 0, 255)),
-            ConditionType.RegionCoverageAtLeast => ScreenProbe.Coverage(
-                    x, y, width, height, target, Math.Clamp(tolerance, 0, 255), token)
-                >= Math.Clamp(coverageThreshold, 0, 100),
-            ConditionType.RegionCoverageAtMost => CoverageAtMost(
-                x, y, width, height, target, tolerance, coverageThreshold, token),
-            ConditionType.RegionSnapshotMatches => ScreenProbe.ReferenceMatchPercent(
-                    x, y, width, height, referenceRgb, tolerance, token)
-                >= Math.Clamp(coverageThreshold, 0, 100),
-            _ => false
-        };
-    }
-
-    private static bool CoverageAtMost(
-        int x,
-        int y,
-        int width,
-        int height,
-        RgbColor target,
-        int tolerance,
-        int threshold,
-        CancellationToken token)
-    {
-        var coverage = ScreenProbe.Coverage(x, y, width, height, target, Math.Clamp(tolerance, 0, 255), token);
-        return coverage >= 0 && coverage <= Math.Clamp(threshold, 0, 100);
+            case ConditionType.Always:
+                return new(true, "Always enabled condition.");
+            case ConditionType.PixelMatches:
+            case ConditionType.PixelDiffers:
+                var captured = ScreenProbe.TryReadPixel(x, y, out var pixel);
+                return ConditionObservation.Pixel(captured, pixel, target, tolerance, condition == ConditionType.PixelDiffers);
+            case ConditionType.RegionCoverageAtLeast:
+            case ConditionType.RegionCoverageAtMost:
+                return ConditionObservation.Percent(ScreenProbe.Coverage(x, y, width, height, target, tolerance, token),
+                    threshold, condition == ConditionType.RegionCoverageAtMost, "Colour coverage");
+            case ConditionType.RegionSnapshotMatches:
+                return ConditionObservation.Percent(ScreenProbe.ReferenceMatchPercent(x, y, width, height, referenceRgb, tolerance, token),
+                    threshold, false, "Reference match");
+            default:
+                return new(null, "This condition is not supported here.");
+        }
     }
 }

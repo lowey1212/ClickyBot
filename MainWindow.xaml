@@ -398,12 +398,32 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <ListBox x:Name="RulesListBox" Grid.Row="2" SelectionChanged="RulesListBox_SelectionChanged" />
-                    <Border Grid.Row="4" Background="#0D1420" BorderBrush="#223149" BorderThickness="1" CornerRadius="10" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="DESIGN NOTE" Foreground="{StaticResource WarningBrush}" FontSize="11" FontWeight="Bold" />
-                            <TextBlock Text="Conditions are read-only screen samples. Generated key events are additive, so the app does not swallow your real keyboard or mouse input. Mouse clicks can restore your pointer immediately after the click." Foreground="{StaticResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
+                    <Expander x:Name="InspectorExpander" Grid.Row="4" Header="LIVE RULE INSPECTOR" IsExpanded="False"
+                              Expanded="Inspector_VisibilityChanged" Collapsed="Inspector_VisibilityChanged"
+                              IsVisibleChanged="Inspector_IsVisibleChanged"
+                              ToolTip="Inspect the selected rule without sending input. While running, uses the engine's latest observations.">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="390">
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock x:Name="InspectorModeText" Text="Select a rule to inspect." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
+                                <Grid Margin="0,8,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="LIVE AREA" FontSize="10" Foreground="{StaticResource MutedTextBrush}" />
+                                        <Border Background="#0D1420" Height="100" Margin="0,4,0,0"><Image x:Name="InspectorLiveImage" Stretch="Uniform"/></Border>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="REFERENCE" FontSize="10" Foreground="{StaticResource MutedTextBrush}" />
+                                        <Border Background="#0D1420" Height="100" Margin="0,4,0,0"><Image x:Name="InspectorReferenceImage" Stretch="Uniform"/></Border>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock x:Name="InspectorCaptureText" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" />
+                                <TextBlock x:Name="InspectorPrimaryText" Margin="0,8,0,0" TextWrapping="Wrap" />
+                                <TextBlock x:Name="InspectorGateText" Margin="0,6,0,0" TextWrapping="Wrap" FontSize="11" />
+                                <TextBlock x:Name="InspectorContextText" Margin="0,6,0,0" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource WarningBrush}" />
+                                <TextBlock x:Name="InspectorActionText" Margin="0,8,0,0" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource AccentBrush}" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Expander>
                 </Grid>
             </Expander>
 

@@ -67,6 +67,11 @@ internal static class NativeMethods
     public static extern bool BitBlt(IntPtr hdcDest, int x, int y, int width, int height, IntPtr hdcSource, int xSource, int ySource, uint rop);
 
     [DllImport("gdi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool StretchBlt(IntPtr destination, int x, int y, int width, int height,
+        IntPtr source, int sourceX, int sourceY, int sourceWidth, int sourceHeight, uint rop);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
     public static extern int GetDIBits(IntPtr hdc, IntPtr hbm, uint start, uint lines, [Out] byte[] bits, ref BITMAPINFO bitmapInfo, uint usage);
 
     [DllImport("user32.dll")]

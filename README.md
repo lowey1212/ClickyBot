@@ -19,6 +19,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Throne combat mode: tap 1 continuously, interrupt for the V chain badge or purple Q defence circle, then resume 1. Q takes priority, and the circle is detected at multiple shrinking sizes.
 - Optional AND gates, so a rule can require a ready pixel plus a mana threshold or a second UI pixel to be unlit.
 - Rule authoring helpers: test a condition without sending input, duplicate a rule, and move rules up or down to control top-to-bottom priority.
+- Live rule inspector: compare a scaled live watch area with its reference, see the main condition and AND gate separately, and read RGB/coverage/image diagnostics without sending input. Running inspection reuses engine observations and includes Throne healing HP context.
 - A compact editor layout with tooltips, separate collapsible profile and rule action panels, a collapsed optional gate section, and a collapsed activity log; drag the splitters to resize the rule editor, automation map, and activity area.
 - Global hotkeys: `F12` start/stop by default (changeable in `SETTINGS`), `F7` panic stop, `F8` select the watch area, `Ctrl+F8` select the gate area, and `F9` select a click target.
 - While running, the configured start/stop key and `F7` also stop with Shift, Ctrl, Alt, or Windows held (including combinations). These additional shortcuts are released when the macro stops. Any shortcut conflicts are reported in the activity log.
@@ -77,6 +78,16 @@ The project targets `net8.0-windows` and uses only the Windows desktop runtime; 
 
 The `ACTIVITY · Live engine log` panel is collapsed by default. Expand it when diagnosing a rule or engine run; the tooltips on controls explain the fields without needing the log open.
 
+## Live rule inspector
+
+Select a rule and expand **LIVE RULE INSPECTOR** below the automation map. While stopped, it checks the current editor values on a separate copy, so unapplied edits can be previewed without changing your saved macro, cooldowns or trigger state. It sends no keyboard or mouse actions. The main condition and optional AND gate report **Passed**, **Waiting**, or **Unavailable**, with observed RGB, colour coverage or image matching details. Missing references and failed captures remain unavailable, rather than passing absence/difference checks.
+
+The live image shows the selected watch/search area, scaled to at most 320 × 180 pixels, beside the main reference where applicable. It refreshes at most twice per second. Captures read the visible desktop, so keep the game area visible and avoid covering it with ClickyBot or other windows. The image is a preview; full-resolution matching still uses the existing detector.
+
+While started, the inspector displays the engine's latest observation and its age instead of performing extra matching searches. Action status distinguishes waiting, cooldown, handled appearances and held keys in the ordinary engine. Throne healing reports its actual HP requirement, including an unavailable HP bar or HP above the threshold. Throne still controls Q/V/healing priority and rearming. Rules ignored by the active mode, disabled rules and unfocused games may have no fresh observation; that is shown explicitly. In resource navigation, controller timing and bar-fill transitions remain controlled by navigation rather than individual rule execution status.
+
+Collapse the inspector or automation map to cancel its worker. Switching rules or starting/stopping clears pending preview results. Opening or closing the inspector does not start or stop your macro.
+
 ## Click a detected fishing target
 
 1. Choose `RegionSnapshotMatches`, then `SELECT AREA TO WATCH` around the region where the target may appear (maximum 3840×2160). Image conditions show only this one area selector; F8 selects the same area.
@@ -111,8 +122,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.35.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.35-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.36.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.36-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

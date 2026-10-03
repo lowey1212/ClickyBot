@@ -132,6 +132,23 @@ internal static class ScreenProbe
     }
 
     public static bool TryCaptureRegion(int x, int y, int width, int height, out byte[] rgb, int maxPixels = MaxReferencePixels)
+        => TryCaptureScaledRegion(x, y, width, height, width, height, out rgb, maxPixels);
+
+    internal static bool TryCapturePreview(int x, int y, int width, int height, out byte[] rgb, out int previewWidth, out int previewHeight)
+    {
+        var scale = Math.Min(1d, Math.Min(320d / Math.Max(1, width), 180d / Math.Max(1, height)));
+        previewWidth = Math.Max(1, (int)Math.Round(width * scale));
+        previewHeight = Math.Max(1, (int)Math.Round(height * scale));
+        if (width is < 1 or > MaxSearchWidth || height is < 1 or > MaxSearchHeight)
+        {
+            rgb = [];
+            return false;
+        }
+        return TryCaptureScaledRegion(x, y, width, height, previewWidth, previewHeight, out rgb, 320 * 180);
+    }
+
+    private static bool TryCaptureScaledRegion(int x, int y, int sourceWidth, int sourceHeight,
+        int width, int height, out byte[] rgb, int maxPixels)
     {
         rgb = [];
         var pixelCount = (long)width * height;
@@ -159,7 +176,10 @@ internal static class ScreenProbe
             }
 
             previousObject = NativeMethods.SelectObject(memoryDc, bitmap);
-            if (previousObject == IntPtr.Zero || !NativeMethods.BitBlt(memoryDc, 0, 0, width, height, screenDc, x, y, NativeMethods.Srccopy | NativeMethods.CaptureBlt))
+            var copied = previousObject != IntPtr.Zero && (width == sourceWidth && height == sourceHeight
+                ? NativeMethods.BitBlt(memoryDc, 0, 0, width, height, screenDc, x, y, NativeMethods.Srccopy | NativeMethods.CaptureBlt)
+                : NativeMethods.StretchBlt(memoryDc, 0, 0, width, height, screenDc, x, y, sourceWidth, sourceHeight, NativeMethods.Srccopy));
+            if (!copied)
             {
                 return false;
             }

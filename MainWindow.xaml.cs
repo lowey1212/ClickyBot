@@ -76,6 +76,7 @@ public partial class MainWindow : Window
         LoadStarterProfile();
         RestoreLastProfile();
         RefreshMacroList(_profile.Name);
+        _inspectorReady = true;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -120,6 +121,8 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _inspectorClosing = true;
+        StopInspector();
         _updateCancellation?.Cancel();
         StopEngine("Stopped before closing.");
         RememberLastProfile();
@@ -465,6 +468,7 @@ public partial class MainWindow : Window
         StartStopButton.Content = running ? $"STOP  {_settings.StartStopHotKey}" : $"START  {_settings.StartStopHotKey}";
         HotkeyHelpText.Text = $"{_settings.StartStopHotKey}  start / stop\nF7  panic stop\nF8  select watch area\nCtrl+F8  select gate area\nF9  capture click target";
         StartStopButton.Style = (Style)FindResource(running ? "DangerButton" : "AccentButton");
+        if (_inspectorReady) RestartInspector();
     }
 
     private void GameCombo_DropDownClosed(object sender, EventArgs e)
@@ -1297,6 +1301,7 @@ public partial class MainWindow : Window
         {
             LoadEditor(rule);
         }
+        if (_inspectorReady) RestartInspector();
     }
 
     private void ConditionCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -1670,7 +1675,11 @@ public partial class MainWindow : Window
         {
             return;
         }
+        ReadEditorIntoRule(rule);
+    }
 
+    private void ReadEditorIntoRule(MacroRule rule)
+    {
         rule.Name = string.IsNullOrWhiteSpace(RuleNameBox.Text) ? "Unnamed rule" : RuleNameBox.Text.Trim();
         rule.Enabled = RuleEnabledCheckBox.IsChecked == true;
         rule.Condition = ConditionCombo.SelectedItem is ConditionType condition ? condition : ConditionType.Always;

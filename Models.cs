@@ -2,6 +2,30 @@ using System.Text.Json.Serialization;
 
 namespace ClickyBot;
 
+internal sealed record ConditionObservation(bool? Passed, string Detail)
+{
+    public string Status => Detail.StartsWith("Not checked", StringComparison.Ordinal) ? "Not checked"
+        : Passed switch { true => "Passed", false => "Waiting", null => "Unavailable" };
+
+    public static ConditionObservation Pixel(bool captured, RgbColor pixel, RgbColor target, int tolerance, bool differs)
+        => !captured ? new(null, "Windows could not read this pixel.")
+            : new(pixel.IsCloseTo(target, Math.Clamp(tolerance, 0, 255)) != differs,
+                $"Observed {pixel}; target {target}; tolerance {Math.Clamp(tolerance, 0, 255)}.");
+
+    public static ConditionObservation Percent(int value, int threshold, bool atMost, string label)
+        => value < 0 ? new(null, "Capture or reference unavailable. Check the selected area and reference.")
+            : new(atMost ? value <= Math.Clamp(threshold, 0, 100) : value >= Math.Clamp(threshold, 0, 100),
+                $"{label} {value}% · requires {(atMost ? "at most" : "at least")} {Math.Clamp(threshold, 0, 100)}%.");
+}
+
+internal sealed record RuleObservation(Guid RuleId, DateTime ObservedUtc, ConditionObservation Primary,
+    ConditionObservation? Gate, string ActionStatus, string? Context = null)
+{
+    public bool Passed => Primary.Passed == true && (Gate is null || Gate.Passed == true);
+    public bool Valid => Primary.Passed.HasValue && (Gate is null || Gate.Passed.HasValue);
+}
+
+
 public enum ConditionType
 {
     Always,
@@ -127,6 +151,7 @@ public sealed class ResourceNavigationSettings
 
 public sealed class MacroRule
 {
+    internal RuleObservation? LastInspection { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New rule";
     public bool Enabled { get; set; } = true;
