@@ -11,7 +11,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Settings page for the reference-image folder and macro folder; captures are saved as numbered PNGs named from the rule, for example `001_Skill-is-lit.png`.
 - Game-grouped macro profiles: choose or type a game in the editable game dropdown, then the profile dropdown shows only JSON macros assigned to that game. Selecting a macro opens it automatically, `SAVE MACRO` writes the selected game into the profile, and `APPLY CHANGES` updates the currently opened macro.
 - Switching games remembers the last active macro for each game and reopens it automatically; a new game starts with a blank profile ready to save.
-- Key presses, mouse clicks, and wait actions.
+- Key presses, mouse clicks, and wait actions. Literal keyboard punctuation such as `-` and `=` is supported; an invalid key name logs an action failure and leaves other rules running.
 - Image search inside a selected area, with mouse movement or clicking at the centre of the found reference. Fixed-coordinate mouse actions remain available.
 - Recorded combo actions containing timed keyboard and mouse input; held modifiers such as `Ctrl+C` are preserved as key-down/key-up events.
 - Rising-edge triggers so a ready icon is acted on once until it goes inactive again.
@@ -122,8 +122,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.36.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.36-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.37.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.37-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

@@ -27,6 +27,31 @@ internal static class Program
             "Percentage thresholds must remain inclusive.");
 
         var engine = new MacroEngine();
+        // Exercise the real engine loop without producing keyboard input.
+        // An invalid key followed by a wait action must survive several polls.
+        using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+        {
+            var failures = 0;
+            var completed = 0;
+            var continuity = new MacroEngine();
+            continuity.Log += message =>
+            {
+                if (message.Contains("action failed")) failures++;
+                if (message.Contains("sent wait") && ++completed == 3) stop.Cancel();
+            };
+            var profile = new MacroProfile { PollIntervalMs = 20, Rules =
+            [
+                new() { Name = "Invalid key", Condition = ConditionType.Always,
+                    Action = ActionType.KeyPress, Key = "not-a-valid-key", Repeat = RepeatMode.WhileTrue, CooldownMs = 0 },
+                new() { Name = "Following skill", Condition = ConditionType.Always,
+                    Action = ActionType.Wait, Repeat = RepeatMode.WhileTrue, CooldownMs = 0 }
+            ] };
+            try { continuity.RunAsync(profile, stop.Token).GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            Check(completed == 3 && failures == 3,
+                "An invalid key must fail only its action; subsequent rules and later polls must keep running.");
+        }
+        Console.WriteLine("PASS: real engine continues across invalid-key actions and three polling cycles until cancelled.");
         var rule = new MacroRule
         {
             Condition = ConditionType.Always, GateEnabled = true,

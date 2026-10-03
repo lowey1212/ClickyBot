@@ -15,6 +15,28 @@ static void Check(bool value, string message)
 }
 
 const int width = 23, height = 17, tw = 5, th = 3;
+foreach (var (text, expected) in new (string, ushort)[]
+{
+    ("-", 0xBD), ("=", 0xBB), (";", 0xBA), (",", 0xBC), (".", 0xBE),
+    ("/", 0xBF), ("`", 0xC0), ("[", 0xDB), ("\\", 0xDC), ("]", 0xDD), ("'", 0xDE)
+})
+{
+    Check(InputSimulator.TryGetVirtualKey(text, out var key) && key == expected,
+        $"Literal {text} must resolve to its keyboard key.");
+    NativeMethods.KeyboardInputs.Clear();
+    await InputSimulator.ExecuteAsync(new MacroRule { Action = ActionType.KeyPress, Key = text }, default);
+    Check(NativeMethods.KeyboardInputs.Count == 2
+        && NativeMethods.KeyboardInputs[0].ScanCode == expected
+        && NativeMethods.KeyboardInputs[0].Flags == NativeMethods.KeyboardScanCode
+        && NativeMethods.KeyboardInputs[1].Flags == (NativeMethods.KeyboardScanCode | 2),
+        $"Literal {text} must send one matching key-down and key-up.");
+}
+Check(!InputSimulator.TryGetVirtualKey("not-a-valid-key", out _),
+    "Malformed key names must return false without throwing.");
+Console.WriteLine("PASS: literal punctuation keys and invalid key names, with no real input sent.");
+NativeMethods.Events.Clear();
+NativeMethods.KeyboardInputs.Clear();
+
 var reference = Enumerable.Range(0, tw * th * 3).Select(i => (byte)(50 + i * 3)).ToArray();
 byte[] Frame(int x, int y)
 {

@@ -119,6 +119,27 @@ internal static class InputSimulator
             return virtualKey;
         }
 
+        // KeyConverter accepts WPF names such as OemMinus, but throws for
+        // literal skill bindings such as '-' and '='. Resolve their physical
+        // keyboard keys before asking the converter to parse a named key.
+        var punctuation = text switch
+        {
+            "-" => Key.OemMinus,
+            "=" => Key.OemPlus,
+            ";" => Key.OemSemicolon,
+            "," => Key.OemComma,
+            "." => Key.OemPeriod,
+            "/" => Key.OemQuestion,
+            "`" => Key.OemTilde,
+            "[" => Key.OemOpenBrackets,
+            "\\" => Key.OemPipe,
+            "]" => Key.OemCloseBrackets,
+            "'" => Key.OemQuotes,
+            _ => Key.None
+        };
+        if (punctuation != Key.None)
+            return (ushort)KeyInterop.VirtualKeyFromKey(punctuation);
+
         try
         {
             var converter = new KeyConverter();
@@ -128,9 +149,10 @@ internal static class InputSimulator
                 return virtualKey;
             }
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or ArgumentException or NotSupportedException)
         {
-            // Fall through to the small set of friendly aliases below.
+            // Malformed key names are rejected by TryGetVirtualKey rather
+            // than escaping the engine's per-action failure handling.
         }
 
         var alias = text.ToLowerInvariant() switch
