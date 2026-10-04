@@ -353,6 +353,11 @@ public partial class MainWindow : Window
         ApplyProfileEditorToModel();
         if (NativeMethods.GetForegroundWindow() == new WindowInteropHelper(this).Handle)
         {
+            if (_profile.Rules.Any(rule => rule.Enabled && rule.UsesTimer()))
+            {
+                AppendLog($"Focus the game and start with {_settings.StartStopHotKey}. Timer profiles pause when the game loses focus.");
+                return;
+            }
             if (_profile.ThroneCombatMode)
             {
                 AppendLog($"Focus Throne and start with {_settings.StartStopHotKey} so combat stays bound to the game window.");
@@ -1433,7 +1438,7 @@ public partial class MainWindow : Window
 
     private void SelectWatchArea(bool sampleColor = false, bool captureReference = false)
     {
-        if (!captureReference && ConditionCombo.SelectedItem is ConditionType.RegionSnapshotMatches)
+        if (!captureReference && ConditionCombo.SelectedItem is ConditionType current && current.IsReference())
         {
             SelectSearchArea_Click(this, new RoutedEventArgs());
             return;
@@ -1447,7 +1452,7 @@ public partial class MainWindow : Window
 
         if (captureReference)
         {
-            ConditionCombo.SelectedItem = ConditionType.RegionSnapshotMatches;
+            ConditionCombo.SelectedItem = ConditionCombo.SelectedItem is ConditionType.RegionSnapshotDiffers ? ConditionType.RegionSnapshotDiffers : ConditionType.RegionSnapshotMatches;
             CaptureReferenceInto(selection, gate: false);
             return;
         }
@@ -1514,7 +1519,7 @@ public partial class MainWindow : Window
         }
         if (captureReference)
         {
-            GateConditionCombo.SelectedItem = ConditionType.RegionSnapshotMatches;
+            GateConditionCombo.SelectedItem = GateConditionCombo.SelectedItem is ConditionType.RegionSnapshotDiffers ? ConditionType.RegionSnapshotDiffers : ConditionType.RegionSnapshotMatches;
             CaptureReferenceInto(selection, gate: true);
         }
         UpdateEditorState();
@@ -1577,7 +1582,7 @@ public partial class MainWindow : Window
         AppendLog($"Captured a {selection.Width}×{selection.Height} reference image: {Path.GetFileName(result.Path)}.");
     }
 
-    private bool SearchReferenceCheckIsActive() => ConditionCombo.SelectedItem is ConditionType.RegionSnapshotMatches;
+    private bool SearchReferenceCheckIsActive() => ConditionCombo.SelectedItem is ConditionType current && current.IsReference();
 
     private static bool ContainsRectangle(int outerX, int outerY, int outerWidth, int outerHeight,
         int innerX, int innerY, int innerWidth, int innerHeight)
@@ -1690,8 +1695,8 @@ public partial class MainWindow : Window
         rule.TargetRed = (byte)ReadInt(TargetRedBox, rule.TargetRed, 0, 255);
         rule.TargetGreen = (byte)ReadInt(TargetGreenBox, rule.TargetGreen, 0, 255);
         rule.TargetBlue = (byte)ReadInt(TargetBlueBox, rule.TargetBlue, 0, 255);
-        rule.Tolerance = ReadInt(rule.Condition == ConditionType.RegionSnapshotMatches ? ImageToleranceBox : ToleranceBox, rule.Tolerance, 0, 255);
-        rule.SearchReference = rule.Condition == ConditionType.RegionSnapshotMatches;
+        rule.Tolerance = ReadInt(rule.Condition.IsReference() ? ImageToleranceBox : ToleranceBox, rule.Tolerance, 0, 255);
+        rule.SearchReference = rule.Condition.IsReference();
         rule.ImageMatchMethod = ImageMatchMethodCombo.SelectedItem is ImageMatchMethod method ? method : ImageMatchMethod.ImageSimilarity;
         rule.SearchX = ReadInt(SearchXBox, rule.SearchX);
         rule.SearchY = ReadInt(SearchYBox, rule.SearchY);
@@ -1733,7 +1738,8 @@ public partial class MainWindow : Window
         var action = ActionCombo.SelectedItem is ActionType selectedAction ? selectedAction : ActionType.KeyPress;
         var gateCondition = GateConditionCombo.SelectedItem is ConditionType selectedGateCondition ? selectedGateCondition : ConditionType.PixelDiffers;
         ConditionTargetPanel.IsEnabled = condition != ConditionType.Always;
-        var snapshotCondition = condition == ConditionType.RegionSnapshotMatches;
+        var snapshotCondition = condition.IsReference();
+        TimerHelpText.Visibility = condition.IsTimer() ? Visibility.Visible : Visibility.Collapsed;
         ImageSearchPanel.Visibility = snapshotCondition ? Visibility.Visible : Visibility.Collapsed;
         PixelWatchPanel.Visibility = snapshotCondition ? Visibility.Collapsed : Visibility.Visible;
         RingTimingPanel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Visible : Visibility.Collapsed;
@@ -1770,8 +1776,9 @@ public partial class MainWindow : Window
             ? "EDIT COMBO" : "RECORD COMBO";
         UpdateRecordedComboSummary();
         GateEditorPanel.IsEnabled = GateEnabledCheckBox.IsChecked == true;
-        var gateSnapshotCondition = gateCondition == ConditionType.RegionSnapshotMatches;
-        GateColorPanel.Visibility = GateEnabledCheckBox.IsChecked == true && gateCondition != ConditionType.Always && !gateSnapshotCondition
+        var gateSnapshotCondition = gateCondition.IsReference();
+        GateTimerHelpText.Visibility = gateCondition.IsTimer() ? Visibility.Visible : Visibility.Collapsed;
+        GateColorPanel.Visibility = GateEnabledCheckBox.IsChecked == true && gateCondition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         GateCoveragePanel.Visibility = GateEnabledCheckBox.IsChecked == true && (gateCondition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || gateSnapshotCondition)
             ? Visibility.Visible : Visibility.Collapsed;

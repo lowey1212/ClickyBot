@@ -120,7 +120,7 @@ internal static class Program
         var content = (FrameworkElement)window.Content;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
         window.Content = null;
-        var host = new Window { Content = content, Width = 1440, Height = 920, Background = window.Background, Resources = window.Resources };
+        var host = new Window { Content = content, Width = 1440, Height = 920, Background = window.Background, Resources = window.Resources, ShowActivated = false };
         ((System.Windows.Controls.Grid)content).Background = window.Background;
         var profileRules = (ObservableCollection<MacroRule>)typeof(MainWindow)
             .GetField("_rules", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
@@ -144,7 +144,8 @@ internal static class Program
             "The real live inspector must not mutate the engine's selected rule state.");
         // Change selection while an existing loop is awaiting its next tick.
         rules.SelectedItem = second;
-        PumpUntil(() => mainText.Text.Contains("Passed"));
+        PumpUntil(() => mainText.Text.Contains("Passed") && (string?)typeof(MainWindow).GetField("_inspectedRuleId", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(window) == second.Id.ToString());
         Check((string?)typeof(MainWindow).GetField("_inspectedRuleId", BindingFlags.NonPublic | BindingFlags.Instance)!
             .GetValue(window) == second.Id.ToString(), "Selection changes must select only the new rule's observations.");
         var runningField = typeof(MainWindow).GetField("_isRunning", BindingFlags.NonPublic | BindingFlags.Instance)!;

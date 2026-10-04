@@ -34,7 +34,22 @@ public enum ConditionType
     RegionCoverageAtLeast,
     RegionCoverageAtMost,
     RegionSnapshotMatches,
-    PurpleRingMatches
+    PurpleRingMatches,
+    RegionSnapshotDiffers,
+    CooldownTimerPresent,
+    CooldownTimerAbsent
+}
+
+internal static class Conditions
+{
+    internal static bool IsReference(this ConditionType condition) => condition is ConditionType.RegionSnapshotMatches or ConditionType.RegionSnapshotDiffers;
+    internal static bool IsTimer(this ConditionType condition) => condition is ConditionType.CooldownTimerPresent or ConditionType.CooldownTimerAbsent;
+    internal static bool UsesTimer(this MacroRule rule) => rule.Condition.IsTimer() || (rule.GateEnabled && rule.GateCondition.IsTimer());
+    internal static ConditionObservation Invert(ConditionObservation observation) => observation with
+    {
+        Passed = observation.Passed.HasValue ? !observation.Passed.Value : null,
+        Detail = "Requires no reference match. " + observation.Detail
+    };
 }
 
 public enum ActionType
@@ -187,7 +202,7 @@ public sealed class MacroRule
 
     public void UseImageSearch()
     {
-        if (Condition != ConditionType.RegionSnapshotMatches || SearchReference) return;
+        if (!Condition.IsReference() || SearchReference) return;
         // Preserve the exact region watched by profiles from before image search.
         SearchX = WatchX;
         SearchY = WatchY;
@@ -256,11 +271,15 @@ public sealed class MacroRule
         ConditionType.RegionCoverageAtMost => $"region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} ≤ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches when SearchReference => $"find reference in {SearchX},{SearchY} {SearchWidth}×{SearchHeight} ≥ {CoverageThreshold}%",
         ConditionType.RegionSnapshotMatches => $"sampled region {WatchX},{WatchY} {WatchWidth}×{WatchHeight} matches ≥ {CoverageThreshold}%",
+        ConditionType.RegionSnapshotDiffers when SearchReference => $"no reference match in {SearchX},{SearchY} {SearchWidth}×{SearchHeight} at {CoverageThreshold}%",
+        ConditionType.RegionSnapshotDiffers => $"sampled reference match below {CoverageThreshold}% at {WatchX},{WatchY}",
+        ConditionType.CooldownTimerPresent => $"cooldown timer visible at {WatchX},{WatchY} {WatchWidth}×{WatchHeight}",
+        ConditionType.CooldownTimerAbsent => $"no cooldown timer at {WatchX},{WatchY} {WatchWidth}×{WatchHeight}",
         ConditionType.PurpleRingMatches => $"purple ring + {PurpleRingDelayMs} ms in {WatchX},{WatchY} {WatchWidth}×{WatchHeight}",
         _ => "condition"
     } + (GateEnabled ? $" + gate: {GateCondition} at {GateX},{GateY}" : "")
-      + (Condition == ConditionType.RegionSnapshotMatches && ReferenceRgb.Length == 0 ? " (capture a reference)" : "")
-      + (GateEnabled && GateCondition == ConditionType.RegionSnapshotMatches && GateReferenceRgb.Length == 0 ? " (capture gate reference)" : "");
+      + (Condition.IsReference() && ReferenceRgb.Length == 0 ? " (capture a reference)" : "")
+      + (GateEnabled && GateCondition.IsReference() && GateReferenceRgb.Length == 0 ? " (capture gate reference)" : "");
 
     [JsonIgnore]
     public string ActionSummary => Action switch

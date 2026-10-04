@@ -8,6 +8,8 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Screen-region color coverage conditions for “mana above X%” or lit/unlit UI elements.
 - Click/drag screen selection overlay: a click records a 1×1 pixel; dragging records a rectangular region.
 - Reference-region matching: capture a small screen area and require a configurable percentage of sampled pixels to stay within the RGB tolerance.
+- Inverted reference matching (`RegionSnapshotDiffers`): require a valid capture with no reference match at the chosen threshold. A missing reference or failed capture blocks the rule; absence provides no matched mouse target.
+- Local cooldown text detection: `CooldownTimerAbsent` allows a skill when no countdown is detected, and `CooldownTimerPresent` can gate another skill while the first is cooling down. The exact number and skill artwork are not used as reference images. Bar coverage AND gates remain independent.
 - Settings page for the reference-image folder and macro folder; captures are saved as numbered PNGs named from the rule, for example `001_Skill-is-lit.png`.
 - Game-grouped macro profiles: choose or type a game in the editable game dropdown, then the profile dropdown shows only JSON macros assigned to that game. Selecting a macro opens it automatically, `SAVE MACRO` writes the selected game into the profile, and `APPLY CHANGES` updates the currently opened macro.
 - Switching games remembers the last active macro for each game and reopens it automatically; a new game starts with a blank profile ready to save.
@@ -60,7 +62,15 @@ ClickyBot is released under the [ClickyBot Free Use Licence](LICENSE). It permit
 dotnet run --project .\ClickyBot.csproj
 ```
 
-The project targets `net8.0-windows` and uses only the Windows desktop runtime; no third-party packages are required.
+The project targets `net8.0-windows10.0.19041.0` and uses the Windows desktop runtime and Windows SDK OCR APIs. Cooldown detection needs the Windows English OCR language feature; if unavailable, timer conditions block actions and report the issue in the inspector. OCR is local and sends no images or text to a service.
+
+## Cooldown timers
+
+Choose `CooldownTimerAbsent`, then select just the central line where the skill's timer appears. Exclude the hotkey below the icon and any numbers in corner badges. Use a rectangle 16–160 pixels wide and 10–64 pixels high. The reader checks numbers such as `7s`, `35s`, `0.8s` and minute timers; it does not compare their value with the number in a saved picture. Use **TEST CONDITION** and the live inspector with the game visible to verify the area at your HUD scale.
+
+Keep healing and mana requirements as colour coverage AND gates. To permit a fallback skill only while another skill is cooling down, use `CooldownTimerPresent` as its gate and select the other skill's central timer line. Timer conditions need no reference capture, target colour or percentage threshold.
+
+An invalid, blank, unavailable or ambiguous reading blocks the condition, including an absent-timer condition. A successful reading with no detected countdown allows the condition; it does not check range, target, resource cost, menu state or other game requirements. Test replacement skill artwork before running. Start timer profiles with the configured hotkey while the game is focused; the entire profile pauses when that window loses focus.
 
 ## First workflow
 
@@ -122,8 +132,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.37.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.37-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.38.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.38-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

@@ -84,7 +84,7 @@ public partial class MainWindow
                     token.ThrowIfCancellationRequested();
                     var observation = running ? Volatile.Read(ref _lastEngineInspection) : _engine.Inspect(rule, token);
                     token.ThrowIfCancellationRequested();
-                    var search = rule.Condition == ConditionType.RegionSnapshotMatches && rule.SearchReference;
+                    var search = rule.Condition.IsReference() && rule.SearchReference;
                     var x = search ? rule.SearchX : rule.WatchX;
                     var y = search ? rule.SearchY : rule.WatchY;
                     var width = search ? rule.SearchWidth : rule.WatchWidth;
@@ -99,7 +99,7 @@ public partial class MainWindow
                         captureText = captured ? $"Area {x},{y} · {width} × {height} px. Preview is scaled."
                             : "Live preview unavailable. Check the area and desktop capture.";
                     }
-                    var reference = rule.Condition == ConditionType.RegionSnapshotMatches
+                    var reference = rule.Condition.IsReference()
                         ? InspectorBitmap(rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight) : null;
                     return (Observation: observation, Live: live, Reference: reference, CaptureText: captureText);
                 }, token);

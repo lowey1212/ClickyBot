@@ -45,6 +45,31 @@ internal static class Program
             "Pixel conditions must still have their original location controls.");
         Console.WriteLine("PASS: real WPF image editor has one area selector, separate reference details, and no fixed target fields for matched-location actions.");
 
+        Control<ComboBox>("ConditionCombo").SelectedItem = ConditionType.RegionSnapshotDiffers;
+        Check(Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Visible,
+            "Inverted image conditions need the same reference and search editor.");
+        Control<ComboBox>("ConditionCombo").SelectedItem = ConditionType.CooldownTimerAbsent;
+        Control<CheckBox>("GateEnabledCheckBox").IsChecked = true;
+        Control<ComboBox>("GateConditionCombo").SelectedItem = ConditionType.CooldownTimerPresent;
+        Check(Control<StackPanel>("PixelWatchPanel").Visibility == Visibility.Visible
+            && Control<TextBlock>("TimerHelpText").Visibility == Visibility.Visible
+            && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Collapsed
+            && Control<StackPanel>("ColorPanel").Visibility == Visibility.Collapsed
+            && Control<StackPanel>("CoveragePanel").Visibility == Visibility.Collapsed
+            && Control<StackPanel>("GateColorPanel").Visibility == Visibility.Collapsed
+            && Control<TextBlock>("GateTimerHelpText").Visibility == Visibility.Visible,
+            "Timer editors must show their crop guidance without reference, colour or threshold controls.");
+        var timerRule = new MacroRule();
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [timerRule]);
+        Check(timerRule.Condition == ConditionType.CooldownTimerAbsent && !timerRule.SearchReference
+            && timerRule.GateEnabled && timerRule.GateCondition == ConditionType.CooldownTimerPresent,
+            "Saving timer editor values must preserve both independent timer conditions.");
+        Control<ComboBox>("GateConditionCombo").SelectedItem = ConditionType.RegionCoverageAtMost;
+        Check(Control<StackPanel>("GateColorPanel").Visibility == Visibility.Visible
+            && Control<StackPanel>("GateCoveragePanel").Visibility == Visibility.Visible,
+            "Health and mana colour coverage gates must remain editable alongside timer conditions.");
+        Console.WriteLine("PASS: real WPF inverted image and timer editors, saved timer AND gate, and independent bar controls.");
+
         var originalSteps = new[]
         {
             new RecordedStep { Type = RecordedStepType.KeyDown, Key = "Q", DelayBeforeMs = 0 },

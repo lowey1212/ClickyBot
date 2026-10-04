@@ -39,6 +39,7 @@ internal sealed class MacroEngine
             return;
         }
 
+        var timerWindow = profile.Rules.Any(rule => rule.Enabled && rule.UsesTimer()) ? NativeMethods.GetForegroundWindow() : IntPtr.Zero;
         var observedRules = new HashSet<Guid>();
         foreach (var rule in profile.Rules)
         {
@@ -61,6 +62,14 @@ internal sealed class MacroEngine
 
         while (!token.IsCancellationRequested)
         {
+            // An absent countdown must not turn a covered/background game into
+            // ready skills. Bind timer profiles to the window used at START.
+            if (timerWindow != IntPtr.Zero && NativeMethods.GetForegroundWindow() != timerWindow)
+            {
+                foreach (var rule in profile.Rules) ReleaseHeldKey(rule);
+                await Task.Delay(Math.Clamp(profile.PollIntervalMs, 20, 2000), token);
+                continue;
+            }
             foreach (var rule in profile.Rules)
             {
                 if (!rule.Enabled || rule.ThroneHealingOnly)
@@ -70,10 +79,11 @@ internal sealed class MacroEngine
                 }
 
                 token.ThrowIfCancellationRequested();
-                var condition = rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches
+                var condition = (rule.SearchReference && rule.Condition.IsReference()) || rule.UsesTimer()
                     ? await Task.Run(() => Evaluate(rule, token), token)
                     : Evaluate(rule, token);
                 token.ThrowIfCancellationRequested();
+                if (timerWindow != IntPtr.Zero && NativeMethods.GetForegroundWindow() != timerWindow) break;
                 var risingEdge = condition && !rule.LastCondition;
                 if (observedRules.Add(rule.Id) || condition != rule.LastCondition)
                 {
@@ -250,16 +260,22 @@ internal sealed class MacroEngine
             match = ScreenProbe.FindPurpleRing(rule, token, applyRingTiming);
             primary = new(rule.ObservationValid ? match.HasValue : null, rule.ImageSearchDiagnostic);
         }
-        else if (rule.SearchReference && rule.Condition == ConditionType.RegionSnapshotMatches)
+        else if (rule.SearchReference && rule.Condition.IsReference())
         {
             match = ScreenProbe.FindReference(rule, token);
             primary = new(rule.ObservationValid ? match.HasValue : null, rule.ImageSearchDiagnostic);
+            if (rule.Condition == ConditionType.RegionSnapshotDiffers)
+            {
+                primary = Conditions.Invert(primary);
+                match = null; // Absence has no matched mouse target.
+            }
         }
         else
         {
             primary = ObserveCondition(rule.Condition, rule.WatchX, rule.WatchY, rule.WatchWidth, rule.WatchHeight,
                 new RgbColor(rule.TargetRed, rule.TargetGreen, rule.TargetBlue), rule.ReferenceRgb,
                 rule.Tolerance, rule.CoverageThreshold, token);
+            if (rule.Condition.IsTimer()) rule.ImageSearchDiagnostic = primary.Detail;
             if (primary.Passed == true)
             {
                 if (rule.Condition == ConditionType.PixelMatches) match = new(rule.WatchX, rule.WatchY);
@@ -303,8 +319,15 @@ internal sealed class MacroEngine
                 return ConditionObservation.Percent(ScreenProbe.Coverage(x, y, width, height, target, tolerance, token),
                     threshold, condition == ConditionType.RegionCoverageAtMost, "Colour coverage");
             case ConditionType.RegionSnapshotMatches:
-                return ConditionObservation.Percent(ScreenProbe.ReferenceMatchPercent(x, y, width, height, referenceRgb, tolerance, token),
+            case ConditionType.RegionSnapshotDiffers:
+                var reference = ConditionObservation.Percent(ScreenProbe.ReferenceMatchPercent(x, y, width, height, referenceRgb, tolerance, token),
                     threshold, false, "Reference match");
+                return condition == ConditionType.RegionSnapshotDiffers ? Conditions.Invert(reference) : reference;
+            case ConditionType.CooldownTimerPresent:
+            case ConditionType.CooldownTimerAbsent:
+                if (!ScreenProbe.TryCaptureRegion(x, y, width, height, out var rgb, CooldownTimerReader.MaxWidth * CooldownTimerReader.MaxHeight))
+                    return new(null, "Windows could not capture the timer area; readiness is unavailable.");
+                return CooldownTimerReader.Read(rgb, width, height, token).Observe(condition == ConditionType.CooldownTimerAbsent);
             default:
                 return new(null, "This condition is not supported here.");
         }

@@ -223,6 +223,7 @@
                                         <TextBlock Text="TOLERANCE" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
                                     </UniformGrid>
                                 </StackPanel>
+                                <TextBlock x:Name="TimerHelpText" Visibility="Collapsed" Text="Select only the central countdown line; exclude the key label and corner badges. Detects numbers such as 7s, 35s and decimals without a reference image. Unavailable or uncertain readings block the action. No timer does not check range, targeting or other game requirements. Start with the hotkey while the game is focused." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,10" />
                                 <StackPanel x:Name="RingTimingPanel" Visibility="Collapsed">
                                     <Label Content="Q delay after circle appears (ms)" />
                                     <TextBox x:Name="RingDelayBox" Text="200" ToolTip="Wait before pressing Q: 0 to 5000 milliseconds. Increase to press later; 0 presses immediately." />
@@ -242,6 +243,7 @@
                                     <StackPanel x:Name="GateEditorPanel">
                                         <Label Content="Gate condition" />
                                         <ComboBox x:Name="GateConditionCombo" SelectionChanged="GateConditionCombo_SelectionChanged" ToolTip="Choose the second condition that must also pass." />
+                                        <TextBlock x:Name="GateTimerHelpText" Visibility="Collapsed" Text="Select only the other skill's central countdown line, excluding its hotkey and badges. CooldownTimerPresent requires a timer; CooldownTimerAbsent requires none. Unreadable text blocks the gate." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
                                         <Label Content="Gate location / region" />
                                         <Grid>
                                             <Grid.ColumnDefinitions>
