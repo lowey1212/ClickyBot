@@ -220,3 +220,33 @@ try
 }
 catch (OperationCanceledException) { }
 Console.WriteLine("PASS: image similarity survives brightness changes, rejects flat/invalid data, and honours cancellation.");
+
+// Search the supplied Space key badge across an entire 1080p screen. The
+// animated picture above the badge is deliberately outside the reference.
+var spacePath = System.IO.Path.Combine(AppContext.BaseDirectory, "fixtures", "Space-prompt-reference.png");
+using var spaceStream = System.IO.File.OpenRead(spacePath);
+var spaceBitmap = new System.Windows.Media.Imaging.FormatConvertedBitmap(
+    System.Windows.Media.Imaging.BitmapDecoder.Create(spaceStream,
+        System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat,
+        System.Windows.Media.Imaging.BitmapCacheOption.OnLoad).Frames[0],
+    System.Windows.Media.PixelFormats.Rgb24, null, 0);
+var spaceRgb = new byte[spaceBitmap.PixelWidth * spaceBitmap.PixelHeight * 3];
+spaceBitmap.CopyPixels(spaceRgb, spaceBitmap.PixelWidth * 3, 0);
+var spaceClock = Stopwatch.StartNew();
+foreach (var (sx, sy) in new[] { (0, 0), (920, 520), (1920 - spaceBitmap.PixelWidth, 1080 - spaceBitmap.PixelHeight) })
+{
+    var screen = new byte[1920 * 1080 * 3];
+    for (var row = 0; row < spaceBitmap.PixelHeight; row++)
+        Array.Copy(spaceRgb, row * spaceBitmap.PixelWidth * 3,
+            screen, ((sy + row) * 1920 + sx) * 3, spaceBitmap.PixelWidth * 3);
+    Check(ImageMatcher.Find(screen, 1920, 1080, spaceRgb, spaceBitmap.PixelWidth, spaceBitmap.PixelHeight, 25, 90, default)
+        == new MatchLocation(sx + spaceBitmap.PixelWidth / 2, sy + spaceBitmap.PixelHeight / 2),
+        "The actual Space prompt must be found at the centre and both screen corners.");
+}
+Check(ImageMatcher.Find(new byte[1920 * 1080 * 3], 1920, 1080, spaceRgb,
+    spaceBitmap.PixelWidth, spaceBitmap.PixelHeight, 25, 90, default) is null,
+    "An absent Space prompt must not trigger.");
+NativeMethods.KeyboardInputs.Clear();
+await InputSimulator.ExecuteAsync(new MacroRule { Key = "Space", Action = ActionType.KeyPress }, default);
+Check(NativeMethods.KeyboardInputs.Count == 2, "Space must produce exactly one down/up pair.");
+Console.WriteLine($"PASS: actual Space key badge at full-screen centre and edges, absence, and one simulated Space tap ({spaceClock.ElapsedMilliseconds} ms).");

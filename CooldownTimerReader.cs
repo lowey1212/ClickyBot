@@ -57,6 +57,10 @@ internal static class CooldownTimerReader
                 // part count; the prefix itself cannot produce a timer.
                 var words = result.Lines.SelectMany(line => line.Words)
                     .Where(word => word.BoundingRect.X + word.BoundingRect.Width / 2 >= PrefixWidth + Padding)
+                    // A few bright pixels in icon artwork can be called "1"
+                    // by OCR. Real HUD countdown letters occupy at least six
+                    // native pixels vertically; ignore smaller decorative marks.
+                    .Where(word => word.BoundingRect.Height >= 6 * Scale)
                     .Select(word => word.Text).ToArray();
                 var text = string.Concat(words).Trim().Trim('!', '\'', '"', '|', '(', ')', '[', ']');
                 if (IsTimerText(text)) return new(true, $"Cooldown timer detected: {text}. The value is not compared with a reference number.");

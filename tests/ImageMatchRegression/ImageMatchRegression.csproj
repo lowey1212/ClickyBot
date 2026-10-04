@@ -10,5 +10,6 @@
     <Compile Include="../../ImageMatcher.cs" Link="ImageMatcher.cs" />
     <Compile Include="../../Models.cs" Link="Models.cs" />
     <Compile Include="../../InputSimulator.cs" Link="InputSimulator.cs" />
+    <Content Include="fixtures/Space-prompt-reference.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
