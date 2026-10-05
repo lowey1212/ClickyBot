@@ -19,7 +19,8 @@ internal static class InputSimulator
     private static readonly ConcurrentDictionary<string, ushort> VirtualKeyCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<ushort, ushort> ScanCodeCache = new();
     private static readonly object HeldInputLock = new();
-    private static readonly HashSet<ushort> HeldScanCodes = [];
+    private readonly record struct HeldKey(ushort VirtualKey, ushort ScanCode, uint Flags);
+    private static readonly HashSet<HeldKey> HeldKeys = [];
 
     public static async Task ExecuteAsync(MacroRule rule, CancellationToken token)
     {
@@ -27,7 +28,7 @@ internal static class InputSimulator
         switch (rule.Action)
         {
             case ActionType.KeyPress:
-                await PressKeyAsync(rule.Key, token);
+                await PressKeyAsync(rule.Key, rule.KeyboardInputMode, token);
                 break;
             case ActionType.MouseClick:
                 var clickTarget = rule.ResolveMouseTarget();
@@ -58,13 +59,13 @@ internal static class InputSimulator
                         {
                             case RecordedStepType.KeyPress:
                                 FlushPendingKeyboard(pendingKeyboard, ref pendingCount);
-                                await PressKeyAsync(step.Key, token);
+                                await PressKeyAsync(step.Key, rule.KeyboardInputMode, token);
                                 break;
                             case RecordedStepType.KeyDown:
-                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, 0));
+                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, 0, rule.KeyboardInputMode));
                                 break;
                             case RecordedStepType.KeyUp:
-                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, KeyUp));
+                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, KeyUp, rule.KeyboardInputMode));
                                 break;
                             case RecordedStepType.MouseClick:
                                 FlushPendingKeyboard(pendingKeyboard, ref pendingCount);
@@ -181,28 +182,28 @@ internal static class InputSimulator
         return virtualKey;
     }
 
-    private static async Task PressKeyAsync(string text, CancellationToken token)
+    private static async Task PressKeyAsync(string text, KeyboardInputMode mode, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        SendKeyDown(text);
+        SendKeyDown(text, mode);
         try
         {
             await Task.Delay(KeyTapDurationMs, token);
         }
         finally
         {
-            SendKeyUp(text);
+            SendKeyUp(text, mode);
         }
     }
 
-    internal static void SendKeyDown(string text)
+    internal static void SendKeyDown(string text, KeyboardInputMode mode = KeyboardInputMode.ScanCode)
     {
-        EnsureSent([CreateKeyInput(text, 0)]);
+        EnsureSent([CreateKeyInput(text, 0, mode)]);
     }
 
-    internal static void SendKeyUp(string text)
+    internal static void SendKeyUp(string text, KeyboardInputMode mode = KeyboardInputMode.ScanCode)
     {
-        EnsureSent([CreateKeyInput(text, KeyUp)]);
+        EnsureSent([CreateKeyInput(text, KeyUp, mode)]);
     }
 
     internal static void MoveMouseRelative(int deltaX, int deltaY)
@@ -224,20 +225,20 @@ internal static class InputSimulator
 
     internal static bool ReleaseAllHeldInputs()
     {
-        ushort[] scanCodes;
+        HeldKey[] heldKeys;
         lock (HeldInputLock)
         {
-            if (HeldScanCodes.Count == 0)
+            if (HeldKeys.Count == 0)
             {
                 return true;
             }
 
-            scanCodes = HeldScanCodes.ToArray();
-            HeldScanCodes.Clear();
+            heldKeys = HeldKeys.ToArray();
+            HeldKeys.Clear();
         }
 
-        var inputs = new NativeMethods.INPUT[scanCodes.Length];
-        for (var index = 0; index < scanCodes.Length; index++)
+        var inputs = new NativeMethods.INPUT[heldKeys.Length];
+        for (var index = 0; index < heldKeys.Length; index++)
         {
             inputs[index] = new NativeMethods.INPUT
             {
@@ -246,9 +247,9 @@ internal static class InputSimulator
                 {
                     Keyboard = new NativeMethods.KEYBDINPUT
                     {
-                        VirtualKey = 0,
-                        ScanCode = scanCodes[index],
-                        Flags = KeyUp | NativeMethods.KeyboardScanCode
+                        VirtualKey = heldKeys[index].VirtualKey,
+                        ScanCode = heldKeys[index].ScanCode,
+                        Flags = KeyUp | heldKeys[index].Flags
                     }
                 }
             };
@@ -258,7 +259,7 @@ internal static class InputSimulator
         return sent == inputs.Length;
     }
 
-    private static NativeMethods.INPUT CreateKeyInput(string text, uint flags)
+    private static NativeMethods.INPUT CreateKeyInput(string text, uint flags, KeyboardInputMode mode)
     {
         if (!TryGetVirtualKey(text, out var key))
         {
@@ -278,9 +279,9 @@ internal static class InputSimulator
             {
                 Keyboard = new NativeMethods.KEYBDINPUT
                 {
-                    VirtualKey = 0,
+                    VirtualKey = mode == KeyboardInputMode.VirtualKey ? key : (ushort)0,
                     ScanCode = (ushort)scanCode,
-                    Flags = flags | NativeMethods.KeyboardScanCode
+                    Flags = flags | (mode == KeyboardInputMode.VirtualKey ? 0u : NativeMethods.KeyboardScanCode)
                 }
             }
         };
@@ -409,18 +410,20 @@ internal static class InputSimulator
             for (var index = 0; index < count; index++)
             {
                 var input = inputs[index];
-                if (input.Type != InputKeyboard || (input.Union.Keyboard.Flags & NativeMethods.KeyboardScanCode) == 0)
+                if (input.Type != InputKeyboard)
                 {
                     continue;
                 }
 
-                if ((input.Union.Keyboard.Flags & KeyUp) != 0)
+                var keyboard = input.Union.Keyboard;
+                var held = new HeldKey(keyboard.VirtualKey, keyboard.ScanCode, keyboard.Flags & ~KeyUp);
+                if ((keyboard.Flags & KeyUp) != 0)
                 {
-                    HeldScanCodes.Remove(input.Union.Keyboard.ScanCode);
+                    HeldKeys.Remove(held);
                 }
                 else
                 {
-                    HeldScanCodes.Add(input.Union.Keyboard.ScanCode);
+                    HeldKeys.Add(held);
                 }
             }
         }

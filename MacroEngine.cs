@@ -98,7 +98,7 @@ internal sealed class MacroEngine
                     {
                         try
                         {
-                            InputSimulator.SendKeyDown(rule.Key);
+                            InputSimulator.SendKeyDown(rule.Key, rule.KeyboardInputMode);
                             rule.KeyHoldActive = true;
                             ReportAction(rule, $"Holding {rule.Key}.");
                             rule.LastTriggeredUtc = DateTime.UtcNow;
@@ -134,7 +134,9 @@ internal sealed class MacroEngine
                         rule.LastTriggeredUtc = DateTime.UtcNow;
                         var targetDetail = rule.Action is ActionType.MouseClick or ActionType.MouseMove
                             ? $" at {rule.ResolveMouseTarget().X},{rule.ResolveMouseTarget().Y}" : "";
-                        Log?.Invoke($"{rule.Name}: sent {rule.ActionSummary}{targetDetail}");
+                        var modeDetail = rule.Action is ActionType.KeyPress or ActionType.RecordedCombo
+                            ? rule.KeyboardInputMode == KeyboardInputMode.VirtualKey ? " (Windows key codes)" : " (scan codes)" : "";
+                        Log?.Invoke($"{rule.Name}: sent {rule.ActionSummary}{targetDetail}{modeDetail}");
                         if (rule.DelayAfterActionMs > 0)
                         {
                             await Task.Delay(rule.DelayAfterActionMs, token);
@@ -226,7 +228,7 @@ internal sealed class MacroEngine
 
         try
         {
-            InputSimulator.SendKeyUp(rule.Key);
+            InputSimulator.SendKeyUp(rule.Key, rule.KeyboardInputMode);
         }
         catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
         {

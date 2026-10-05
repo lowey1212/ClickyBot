@@ -277,3 +277,4 @@ await InputSimulator.ExecuteAsync(new MacroRule { Key = "Space", Action = Action
 Check(NativeMethods.KeyboardInputs.Count == 2, "Space must produce exactly one down/up pair.");
 Console.WriteLine($"PASS: actual Space key badge at full-screen centre and edges, absence, and one simulated Space tap ({spaceClock.ElapsedMilliseconds} ms).");
 await Aio2Regression.Run();
+await KeyboardModeRegression.Run();

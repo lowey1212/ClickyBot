@@ -26,6 +26,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Global hotkeys: `F12` start/stop by default (changeable in `SETTINGS`), `F7` panic stop, `F8` select the watch area, `Ctrl+F8` select the gate area, and `F9` select a click target.
 - While running, the configured start/stop key and `F7` also stop with Shift, Ctrl, Alt, or Windows held (including combinations). These additional shortcuts are released when the macro stops. Any shortcut conflicts are reported in the activity log.
 - JSON profile save/load.
+- Per-rule keyboard input mode: scan codes (the existing default) or Windows key codes for compatibility testing. The setting applies to presses, holds, and every keyboard step in recorded combos; stopping releases the matching generated key format. Both modes use Windows software input and do not guarantee that a game accepts it.
 - Additive `SendInput` events, with 70 ms key taps for game compatibility. A physical-key observer provides a start/stop fallback in fullscreen games; normal user input continues to pass through.
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
 - ClickyBot branding uses the supplied robot-and-mouse artwork in the window toolbar, executable icon, taskbar/desktop shortcut, and installer.
@@ -148,8 +149,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.42.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.42-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.43.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.43-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

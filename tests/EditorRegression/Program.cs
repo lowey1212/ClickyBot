@@ -168,6 +168,24 @@ internal static class Program
                 "AIO2 setup visibility is incorrect for " + game);
         }
         Console.WriteLine("PASS: real WPF AIO2 setup controls and supported game aliases.");
+        var compatibilityRule = new MacroRule { Key = "F", Action = ActionType.RecordedCombo, KeyboardInputMode = KeyboardInputMode.VirtualKey };
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [compatibilityRule]);
+        Check(Control<ComboBox>("KeyboardInputModeCombo").SelectedValue is KeyboardInputMode.VirtualKey
+            && Control<StackPanel>("KeyboardInputPanel").Visibility == Visibility.Visible,
+            "Recorded combos must expose and load the saved keyboard compatibility mode.");
+        var savedCompatibilityRule = new MacroRule();
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [savedCompatibilityRule]);
+        Check(savedCompatibilityRule.KeyboardInputMode == KeyboardInputMode.VirtualKey, "Applying editor changes must retain the selected format.");
+        Control<ComboBox>("KeyboardInputModeCombo").SelectedValue = KeyboardInputMode.ScanCode;
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [savedCompatibilityRule]);
+        Check(savedCompatibilityRule.KeyboardInputMode == KeyboardInputMode.ScanCode, "The default input mode must be selectable again.");
+        foreach (var action in new[] { ActionType.KeyPress, ActionType.KeyHold, ActionType.MouseClick, ActionType.Wait })
+        {
+            Control<ComboBox>("ActionCombo").SelectedItem = action;
+            Check(Control<StackPanel>("KeyboardInputPanel").Visibility == (action is ActionType.KeyPress or ActionType.KeyHold ? Visibility.Visible : Visibility.Collapsed),
+                "Keyboard compatibility controls have incorrect visibility for " + action);
+        }
+        Console.WriteLine("PASS: real WPF keyboard mode selection, apply/load, and keyboard-only visibility.");
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)

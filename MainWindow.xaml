@@ -313,6 +313,13 @@
 
                             <Label Content="THEN — action" />
                             <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose MouseClick to move and click, MouseMove to move only, or a keyboard/combo action." />
+                            <StackPanel x:Name="KeyboardInputPanel">
+                                <Label Content="Keyboard input mode" />
+                                <ComboBox x:Name="KeyboardInputModeCombo" SelectedValuePath="Tag" ToolTip="Scan codes use the physical key position. Windows key codes provide an alternative format for compatibility testing. Both generate software input.">
+                                    <ComboBoxItem Content="Scan codes (default)" Tag="{x:Static local:KeyboardInputMode.ScanCode}" />
+                                    <ComboBoxItem Content="Windows key codes (compatibility)" Tag="{x:Static local:KeyboardInputMode.VirtualKey}" />
+                                </ComboBox>
+                            </StackPanel>
                             <StackPanel x:Name="KeyPanel">
                                 <Label x:Name="KeyLabel" Content="Key to press" />
                                 <TextBox x:Name="KeyBox" ToolTip="Key name to press or hold, such as Q, 1, Space, Enter, or F1." />

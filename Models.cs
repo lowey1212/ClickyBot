@@ -76,6 +76,12 @@ public enum RepeatMode
     WhileTrue
 }
 
+public enum KeyboardInputMode
+{
+    ScanCode,
+    VirtualKey
+}
+
 public enum MouseButtonType
 {
     Left,
@@ -236,6 +242,7 @@ public sealed class MacroRule
     public byte[] GateReferenceRgb { get; set; } = [];
 
     public ActionType Action { get; set; } = ActionType.KeyPress;
+    public KeyboardInputMode KeyboardInputMode { get; set; } = KeyboardInputMode.ScanCode;
     public string Key { get; set; } = "1";
     public int ClickX { get; set; } = 0;
     public int ClickY { get; set; } = 0;

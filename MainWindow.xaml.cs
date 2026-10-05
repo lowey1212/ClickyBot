@@ -1730,6 +1730,7 @@ public partial class MainWindow : Window
         _gateAreaSelected = rule.GateAreaSelected;
         _gateReferenceImagePath = rule.GateReferenceImagePath;
         ActionCombo.SelectedItem = rule.Action;
+        KeyboardInputModeCombo.SelectedValue = rule.KeyboardInputMode;
         KeyBox.Text = rule.Key;
         ClickXBox.Text = rule.ClickX.ToString();
         ClickYBox.Text = rule.ClickY.ToString();
@@ -1791,6 +1792,7 @@ public partial class MainWindow : Window
         rule.GateReferenceRgb = _gateReferenceRgb.ToArray();
         rule.GateReferenceImagePath = _gateReferenceImagePath;
         rule.Action = ActionCombo.SelectedItem is ActionType action ? action : ActionType.KeyPress;
+        rule.KeyboardInputMode = KeyboardInputModeCombo.SelectedValue is KeyboardInputMode mode ? mode : KeyboardInputMode.ScanCode;
         rule.Key = string.IsNullOrWhiteSpace(KeyBox.Text) ? "1" : KeyBox.Text.Trim();
         rule.ClickX = ReadInt(ClickXBox, rule.ClickX);
         rule.ClickY = ReadInt(ClickYBox, rule.ClickY);
@@ -1807,6 +1809,7 @@ public partial class MainWindow : Window
     {
         var condition = ConditionCombo.SelectedItem is ConditionType selectedCondition ? selectedCondition : ConditionType.Always;
         var action = ActionCombo.SelectedItem is ActionType selectedAction ? selectedAction : ActionType.KeyPress;
+        KeyboardInputPanel.Visibility = action is ActionType.KeyPress or ActionType.KeyHold or ActionType.RecordedCombo ? Visibility.Visible : Visibility.Collapsed;
         var gateCondition = GateConditionCombo.SelectedItem is ConditionType selectedGateCondition ? selectedGateCondition : ConditionType.PixelDiffers;
         ConditionTargetPanel.IsEnabled = condition != ConditionType.Always;
         var snapshotCondition = condition.IsReference();
