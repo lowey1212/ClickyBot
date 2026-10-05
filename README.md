@@ -46,6 +46,10 @@ Click **SET UP F PROMPT** to add the supplied F key badge as a separate rule. Se
 
 When first added, F inherits the Alt+1 rule's Auto Move gate, including any calibration already saved. If that gate is not yet configured, use **CAPTURE GATE REFERENCE** around Auto Move on the F rule too. Repeating F setup preserves its selected watch/gate areas and does not duplicate it. Existing rules are preserved; F is added before Alt+1.
 
+Click **SET UP ESC SKIP** to add the supplied SKIP word and arrows as a separate rule. Select its watch area manually, then apply and save. It sends one Esc tap when SKIP is visible and Auto Move is absent, then waits for the combined condition to reset before sending another. Image similarity tolerates modest brightness changes. If your HUD scale differs, capture the SKIP prompt as a new reference.
+
+The new rule is added first and inherits an existing Auto Move gate from Alt+1 or F, preferring a calibrated gate. An unconfigured or unreadable gate blocks it. Existing rules are preserved; repeating skip setup preserves its selected watch/gate areas and does not add duplicates.
+
 ## Throne combat
 
 Choose the `Throne` (or `Throne and Liberty`) game and open your macro. **USE 1920 × 1080 PRESET** uses the supplied screenshot's V area (1260,610,110×110) and main play area for Q (0,140,1540×710). For another layout, click **SET UP THRONE COMBAT**, draw a tight watch area where the V badge appears, then draw the area where the purple Q defence circle appears. The mode uses `Always → 1`, `V badge → V`, `PurpleRingMatches → Q`, and optional ready-image 7/8 healing; your other rules are preserved and ignored while this mode is on.
@@ -144,8 +148,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.41.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.41-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.42.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.42-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

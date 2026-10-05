@@ -15,6 +15,8 @@
     <EmbeddedResource Include="../../Assets/Aio2/Alt-1-prompt.png" LogicalName="ClickyBot.Aio2.Alt1.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Auto-Move.png" LogicalName="ClickyBot.Aio2.AutoMove.png" />
     <EmbeddedResource Include="../../Assets/Aio2/F-prompt.png" LogicalName="ClickyBot.Aio2.F.png" />
+    <EmbeddedResource Include="../../Assets/Aio2/Skip-prompt.png" LogicalName="ClickyBot.Aio2.Skip.png" />
+    <Content Include="fixtures/Aio2-Skip-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-F-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-quest-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Space-prompt-reference.png" CopyToOutputDirectory="PreserveNewest" />

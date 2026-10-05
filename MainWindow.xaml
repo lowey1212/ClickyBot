@@ -94,6 +94,7 @@
                             <StackPanel x:Name="Aio2OptionsPanel" Visibility="Collapsed">
                                 <Button Content="SET UP ALT+1 PROMPT" Click="SetupAio2Prompt_Click" ToolTip="Load the supplied Alt+1 badge. Select the search area under your minimap in the rule editor, then apply and save." />
                                 <Button Content="SET UP F PROMPT" Click="SetupAio2Interaction_Click" ToolTip="Load the supplied F badge and tap F while it is visible. Reuses the Alt+1 rule's Auto Move gate when available. Select the F watch area manually." />
+                                <Button Content="SET UP ESC SKIP" Click="SetupAio2Skip_Click" ToolTip="Load the supplied SKIP prompt and tap Esc once when it appears. Reuses an existing Auto Move gate. Select the SKIP watch area manually." />
                             </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />

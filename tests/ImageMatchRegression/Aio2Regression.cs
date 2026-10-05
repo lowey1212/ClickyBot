@@ -122,5 +122,46 @@ internal static class Aio2Regression
         Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
             new (ushort, uint)[] { (0x46, 8), (0x46, 10) }), "F must be one tap, with no held key or modifier.");
         Console.WriteLine("PASS: actual F badge, absence/unset area, repeating tap configuration, inherited Auto Move gate, preservation, save/load and simulated F key tap.");
+        var beforeSkip = profile.Rules.ToDictionary(rule => rule.Id, rule => JsonSerializer.Serialize(rule, options));
+        var skip = Aio2ProfileSetup.ConfigureSkip(profile, folder);
+        Check(profile.Rules.Count == 4 && ReferenceEquals(profile.Rules[0], skip)
+            && beforeSkip.All(pair => JsonSerializer.Serialize(profile.Rules.Single(rule => rule.Id == pair.Key), options) == pair.Value),
+            "Adding Esc skip must preserve every existing skill and its calibration.");
+        Check(skip.Action == ActionType.KeyPress && skip.Key == "Escape" && skip.Repeat == RepeatMode.OnRisingEdge
+            && skip.SearchWidth == 1 && skip.SearchHeight == 1 && skip.GateEnabled && skip.GateAreaSelected
+            && skip.GateX == 1200 && skip.GateReferenceImagePath == rule.GateReferenceImagePath,
+            "Skip must tap Esc once per appearance, wait for area selection, and inherit the Auto Move gate.");
+        var skipBitmap = new BitmapImage(new Uri(Path.Combine(AppContext.BaseDirectory, "fixtures", "Aio2-Skip-prompt.png")));
+        var skipConverted = new FormatConvertedBitmap(skipBitmap, PixelFormats.Rgb24, null, 0);
+        var skipFrame = new byte[skipBitmap.PixelWidth * skipBitmap.PixelHeight * 3];
+        skipConverted.CopyPixels(skipFrame, skipBitmap.PixelWidth * 3, 0);
+        var skipMatch = ImageMatcher.FindSimilar(skipFrame, skipBitmap.PixelWidth, skipBitmap.PixelHeight,
+            skip.ReferenceRgb, skip.WatchWidth, skip.WatchHeight, default);
+        Check(skipMatch.Location == new MatchLocation(78, 40) && skipMatch.Score >= skip.CoverageThreshold,
+            "The actual supplied SKIP word and arrows must be detected.");
+        var absentSkip = ImageMatcher.FindSimilar(new byte[skipFrame.Length], skipBitmap.PixelWidth, skipBitmap.PixelHeight,
+            skip.ReferenceRgb, skip.WatchWidth, skip.WatchHeight, default);
+        var unsetSkip = ImageMatcher.FindSimilar(new byte[3], 1, 1, skip.ReferenceRgb, skip.WatchWidth, skip.WatchHeight, default);
+        Check(absentSkip.Location is null && unsetSkip.Location is null, "Absent SKIP or an unset area must not authorize Esc.");
+        var brighterSkip = skipFrame.Select(value => (byte)Math.Min(255, value + 10)).ToArray();
+        Check(ImageMatcher.FindSimilar(brighterSkip, skipBitmap.PixelWidth, skipBitmap.PixelHeight,
+            skip.ReferenceRgb, skip.WatchWidth, skip.WatchHeight, default).Score >= skip.CoverageThreshold,
+            "Small brightness changes must not hide the SKIP prompt.");
+        skip.SearchX = 900; skip.SearchY = 100; skip.SearchWidth = 200; skip.SearchHeight = 120;
+        Check(ReferenceEquals(skip, Aio2ProfileSetup.ConfigureSkip(profile, folder)) && profile.Rules.Count == 4
+            && skip.SearchX == 900 && skip.SearchY == 100 && skip.SearchWidth == 200 && skip.SearchHeight == 120
+            && skip.GateX == 1200, "Repeated skip setup must preserve areas and avoid duplicates.");
+        var skipRestored = JsonSerializer.Deserialize<MacroRule>(JsonSerializer.Serialize(skip, options), options)!;
+        Check(skipRestored.Key == "Escape" && skipRestored.Repeat == RepeatMode.OnRisingEdge && skipRestored.SearchX == 900
+            && skipRestored.GateAreaSelected && skipRestored.ImageMatchMethod == ImageMatchMethod.ImageSimilarity,
+            "Save/load lost the skip rule's action, matching method or calibration.");
+        var unconfiguredSkip = Aio2ProfileSetup.ConfigureSkip(new MacroProfile { Game = "aio2" }, folder);
+        Check(unconfiguredSkip.GateEnabled && !unconfiguredSkip.GateAreaSelected,
+            "Skip without an existing gate must wait for Auto Move calibration.");
+        NativeMethods.KeyboardInputs.Clear();
+        await InputSimulator.ExecuteAsync(skip, default);
+        Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
+            new (ushort, uint)[] { (0x1B, 8), (0x1B, 10) }), "Skip must send exactly one Esc down/up pair.");
+        Console.WriteLine("PASS: actual SKIP prompt, brightness variation, absence/unset area, once-per-appearance configuration, inherited Auto Move gate, preservation, save/load and simulated Esc tap.");
     }
 }

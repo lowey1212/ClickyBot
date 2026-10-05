@@ -8,6 +8,7 @@ internal static class Aio2ProfileSetup
 {
     internal const string RuleName = "Alt+1 — quest prompt under minimap";
     internal const string InteractionRuleName = "F — tap while interaction prompt is visible";
+    internal const string SkipRuleName = "Esc — skip when SKIP prompt is visible";
 
     internal static MacroRule Configure(MacroProfile profile, string referenceFolder)
     {
@@ -55,26 +56,36 @@ internal static class Aio2ProfileSetup
     }
 
     internal static MacroRule ConfigureInteraction(MacroProfile profile, string referenceFolder)
+        => ConfigureKeyPrompt(profile, referenceFolder, InteractionRuleName, "ClickyBot.Aio2.F.png", "aio2-F-prompt",
+            "F", RepeatMode.WhileTrue, 500, ImageMatchMethod.PixelColors);
+
+    internal static MacroRule ConfigureSkip(MacroProfile profile, string referenceFolder)
+        => ConfigureKeyPrompt(profile, referenceFolder, SkipRuleName, "ClickyBot.Aio2.Skip.png", "aio2-Skip-prompt",
+            "Escape", RepeatMode.OnRisingEdge, 0, ImageMatchMethod.ImageSimilarity);
+
+    private static MacroRule ConfigureKeyPrompt(MacroProfile profile, string referenceFolder, string name,
+        string resource, string referenceName, string key, RepeatMode repeat, int cooldown, ImageMatchMethod method)
     {
-        using var stream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream("ClickyBot.Aio2.F.png")
-            ?? throw new IOException("The bundled F reference is missing.");
+        using var stream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream(resource)
+            ?? throw new IOException($"The bundled {key} reference is missing.");
         var bitmap = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
         var converted = new FormatConvertedBitmap(bitmap, PixelFormats.Rgb24, null, 0);
         var rgb = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 3];
         converted.CopyPixels(rgb, bitmap.PixelWidth * 3, 0);
-        var path = ReferenceImageService.CreateNextPath(referenceFolder, "aio2-F-prompt", false);
+        var path = ReferenceImageService.CreateNextPath(referenceFolder, referenceName, false);
         if (!ReferenceImageService.TrySavePng(path, bitmap.PixelWidth, bitmap.PixelHeight, rgb, out var error))
             throw new IOException(error);
 
-        var rule = profile.Rules.FirstOrDefault(rule => rule.Name == InteractionRuleName);
+        var rule = profile.Rules.FirstOrDefault(rule => rule.Name == name);
         if (rule is null)
         {
-            rule = new MacroRule { Name = InteractionRuleName, SearchWidth = 1, SearchHeight = 1 };
-            var questRule = profile.Rules.FirstOrDefault(rule => rule.Name == RuleName
-                && rule.GateEnabled && rule.GateCondition == ConditionType.RegionSnapshotDiffers);
+            rule = new MacroRule { Name = name, SearchWidth = 1, SearchHeight = 1 };
+            var questRule = profile.Rules.Where(rule => (rule.Name == RuleName || rule.Name == InteractionRuleName)
+                && rule.GateEnabled && rule.GateCondition == ConditionType.RegionSnapshotDiffers)
+                .OrderByDescending(rule => rule.GateAreaSelected && rule.GateReferenceRgb.Length > 0).FirstOrDefault();
             if (questRule is not null)
             {
-                // Share the user's existing Auto Move calibration when adding F.
+                // Reuse the user's existing Auto Move calibration for new prompts.
                 rule.GateEnabled = true;
                 rule.GateAreaSelected = questRule.GateAreaSelected;
                 rule.GateCondition = questRule.GateCondition;
@@ -93,12 +104,12 @@ internal static class Aio2ProfileSetup
         rule.WatchWidth = bitmap.PixelWidth; rule.WatchHeight = bitmap.PixelHeight;
         rule.ReferenceImagePath = path; rule.ReferenceRgb = rgb;
         rule.SearchReference = true;
-        rule.ImageMatchMethod = ImageMatchMethod.PixelColors;
+        rule.ImageMatchMethod = method;
         rule.Tolerance = 25; rule.CoverageThreshold = 90;
         rule.Action = ActionType.KeyPress;
-        rule.Key = "F";
-        rule.Repeat = RepeatMode.WhileTrue;
-        rule.CooldownMs = 500;
+        rule.Key = key;
+        rule.Repeat = repeat;
+        rule.CooldownMs = cooldown;
         rule.DelayAfterActionMs = 20;
         rule.RecordedSteps = [];
         return rule;
