@@ -81,5 +81,46 @@ internal static class Aio2Regression
         Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
             new (ushort, uint)[] { (0xA4, 8), (0xA4, 10) }), "Stopping must release Alt without tapping 1.");
         Console.WriteLine("PASS: supplied AIO2 badge, text without badge, moving/absent prompts, manual area, setup preservation, save/load, Alt+1 and stop cleanup; no real input sent.");
+        var beforeF = profile.Rules.ToDictionary(rule => rule.Id, rule => JsonSerializer.Serialize(rule, options));
+        var interaction = Aio2ProfileSetup.ConfigureInteraction(profile, folder);
+        Check(profile.Rules.Count == 3 && ReferenceEquals(profile.Rules[0], interaction)
+            && beforeF.All(pair => JsonSerializer.Serialize(profile.Rules.Single(rule => rule.Id == pair.Key), options) == pair.Value),
+            "Adding F must preserve every existing rule and prioritize interaction before Alt+1.");
+        Check(interaction.Action == ActionType.KeyPress && interaction.Key == "F"
+            && interaction.Repeat == RepeatMode.WhileTrue && interaction.CooldownMs == 500
+            && interaction.SearchWidth == 1 && interaction.SearchHeight == 1,
+            "F must repeat while visible at a bounded interval and wait for a manual watch area.");
+        Check(interaction.GateEnabled && interaction.GateAreaSelected && interaction.GateX == rule.GateX
+            && interaction.GateY == rule.GateY && interaction.GateCondition == ConditionType.RegionSnapshotDiffers
+            && interaction.GateReferenceImagePath == rule.GateReferenceImagePath
+            && interaction.GateReferenceRgb.SequenceEqual(rule.GateReferenceRgb),
+            "F must inherit the calibrated Auto Move gate without changing Alt+1.");
+        var fBitmap = new BitmapImage(new Uri(Path.Combine(AppContext.BaseDirectory, "fixtures", "Aio2-F-prompt.png")));
+        var fConverted = new FormatConvertedBitmap(fBitmap, PixelFormats.Rgb24, null, 0);
+        var fFrame = new byte[fBitmap.PixelWidth * fBitmap.PixelHeight * 3];
+        fConverted.CopyPixels(fFrame, fBitmap.PixelWidth * 3, 0);
+        MatchLocation? FindF(byte[] frame, int width, int height) => ImageMatcher.Find(frame, width, height,
+            interaction.ReferenceRgb, interaction.WatchWidth, interaction.WatchHeight,
+            interaction.Tolerance, interaction.CoverageThreshold, default);
+        Check(FindF(fFrame, fBitmap.PixelWidth, fBitmap.PixelHeight) == new MatchLocation(15, 15),
+            "The supplied F prompt must match its key badge.");
+        Check(FindF(new byte[fFrame.Length], fBitmap.PixelWidth, fBitmap.PixelHeight) is null
+            && FindF(new byte[3], 1, 1) is null, "An absent F prompt or unset area must not match.");
+        interaction.SearchX = 800; interaction.SearchY = 400; interaction.SearchWidth = 300; interaction.SearchHeight = 200;
+        Check(ReferenceEquals(interaction, Aio2ProfileSetup.ConfigureInteraction(profile, folder))
+            && profile.Rules.Count == 3 && interaction.SearchX == 800 && interaction.SearchY == 400
+            && interaction.SearchWidth == 300 && interaction.SearchHeight == 200 && interaction.GateX == 1200,
+            "Repeated F setup must preserve calibration and avoid duplicates.");
+        var standalone = Aio2ProfileSetup.ConfigureInteraction(new MacroProfile { Game = "aio2" }, folder);
+        Check(standalone.GateEnabled && !standalone.GateAreaSelected,
+            "Standalone F setup must require Auto Move gate calibration.");
+        var fRestored = JsonSerializer.Deserialize<MacroRule>(JsonSerializer.Serialize(interaction, options), options)!;
+        Check(fRestored.Key == "F" && fRestored.Repeat == RepeatMode.WhileTrue && fRestored.SearchX == 800
+            && fRestored.GateAreaSelected && fRestored.GateX == 1200, "Save/load lost the F rule or gate.");
+        NativeMethods.KeyboardInputs.Clear();
+        await InputSimulator.ExecuteAsync(interaction, default);
+        Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
+            new (ushort, uint)[] { (0x46, 8), (0x46, 10) }), "F must be one tap, with no held key or modifier.");
+        Console.WriteLine("PASS: actual F badge, absence/unset area, repeating tap configuration, inherited Auto Move gate, preservation, save/load and simulated F key tap.");
     }
 }

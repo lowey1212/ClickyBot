@@ -860,6 +860,27 @@ public partial class MainWindow : Window
     private static bool IsThroneGame(string? game) => NormalizeGameName(game).Equals("Throne", StringComparison.OrdinalIgnoreCase)
         || NormalizeGameName(game).Equals("Throne and Liberty", StringComparison.OrdinalIgnoreCase);
 
+    private void SetupAio2Interaction_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop the macro before setting up the F prompt."); return; }
+        ApplyEditorToSelectedRule();
+        ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            var prompt = Aio2ProfileSetup.ConfigureInteraction(prepared, _settings.ReferenceImageFolder);
+            _profile = prepared;
+            _rules.Clear();
+            foreach (var rule in prepared.Rules) _rules.Add(rule);
+            RulesListBox.SelectedItem = prompt;
+            UpdateRuleCount();
+            PersistCurrentMacro();
+            AppendLog("F reference loaded. Select its area to watch, then APPLY CHANGES and SAVE MACRO. Taps F every 500 ms while visible, unless Auto Move is present. If the inherited gate is not configured, CAPTURE GATE REFERENCE around Auto Move, excluding the distance.");
+        }
+        catch (Exception ex) { AppendLog($"F setup failed: {ex.Message}"); }
+    }
+
     private void SetupThroneCombat_Click(object sender, RoutedEventArgs e)
     {
         if (_isRunning) { AppendLog("Stop combat before changing its setup."); return; }

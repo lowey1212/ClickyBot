@@ -10,9 +10,9 @@
     <ApplicationIcon>Assets\ClickyBot.ico</ApplicationIcon>
     <Platforms>AnyCPU</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.40</Version>
-    <AssemblyVersion>0.1.40.0</AssemblyVersion>
-    <FileVersion>0.1.40.0</FileVersion>
+    <Version>0.1.41</Version>
+    <AssemblyVersion>0.1.41.0</AssemblyVersion>
+    <FileVersion>0.1.41.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <OutputPath>bin\Release-macros\</OutputPath>
@@ -23,6 +23,7 @@
     <Resource Include="Assets\Throne\*.png" />
     <EmbeddedResource Include="Assets\Aio2\Alt-1-prompt.png" LogicalName="ClickyBot.Aio2.Alt1.png" />
     <EmbeddedResource Include="Assets\Aio2\Auto-Move.png" LogicalName="ClickyBot.Aio2.AutoMove.png" />
+    <EmbeddedResource Include="Assets\Aio2\F-prompt.png" LogicalName="ClickyBot.Aio2.F.png" />
     <Compile Remove="installer\**" />
     <Compile Remove="tests\**" />
     <EmbeddedResource Remove="installer\**" />

@@ -4,6 +4,19 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ClickyBot;
 
+if (args.Length == 4 && args[0] == "--add-aio2-f")
+{
+    var prepareOptions = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
+    var profile = JsonSerializer.Deserialize<MacroProfile>(File.ReadAllText(args[1]), prepareOptions)!;
+    // Hydrate a previously captured Auto Move gate before sharing it with F.
+    foreach (var prepareRule in profile.Rules)
+        if (ReferenceImageService.TryLoadFromRule(prepareRule, args[3], true, out var rgb, out var path))
+        { prepareRule.GateReferenceRgb = rgb; prepareRule.GateReferenceImagePath = path; }
+    Aio2ProfileSetup.ConfigureInteraction(profile, Path.GetFullPath(args[3]));
+    File.WriteAllText(args[2], JsonSerializer.Serialize(profile, prepareOptions));
+    Console.WriteLine("Added F prompt; select its watch area. Existing rules and watch areas preserved.");
+    return;
+}
 if (args.Length == 3 && args[0] == "--prepare-aio2")
 {
     var profile = new MacroProfile { Game = "aio2", Name = "aio2-quest-prompt", PollIntervalMs = 100 };

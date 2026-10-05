@@ -7,6 +7,7 @@ namespace ClickyBot;
 internal static class Aio2ProfileSetup
 {
     internal const string RuleName = "Alt+1 — quest prompt under minimap";
+    internal const string InteractionRuleName = "F — tap while interaction prompt is visible";
 
     internal static MacroRule Configure(MacroProfile profile, string referenceFolder)
     {
@@ -39,27 +40,7 @@ internal static class Aio2ProfileSetup
         rule.ImageMatchMethod = ImageMatchMethod.PixelColors;
         rule.Tolerance = 25;
         rule.CoverageThreshold = 90;
-        if (!rule.GateEnabled || rule.GateCondition != ConditionType.RegionSnapshotDiffers)
-        {
-            using var moveStream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream("ClickyBot.Aio2.AutoMove.png")
-                ?? throw new IOException("The bundled Auto Move reference is missing.");
-            var moveBitmap = BitmapDecoder.Create(moveStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
-            var moveConverted = new FormatConvertedBitmap(moveBitmap, PixelFormats.Rgb24, null, 0);
-            var moveRgb = new byte[moveBitmap.PixelWidth * moveBitmap.PixelHeight * 3];
-            moveConverted.CopyPixels(moveRgb, moveBitmap.PixelWidth * 3, 0);
-            var movePath = ReferenceImageService.CreateNextPath(referenceFolder, "aio2-Auto-Move", true);
-            if (!ReferenceImageService.TrySavePng(movePath, moveBitmap.PixelWidth, moveBitmap.PixelHeight, moveRgb, out var moveError))
-                throw new IOException(moveError);
-            rule.GateEnabled = true;
-            rule.GateAreaSelected = false;
-            rule.GateCondition = ConditionType.RegionSnapshotDiffers;
-            rule.GateWidth = moveBitmap.PixelWidth;
-            rule.GateHeight = moveBitmap.PixelHeight;
-            rule.GateReferenceImagePath = movePath;
-            rule.GateReferenceRgb = moveRgb;
-            rule.GateTolerance = 25;
-            rule.GateCoverageThreshold = 90;
-        }
+        ConfigureAutoMoveGate(rule, referenceFolder);
         rule.Action = ActionType.RecordedCombo;
         rule.Repeat = RepeatMode.OnRisingEdge;
         rule.CooldownMs = 0;
@@ -71,5 +52,78 @@ internal static class Aio2ProfileSetup
             new() { Type = RecordedStepType.KeyUp, Key = "LeftAlt" }
         ];
         return rule;
+    }
+
+    internal static MacroRule ConfigureInteraction(MacroProfile profile, string referenceFolder)
+    {
+        using var stream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream("ClickyBot.Aio2.F.png")
+            ?? throw new IOException("The bundled F reference is missing.");
+        var bitmap = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+        var converted = new FormatConvertedBitmap(bitmap, PixelFormats.Rgb24, null, 0);
+        var rgb = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 3];
+        converted.CopyPixels(rgb, bitmap.PixelWidth * 3, 0);
+        var path = ReferenceImageService.CreateNextPath(referenceFolder, "aio2-F-prompt", false);
+        if (!ReferenceImageService.TrySavePng(path, bitmap.PixelWidth, bitmap.PixelHeight, rgb, out var error))
+            throw new IOException(error);
+
+        var rule = profile.Rules.FirstOrDefault(rule => rule.Name == InteractionRuleName);
+        if (rule is null)
+        {
+            rule = new MacroRule { Name = InteractionRuleName, SearchWidth = 1, SearchHeight = 1 };
+            var questRule = profile.Rules.FirstOrDefault(rule => rule.Name == RuleName
+                && rule.GateEnabled && rule.GateCondition == ConditionType.RegionSnapshotDiffers);
+            if (questRule is not null)
+            {
+                // Share the user's existing Auto Move calibration when adding F.
+                rule.GateEnabled = true;
+                rule.GateAreaSelected = questRule.GateAreaSelected;
+                rule.GateCondition = questRule.GateCondition;
+                rule.GateX = questRule.GateX; rule.GateY = questRule.GateY;
+                rule.GateWidth = questRule.GateWidth; rule.GateHeight = questRule.GateHeight;
+                rule.GateTolerance = questRule.GateTolerance;
+                rule.GateCoverageThreshold = questRule.GateCoverageThreshold;
+                rule.GateReferenceImagePath = questRule.GateReferenceImagePath;
+                rule.GateReferenceRgb = questRule.GateReferenceRgb.ToArray();
+            }
+            profile.Rules.Insert(0, rule);
+        }
+        ConfigureAutoMoveGate(rule, referenceFolder);
+        rule.Enabled = true;
+        rule.Condition = ConditionType.RegionSnapshotMatches;
+        rule.WatchWidth = bitmap.PixelWidth; rule.WatchHeight = bitmap.PixelHeight;
+        rule.ReferenceImagePath = path; rule.ReferenceRgb = rgb;
+        rule.SearchReference = true;
+        rule.ImageMatchMethod = ImageMatchMethod.PixelColors;
+        rule.Tolerance = 25; rule.CoverageThreshold = 90;
+        rule.Action = ActionType.KeyPress;
+        rule.Key = "F";
+        rule.Repeat = RepeatMode.WhileTrue;
+        rule.CooldownMs = 500;
+        rule.DelayAfterActionMs = 20;
+        rule.RecordedSteps = [];
+        return rule;
+    }
+
+    private static void ConfigureAutoMoveGate(MacroRule rule, string referenceFolder)
+    {
+        if (rule.GateEnabled && rule.GateCondition == ConditionType.RegionSnapshotDiffers) return;
+        using var moveStream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream("ClickyBot.Aio2.AutoMove.png")
+            ?? throw new IOException("The bundled Auto Move reference is missing.");
+        var moveBitmap = BitmapDecoder.Create(moveStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+        var moveConverted = new FormatConvertedBitmap(moveBitmap, PixelFormats.Rgb24, null, 0);
+        var moveRgb = new byte[moveBitmap.PixelWidth * moveBitmap.PixelHeight * 3];
+        moveConverted.CopyPixels(moveRgb, moveBitmap.PixelWidth * 3, 0);
+        var movePath = ReferenceImageService.CreateNextPath(referenceFolder, "aio2-Auto-Move", true);
+        if (!ReferenceImageService.TrySavePng(movePath, moveBitmap.PixelWidth, moveBitmap.PixelHeight, moveRgb, out var moveError))
+            throw new IOException(moveError);
+        rule.GateEnabled = true;
+        rule.GateAreaSelected = false;
+        rule.GateCondition = ConditionType.RegionSnapshotDiffers;
+        rule.GateWidth = moveBitmap.PixelWidth;
+        rule.GateHeight = moveBitmap.PixelHeight;
+        rule.GateReferenceImagePath = movePath;
+        rule.GateReferenceRgb = moveRgb;
+        rule.GateTolerance = 25;
+        rule.GateCoverageThreshold = 90;
     }
 }
