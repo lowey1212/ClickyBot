@@ -286,7 +286,9 @@ internal sealed class MacroEngine
 
         ConditionObservation? gate = null;
         if (rule.GateEnabled)
-            gate = primary.Passed == true || inspectAllConditions
+            gate = !rule.GateAreaSelected
+                ? new(null, "Select or capture the Auto Move gate area before running.")
+                : primary.Passed == true || inspectAllConditions
                 ? ObserveCondition(rule.GateCondition, rule.GateX, rule.GateY, rule.GateWidth, rule.GateHeight,
                     new RgbColor(rule.GateTargetRed, rule.GateTargetGreen, rule.GateTargetBlue), rule.GateReferenceRgb,
                     rule.GateTolerance, rule.GateCoverageThreshold, token)

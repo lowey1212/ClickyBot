@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private const int MaxLogLines = 600;
     private byte[] _watchReferenceRgb = [];
     private byte[] _gateReferenceRgb = [];
+    private bool _gateAreaSelected = true;
     private string _watchReferenceImagePath = "";
     private string _gateReferenceImagePath = "";
     private string? _currentMacroPath;
@@ -826,9 +827,34 @@ public partial class MainWindow : Window
     {
         PaxResourceOptionsPanel.Visibility = IsPaxGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         ThroneOptionsPanel.Visibility = IsThroneGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
+        Aio2OptionsPanel.Visibility = IsAio2Game(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
         ThroneHealingCheckBox.IsChecked = _profile.ThroneHealing?.Enabled == true;
         ThroneLowHpBox.Text = (_profile.ThroneHealing?.LowHpPercent ?? 82).ToString();
+    }
+
+    private static bool IsAio2Game(string? game) => new[] { "aio2", "Aion 2", "Aion2" }
+        .Contains(NormalizeGameName(game), StringComparer.OrdinalIgnoreCase);
+
+    private void SetupAio2Prompt_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop the macro before setting up the Alt+1 prompt."); return; }
+        ApplyEditorToSelectedRule();
+        ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            var prompt = Aio2ProfileSetup.Configure(prepared, _settings.ReferenceImageFolder);
+            _profile = prepared;
+            _rules.Clear();
+            foreach (var rule in prepared.Rules) _rules.Add(rule);
+            RulesListBox.SelectedItem = prompt;
+            UpdateRuleCount();
+            PersistCurrentMacro();
+            AppendLog("Alt+1 reference loaded. Select its watch area under your minimap. While Auto Move is visible, CAPTURE GATE REFERENCE around just Auto Move (exclude the distance), then APPLY CHANGES and SAVE MACRO. Waits until Auto Move disappears before tapping Alt+1.");
+        }
+        catch (Exception ex) { AppendLog($"Alt+1 setup failed: {ex.Message}"); }
     }
 
     private static bool IsThroneGame(string? game) => NormalizeGameName(game).Equals("Throne", StringComparison.OrdinalIgnoreCase)
@@ -1510,6 +1536,7 @@ public partial class MainWindow : Window
 
         GateEnabledCheckBox.IsChecked = true;
         GateXBox.Text = selection.X.ToString();
+        _gateAreaSelected = true;
         GateYBox.Text = selection.Y.ToString();
         GateWidthBox.Text = selection.Width.ToString();
         GateHeightBox.Text = selection.Height.ToString();
@@ -1658,6 +1685,7 @@ public partial class MainWindow : Window
         GateToleranceBox.Text = rule.GateTolerance.ToString();
         GateCoverageThresholdBox.Text = rule.GateCoverageThreshold.ToString();
         _gateReferenceRgb = rule.GateReferenceRgb.ToArray();
+        _gateAreaSelected = rule.GateAreaSelected;
         _gateReferenceImagePath = rule.GateReferenceImagePath;
         ActionCombo.SelectedItem = rule.Action;
         KeyBox.Text = rule.Key;
@@ -1707,6 +1735,7 @@ public partial class MainWindow : Window
         rule.ReferenceRgb = _watchReferenceRgb.ToArray();
         rule.ReferenceImagePath = _watchReferenceImagePath;
         rule.GateEnabled = GateEnabledCheckBox.IsChecked == true;
+        rule.GateAreaSelected = _gateAreaSelected;
         rule.GateCondition = GateConditionCombo.SelectedItem is ConditionType gateCondition ? gateCondition : ConditionType.PixelDiffers;
         rule.GateX = ReadInt(GateXBox, rule.GateX);
         rule.GateY = ReadInt(GateYBox, rule.GateY);

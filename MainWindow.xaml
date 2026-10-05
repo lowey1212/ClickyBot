@@ -91,6 +91,9 @@
                             <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="ProfileNameCombo_DropDownClosed" KeyDown="ProfileNameCombo_KeyDown" ToolTip="Choose a JSON macro for the selected game and it will open automatically, or type a new macro name before saving." />
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
+                            <StackPanel x:Name="Aio2OptionsPanel" Visibility="Collapsed">
+                                <Button Content="SET UP ALT+1 PROMPT" Click="SetupAio2Prompt_Click" ToolTip="Load the supplied Alt+1 badge. Select the search area under your minimap in the rule editor, then apply and save." />
+                            </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />
                                 <Button Content="SET UP THRONE COMBAT" Click="SetupThroneCombat_Click" ToolTip="Select where the V chain icon and purple Q circle appear. Taps 1 continuously, responds to Q/V, then resumes 1." />

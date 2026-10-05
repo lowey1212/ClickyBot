@@ -1,8 +1,20 @@
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ClickyBot;
 
+if (args.Length == 3 && args[0] == "--prepare-aio2")
+{
+    var profile = new MacroProfile { Game = "aio2", Name = "aio2-quest-prompt", PollIntervalMs = 100 };
+    Aio2ProfileSetup.Configure(profile, Path.GetFullPath(args[2]));
+    File.WriteAllText(args[1], JsonSerializer.Serialize(profile, new JsonSerializerOptions
+    {
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
+    }));
+    Console.WriteLine($"Prepared {args[1]}; select the search area under your minimap before running.");
+    return;
+}
 if (args.Length == 2)
 {
     ImageFileDiagnostic.Run(args[0], args[1]);
@@ -250,3 +262,4 @@ NativeMethods.KeyboardInputs.Clear();
 await InputSimulator.ExecuteAsync(new MacroRule { Key = "Space", Action = ActionType.KeyPress }, default);
 Check(NativeMethods.KeyboardInputs.Count == 2, "Space must produce exactly one down/up pair.");
 Console.WriteLine($"PASS: actual Space key badge at full-screen centre and edges, absence, and one simulated Space tap ({spaceClock.ElapsedMilliseconds} ms).");
+await Aio2Regression.Run();

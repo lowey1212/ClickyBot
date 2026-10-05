@@ -217,6 +217,9 @@ public sealed class MacroRule
     // Optional second condition. The rule fires only when the primary condition
     // and this gate are both true.
     public bool GateEnabled { get; set; }
+    // Legacy gates already have coordinates. New presets can require a manual
+    // selection before an absence gate is allowed to authorize input.
+    public bool GateAreaSelected { get; set; } = true;
     public ConditionType GateCondition { get; set; } = ConditionType.PixelDiffers;
     public int GateX { get; set; }
     public int GateY { get; set; }

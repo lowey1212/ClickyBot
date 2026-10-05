@@ -160,6 +160,14 @@ internal static class Program
         System.IO.File.Delete(vRule.ReferenceImagePath);
         System.IO.Directory.Delete(referenceFolder);
         Console.WriteLine("PASS: real WPF Throne setup, bundled V reference, Q watch editor, game-specific controls and preservation of original rules.");
+        foreach (var game in new[] { "aio2", "Aion 2", "Aion2", "AIO2", "soulframe" })
+        {
+            Control<ComboBox>("GameCombo").Text = game;
+            typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+            Check(Control<StackPanel>("Aio2OptionsPanel").Visibility == (game == "soulframe" ? Visibility.Collapsed : Visibility.Visible),
+                "AIO2 setup visibility is incorrect for " + game);
+        }
+        Console.WriteLine("PASS: real WPF AIO2 setup controls and supported game aliases.");
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)

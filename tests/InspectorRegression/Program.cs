@@ -27,6 +27,17 @@ internal static class Program
             "Percentage thresholds must remain inclusive.");
 
         var engine = new MacroEngine();
+        var autoMoveGate = new MacroRule
+        {
+            Condition = ConditionType.Always, GateEnabled = true, GateAreaSelected = false,
+            GateCondition = ConditionType.RegionSnapshotDiffers, GateWidth = 72, GateHeight = 17,
+            GateReferenceRgb = new byte[72 * 17 * 3]
+        };
+        Check(!engine.Inspect(autoMoveGate, default).Passed && !autoMoveGate.ObservationValid,
+            "An unselected Auto Move gate must block input even when its reference is loaded.");
+        Check(JsonSerializer.Deserialize<MacroRule>("{}")!.GateAreaSelected,
+            "Legacy gates must retain their configured coordinates without a new selection.");
+        Console.WriteLine("PASS: unconfigured Auto Move absence gate blocks, with legacy gate compatibility.");
         // Exercise the real engine loop without producing keyboard input.
         // An invalid key followed by a wait action must survive several polls.
         using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
