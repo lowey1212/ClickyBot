@@ -92,6 +92,7 @@
                             <Label Content="Poll interval (20–2000 ms)" />
                             <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
                             <StackPanel x:Name="Aio2OptionsPanel" Visibility="Collapsed">
+                                <Button x:Name="Aio2InputTestButton" Content="TEST F INPUT (FREE)" Click="TestAio2Input_Click" ToolTip="Focus Aion 2 within five seconds. Tries one 200 ms F tap using legacy Windows input. F7 cancels. No driver or paid licence required." />
                                 <Button Content="SET UP ALT+1 PROMPT" Click="SetupAio2Prompt_Click" ToolTip="Load the supplied Alt+1 badge. Select the search area under your minimap in the rule editor, then apply and save." />
                                 <Button Content="SET UP F PROMPT" Click="SetupAio2Interaction_Click" ToolTip="Load the supplied F badge and tap F while it is visible. Reuses the Alt+1 rule's Auto Move gate when available. Select the F watch area manually." />
                                 <Button Content="SET UP ESC SKIP" Click="SetupAio2Skip_Click" ToolTip="Load the supplied SKIP prompt and tap Esc once when it appears. Reuses an existing Auto Move gate. Select the SKIP watch area manually." />

@@ -168,6 +168,17 @@ internal static class Program
                 "AIO2 setup visibility is incorrect for " + game);
         }
         Console.WriteLine("PASS: real WPF AIO2 setup controls and supported game aliases.");
+        Check(Control<Button>("Aio2InputTestButton").Content.ToString() == "TEST F INPUT (FREE)",
+            "Aion must expose the built-in free input test.");
+        using (var inputTestStop = new CancellationTokenSource())
+        {
+            var cancellationField = typeof(MainWindow).GetField("_inputTestCancellation", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            cancellationField.SetValue(window, inputTestStop);
+            typeof(MainWindow).GetMethod("StartEngine", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+            Check(inputTestStop.IsCancellationRequested, "Starting a macro must cancel an active input test before running rules.");
+            cancellationField.SetValue(window, null);
+        }
+        Console.WriteLine("PASS: built-in F input test control and macro-start cancellation, with no live input.");
         var compatibilityRule = new MacroRule { Key = "F", Action = ActionType.RecordedCombo, KeyboardInputMode = KeyboardInputMode.VirtualKey };
         typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [compatibilityRule]);
         Check(Control<ComboBox>("KeyboardInputModeCombo").SelectedValue is KeyboardInputMode.VirtualKey
