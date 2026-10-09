@@ -63,6 +63,7 @@ public partial class MainWindow : Window
             () => (uint)GetStartStopVirtualKey(),
             key => Dispatcher.BeginInvoke(() => HandlePhysicalHotkey(key)));
         InitializeComponent();
+        Title = $"ClickyBot {UpdateService.CurrentVersion} — screen-aware macro studio";
         RulesListBox.ItemsSource = _rules;
         GameCombo.ItemsSource = _gameNames;
         ProfileNameCombo.ItemsSource = _macroNames;
@@ -344,12 +345,6 @@ public partial class MainWindow : Window
 
     private void StartEngine()
     {
-        if (_inputTestCancellation is not null)
-        {
-            CancelAionInputTest();
-            AppendLog("F input test cancelled. Start the macro again when the test has stopped.");
-            return;
-        }
         if (_engineTask is { IsCompleted: false })
         {
             AppendLog("Still stopping the previous run. Try START again in a moment.");
@@ -451,7 +446,6 @@ public partial class MainWindow : Window
 
     private void StopEngine(string message)
     {
-        CancelAionInputTest();
         _runningStopHotkeys.Clear();
         _runGeneration++;
         _engineCancellation?.Cancel();

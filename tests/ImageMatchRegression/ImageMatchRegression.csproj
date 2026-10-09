@@ -11,7 +11,6 @@
     <Compile Include="../../Models.cs" Link="Models.cs" />
     <Compile Include="../../InputSimulator.cs" Link="InputSimulator.cs" />
     <Compile Include="../../Aio2ProfileSetup.cs" Link="Aio2ProfileSetup.cs" />
-    <Compile Include="../../AionInputTest.cs" Link="AionInputTest.cs" />
     <Compile Include="../../ReferenceImageService.cs" Link="ReferenceImageService.cs" />
     <EmbeddedResource Include="../../Assets/Aio2/Alt-1-prompt.png" LogicalName="ClickyBot.Aio2.Alt1.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Auto-Move.png" LogicalName="ClickyBot.Aio2.AutoMove.png" />

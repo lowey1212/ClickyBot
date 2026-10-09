@@ -37,8 +37,6 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 
 ## AIO2 quest prompt
 
-For input troubleshooting, choose `aio2`, `Aion 2`, or `Aion2` and click **TEST F INPUT (FREE)** in the Profile panel while the macro is stopped. Focus the game within five seconds with an F interaction prompt visible. The test requests one 200 ms F tap using Windows' legacy `keybd_event` API, then releases it. It needs no driver, licence, or watch-area setup. **F7**, the test button, closing ClickyBot, or starting a macro cancels the test. Loss of game focus or held modifiers prevents input or releases the generated F early. The activity log names the method and does not claim that the game accepted the key. Normal macros continue to use their selected keyboard input mode. This is a compatibility diagnostic, not a confirmed Aion 2 fix; both this legacy API and SendInput synthesize software input.
-
 Choose or type `aio2` as the game (`Aion 2` and `Aion2` also show the setup button), name a new macro, and click **SET UP ALT+1 PROMPT**. This loads the supplied 29×12 Alt+1 key badge without the changing quest text. In the selected rule, use **SELECT AREA TO WATCH** to draw the area under your minimap, then **APPLY CHANGES** and **SAVE MACRO**. No screen coordinates are assumed: the initial 1×1 search area cannot match the badge.
 
 While **Auto Move** is visible, use **CAPTURE GATE REFERENCE** to draw tightly around just that text, excluding the changing distance. The enabled `RegionSnapshotDiffers` AND gate blocks Alt+1 until Auto Move disappears. The preset also blocks input until its gate area has been selected; missing references and failed captures block it. The supplied label reference excludes `(71m)`.
@@ -151,8 +149,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.44.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.44-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.45.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.45-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 
