@@ -10,6 +10,41 @@ internal static class Aio2ProfileSetup
     internal const string InteractionRuleName = "F — tap while interaction prompt is visible";
     internal const string SkipRuleName = "Esc — skip when SKIP prompt is visible";
     internal const string GatherRuleName = "F — Gather with random 0–1 second reaction";
+    internal const string CombatRuleName = "Combat — target health bar visible";
+
+    internal static MacroRule ConfigureCombat(MacroProfile profile, string referenceFolder)
+    {
+        var rule = profile.Rules.FirstOrDefault(rule => rule.Name == CombatRuleName);
+        if (rule is null)
+        {
+            rule = new MacroRule { Name = CombatRuleName, Condition = ConditionType.AionTargetBarMatches,
+                SearchReference = true, SearchWidth = 1, SearchHeight = 1, WatchWidth = 1, WatchHeight = 1,
+                ImageMatchMethod = ImageMatchMethod.ImageSimilarity, CoverageThreshold = 90,
+                Action = ActionType.Wait, DelayAfterActionMs = 0 };
+            profile.Rules.Insert(0, rule);
+        }
+        if (string.IsNullOrWhiteSpace(rule.ReferenceImagePath))
+        {
+            using var stream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream("ClickyBot.Aio2.TargetBar.png")
+                ?? throw new IOException("The bundled target HP bar reference is missing.");
+            var bitmap = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+            var converted = new FormatConvertedBitmap(bitmap, PixelFormats.Rgb24, null, 0);
+            var rgb = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 3];
+            converted.CopyPixels(rgb, bitmap.PixelWidth * 3, 0);
+            var path = ReferenceImageService.CreateNextPath(referenceFolder, "aio2-target-HP-bar", false);
+            if (!ReferenceImageService.TrySavePng(path, bitmap.PixelWidth, bitmap.PixelHeight, rgb, out var error)) throw new IOException(error);
+            rule.ReferenceImagePath = path; rule.ReferenceRgb = rgb;
+            rule.WatchWidth = bitmap.PixelWidth; rule.WatchHeight = bitmap.PixelHeight;
+        }
+        rule.Condition = ConditionType.AionTargetBarMatches;
+        rule.SearchReference = true;
+        rule.KeyboardInputMode = KeyboardInputMode.FakerInput;
+        rule.Enabled = true;
+        profile.AionCombat ??= new();
+        profile.AionCombat.Enabled = true;
+        profile.AionCombat.TargetRuleId = rule.Id;
+        return rule;
+    }
 
     internal static MacroRule Configure(MacroProfile profile, string referenceFolder)
     {

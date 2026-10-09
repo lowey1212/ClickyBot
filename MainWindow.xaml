@@ -96,6 +96,14 @@
                                 <Button Content="SET UP F PROMPT" Click="SetupAio2Interaction_Click" ToolTip="Load the supplied F badge and tap F while it is visible. Reuses the Alt+1 rule's Auto Move gate when available. Select the F watch area manually." />
                                 <Button Content="SET UP F GATHER (0–1s)" Click="SetupAio2Gather_Click" ToolTip="Load the supplied F Gather prompt and tap F with a random 0–1 second reaction delay while it is visible. Select the prompt watch area manually." />
                                 <Button Content="SET UP ESC SKIP" Click="SetupAio2Skip_Click" ToolTip="Load the supplied SKIP prompt and tap Esc once when it appears. Reuses an existing Auto Move gate. Select the SKIP watch area manually." />
+                                <CheckBox x:Name="AionCombatCheckBox" Content="Turn, target, 1 + hold left mouse" Margin="0,10,0,6" ToolTip="Use the target HP bar to control combat. Other rules pause while this mode is enabled." />
+                                <Button Content="SET UP AION COMBAT" Click="SetupAionCombat_Click" ToolTip="Load the supplied target HP bar markers. Select the area at the top centre where that bar appears." />
+                                <CheckBox x:Name="AionCameraRightCheckBox" Content="Hold right mouse while turning camera" IsChecked="True" Margin="0,6,0,4" ToolTip="Uncheck if your camera turns from mouse movement alone." />
+                                <Label Content="Camera turn per step (pixels; 0 disables)" />
+                                <TextBox x:Name="AionCameraPixelsBox" Text="75" ToolTip="Positive turns right; negative turns left. Adjust for your game sensitivity." />
+                                <Label Content="Camera steps before Tab" />
+                                <TextBox x:Name="AionCameraStepsBox" Text="4" />
+                                <TextBlock Text="Select the top-centre target HP bar area. Target confirmed: tap 1, then hold left mouse until its end markers disappear. Tab selects the next target while searching. F7, Stop and loss of game focus release generated buttons. No walking." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
                             </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />

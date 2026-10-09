@@ -12,6 +12,7 @@ internal sealed class FakerInputKeyboard
     private readonly Func<IFakerInputTransport> _connect;
     private IFakerInputTransport? _transport;
     private HashSet<ushort> _held = [];
+    private byte _mouseButtons;
 
     internal FakerInputKeyboard(Func<IFakerInputTransport> connect) => _connect = connect;
 
@@ -39,8 +40,8 @@ internal sealed class FakerInputKeyboard
         {
             try
             {
-                if (_held.Count > 0) Write(BuildReport([]));
-                _held.Clear();
+                if (_held.Count > 0) { Write(BuildReport([])); _held.Clear(); }
+                if (_mouseButtons != 0) { Write(BuildMouseReport(0, 0, 0)); _mouseButtons = 0; }
                 _transport?.Dispose();
                 _transport = null;
                 return true;
@@ -51,6 +52,36 @@ internal sealed class FakerInputKeyboard
                 return false;
             }
         }
+    }
+
+    internal void SendMouseButton(MouseButtonType button, bool down)
+    {
+        lock (_sync)
+        {
+            var bit = button switch { MouseButtonType.Left => 1, MouseButtonType.Right => 2, MouseButtonType.Middle => 4, _ => throw new InvalidOperationException("Unsupported mouse button.") };
+            var next = (byte)(down ? _mouseButtons | bit : _mouseButtons & ~bit);
+            if (next == _mouseButtons) return;
+            Write(BuildMouseReport(next, 0, 0));
+            _mouseButtons = next;
+        }
+    }
+
+    internal void MoveMouseRelative(int x, int y)
+    {
+        lock (_sync) Write(BuildMouseReport(_mouseButtons, x, y));
+    }
+
+    internal static byte[] BuildMouseReport(byte buttons, int x, int y)
+    {
+        if (buttons > 31 || x is < -32767 or > 32767 || y is < -32767 or > 32767)
+            throw new InvalidOperationException("FakerInput relative mouse report is out of range.");
+        // Official API v1 relative mouse structure: ID, buttons, signed X/Y,
+        // vertical/horizontal wheels. This is separate from keyboard state.
+        var report = new byte[65];
+        report[0] = 0x40; report[1] = 8; report[2] = 3; report[3] = buttons;
+        System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(report.AsSpan(4, 2), (short)x);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(report.AsSpan(6, 2), (short)y);
+        return report;
     }
 
     private void Write(byte[] report)

@@ -68,7 +68,7 @@ public partial class MainWindow : Window
         GameCombo.ItemsSource = _gameNames;
         ProfileNameCombo.ItemsSource = _macroNames;
         ConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
-        GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>().Where(condition => condition != ConditionType.PurpleRingMatches);
+        GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>().Where(condition => condition is not ConditionType.PurpleRingMatches and not ConditionType.AionTargetBarMatches);
         ActionCombo.ItemsSource = Enum.GetValues<ActionType>();
         RepeatCombo.ItemsSource = Enum.GetValues<RepeatMode>();
         MouseButtonCombo.ItemsSource = Enum.GetValues<MouseButtonType>();
@@ -363,6 +363,11 @@ public partial class MainWindow : Window
         ApplyProfileEditorToModel();
         if (NativeMethods.GetForegroundWindow() == new WindowInteropHelper(this).Handle)
         {
+            if (_profile.AionCombat?.Enabled == true)
+            {
+                AppendLog($"Focus Aion 2 and start with {_settings.StartStopHotKey} so combat stays bound to the game window.");
+                return;
+            }
             if (_profile.Rules.Any(rule => rule.Enabled && rule.UsesTimer()))
             {
                 AppendLog($"Focus the game and start with {_settings.StartStopHotKey}. Timer profiles pause when the game loses focus.");
@@ -386,7 +391,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_profile.Rules.Any(rule => rule.Enabled && rule.KeyboardInputMode == KeyboardInputMode.FakerInput
+        if (_profile.AionCombat?.Enabled == true)
+        {
+            try { AionCombatRunner.Validate(_profile); }
+            catch (InvalidOperationException ex) { AppendLog($"Cannot start: {ex.Message}"); return; }
+        }
+        if (_profile.AionCombat?.Enabled == true || _profile.Rules.Any(rule => rule.Enabled && rule.KeyboardInputMode == KeyboardInputMode.FakerInput
             && rule.Action is ActionType.KeyPress or ActionType.KeyHold or ActionType.RecordedCombo))
         {
             try { FakerInputKeyboard.Shared.CheckAvailable(); }
@@ -844,6 +854,11 @@ public partial class MainWindow : Window
         _profile.ThroneHealing ??= new ThroneHealingSettings();
         _profile.ThroneHealing.Enabled = IsThroneGame(_profile.Game) && ThroneHealingCheckBox.IsChecked == true;
         _profile.ThroneHealing.LowHpPercent = ReadInt(ThroneLowHpBox, 82, 1, 100);
+        _profile.AionCombat ??= new();
+        _profile.AionCombat.Enabled = IsAio2Game(_profile.Game) && AionCombatCheckBox.IsChecked == true;
+        _profile.AionCombat.HoldRightMouseToTurn = AionCameraRightCheckBox.IsChecked == true;
+        _profile.AionCombat.TurnPixels = ReadInt(AionCameraPixelsBox, 75, -500, 500);
+        _profile.AionCombat.TurnSteps = ReadInt(AionCameraStepsBox, 4, 1, 20);
         _profile.Rules = _rules.ToList();
     }
 
@@ -852,6 +867,10 @@ public partial class MainWindow : Window
         PaxResourceOptionsPanel.Visibility = IsPaxGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         ThroneOptionsPanel.Visibility = IsThroneGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         Aio2OptionsPanel.Visibility = IsAio2Game(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
+        AionCombatCheckBox.IsChecked = _profile.AionCombat?.Enabled == true;
+        AionCameraRightCheckBox.IsChecked = _profile.AionCombat?.HoldRightMouseToTurn ?? true;
+        AionCameraPixelsBox.Text = (_profile.AionCombat?.TurnPixels ?? 75).ToString();
+        AionCameraStepsBox.Text = (_profile.AionCombat?.TurnSteps ?? 4).ToString();
         ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
         ThroneHealingCheckBox.IsChecked = _profile.ThroneHealing?.Enabled == true;
         ThroneLowHpBox.Text = (_profile.ThroneHealing?.LowHpPercent ?? 82).ToString();
@@ -945,6 +964,25 @@ public partial class MainWindow : Window
             AppendLog("F Gather reference loaded. Select its area to watch, then APPLY CHANGES and SAVE MACRO. Taps F while Gather is visible, with a random 0–1 second reaction delay before each tap. A disappearing prompt cancels the pending tap.");
         }
         catch (Exception ex) { AppendLog($"F Gather setup failed: {ex.Message}"); }
+    }
+
+    private void SetupAionCombat_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop the macro before setting up Aion combat."); return; }
+        ApplyEditorToSelectedRule(); ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            var target = Aio2ProfileSetup.ConfigureCombat(prepared, _settings.ReferenceImageFolder);
+            _profile = prepared;
+            _rules.Clear(); foreach (var rule in prepared.Rules) _rules.Add(rule);
+            AionCombatCheckBox.IsChecked = true;
+            RulesListBox.SelectedItem = target;
+            UpdateRuleCount(); PersistCurrentMacro();
+            AppendLog("Aion combat configured. Select the area for the top-centre target HP bar, including both end markers; APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass with a target and wait without one. Adjust camera turning for your controls.");
+        }
+        catch (Exception ex) { AppendLog($"Aion combat setup failed: {ex.Message}"); }
     }
 
     private void SetupThroneCombat_Click(object sender, RoutedEventArgs e)
@@ -1565,7 +1603,12 @@ public partial class MainWindow : Window
 
         if (captureReference)
         {
-            ConditionCombo.SelectedItem = ConditionCombo.SelectedItem is ConditionType.RegionSnapshotDiffers ? ConditionType.RegionSnapshotDiffers : ConditionType.RegionSnapshotMatches;
+            ConditionCombo.SelectedItem = ConditionCombo.SelectedItem switch
+            {
+                ConditionType.RegionSnapshotDiffers => ConditionType.RegionSnapshotDiffers,
+                ConditionType.AionTargetBarMatches => ConditionType.AionTargetBarMatches,
+                _ => ConditionType.RegionSnapshotMatches
+            };
             CaptureReferenceInto(selection, gate: false);
             return;
         }
@@ -1880,6 +1923,7 @@ public partial class MainWindow : Window
         RingTimingPanel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Visible : Visibility.Collapsed;
         var pixelColors = ImageMatchMethodCombo.SelectedItem is ImageMatchMethod.PixelColors;
         ImageTolerancePanel.Visibility = pixelColors ? Visibility.Visible : Visibility.Collapsed;
+        ImageMatchMethodCombo.IsEnabled = condition != ConditionType.AionTargetBarMatches;
         ReferenceSummaryText.Text = _watchReferenceRgb.Length == 0
             ? "No reference captured. Capture the image you want to find."
             : $"{Path.GetFileName(_watchReferenceImagePath)} · {WatchWidthBox.Text} × {WatchHeightBox.Text} pixels";
@@ -1891,11 +1935,17 @@ public partial class MainWindow : Window
         {
             CoverageHelpText.Text = "Finds a purple circular arc as it shrinks (radius 12–120 pixels). Q waits for the configured delay while combat continues. TEST CONDITION checks detection immediately. Select the full prompt area; no reference is needed.";
         }
+        if (condition == ConditionType.AionTargetBarMatches)
+        {
+            CoverageHelpText.Text = "Checks both target HP bar end markers; ignores the changing name and health fill. Capture only the bar with both ends if your UI scale differs.";
+            CoverageThresholdLabel.Content = "Target end-marker match threshold (%)";
+        }
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost or ConditionType.PurpleRingMatches || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
         CoverageThresholdLabel.Content = snapshotCondition ? pixelColors ? "Pixel-color match threshold (%)" : "Image similarity threshold (%)" : "Region coverage / match threshold (%)";
+        if (condition == ConditionType.AionTargetBarMatches) CoverageThresholdLabel.Content = "Target end-marker match threshold (%)";
         CoverageThresholdLabel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         CoverageThresholdBox.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;

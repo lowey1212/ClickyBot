@@ -24,6 +24,18 @@ internal sealed class MacroEngine
 
     public async Task RunAsync(MacroProfile profile, CancellationToken token, BarPresenceProbe? barProbe = null)
     {
+        if (profile.AionCombat?.Enabled == true)
+        {
+            var gameWindow = NativeMethods.GetForegroundWindow();
+            if (gameWindow == IntPtr.Zero) throw new InvalidOperationException("Focus the game and start Aion combat with the hotkey.");
+            var runner = new AionCombatRunner(profile, (rule, checkToken) =>
+            {
+                Evaluate(rule, checkToken);
+                return rule.LastInspection!;
+            }, () => NativeMethods.GetForegroundWindow() == gameWindow, message => Log?.Invoke(message));
+            await runner.RunAsync(token);
+            return;
+        }
         if (profile.ThroneCombatMode)
         {
             await RunThroneCombatAsync(profile, token);
@@ -265,7 +277,26 @@ internal sealed class MacroEngine
         rule.ObservationValid = false;
         MatchLocation? match = null;
         ConditionObservation primary;
-        if (rule.Condition == ConditionType.PurpleRingMatches)
+        if (rule.Condition == ConditionType.AionTargetBarMatches)
+        {
+            primary = new(null, "Select the target HP bar watch area and load its marker reference.");
+            if (AionTargetBarMatcher.ValidReference(rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight)
+                && rule.SearchWidth >= rule.WatchWidth && rule.SearchHeight >= rule.WatchHeight
+                && rule.SearchWidth <= ScreenProbe.MaxSearchWidth && rule.SearchHeight <= ScreenProbe.MaxSearchHeight)
+            {
+                if (ScreenProbe.TryCaptureRegion(rule.SearchX, rule.SearchY, rule.SearchWidth, rule.SearchHeight, out var frame,
+                    ScreenProbe.MaxSearchWidth * ScreenProbe.MaxSearchHeight))
+                {
+                    var result = AionTargetBarMatcher.Find(frame, rule.SearchWidth, rule.SearchHeight, rule.ReferenceRgb,
+                        rule.WatchWidth, rule.WatchHeight, rule.CoverageThreshold, token);
+                    match = result.Location is { } point ? new(point.X + rule.SearchX, point.Y + rule.SearchY) : null;
+                    primary = new(match.HasValue, $"Target HP end markers {result.Score:F1}% (requires {rule.CoverageThreshold}%). Names and health fill ignored.");
+                }
+                else primary = new(null, "Target HP bar capture is unavailable.");
+            }
+            rule.ImageSearchDiagnostic = primary.Detail;
+        }
+        else if (rule.Condition == ConditionType.PurpleRingMatches)
         {
             match = ScreenProbe.FindPurpleRing(rule, token, applyRingTiming);
             primary = new(rule.ObservationValid ? match.HasValue : null, rule.ImageSearchDiagnostic);

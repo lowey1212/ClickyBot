@@ -197,6 +197,30 @@ internal static class Program
                 "AIO2 setup visibility is incorrect for " + game);
         }
         Console.WriteLine("PASS: real WPF AIO2 setup controls and supported game aliases.");
+        var combatProfile = new MacroProfile { Game = "Aion 2" };
+        var combatFolder = System.IO.Path.Combine(AppContext.BaseDirectory, "aion-editor-reference");
+        var targetRule = (MacroRule)assembly.GetType("ClickyBot.Aio2ProfileSetup")!
+            .GetMethod("ConfigureCombat", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [combatProfile, combatFolder])!;
+        typeof(MainWindow).GetField("_profile", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, combatProfile);
+        Control<ComboBox>("GameCombo").Text = "Aion 2";
+        typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [targetRule]);
+        Check(Control<CheckBox>("AionCombatCheckBox").IsChecked == true
+            && Control<CheckBox>("AionCameraRightCheckBox").IsChecked == true
+            && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Visible
+            && !Control<ComboBox>("ImageMatchMethodCombo").IsEnabled
+            && Control<Label>("CoverageThresholdLabel").Content.ToString()!.Contains("end-marker"),
+            "Aion combat must expose camera controls and the target marker watch editor.");
+        Control<CheckBox>("AionCameraRightCheckBox").IsChecked = false;
+        Control<TextBox>("AionCameraPixelsBox").Text = "-85";
+        Control<TextBox>("AionCameraStepsBox").Text = "3";
+        typeof(MainWindow).GetMethod("ApplyProfileEditorToModel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        Check(combatProfile.AionCombat.Enabled && !combatProfile.AionCombat.HoldRightMouseToTurn
+            && combatProfile.AionCombat.TurnPixels == -85 && combatProfile.AionCombat.TurnSteps == 3,
+            "Aion camera controls must apply and preserve signed movement and turning mode.");
+        Control<CheckBox>("AionCombatCheckBox").IsChecked = false;
+        System.IO.File.Delete(targetRule.ReferenceImagePath); System.IO.Directory.Delete(combatFolder);
+        Console.WriteLine("PASS: real WPF Aion combat setup, target-marker editor, camera controls and saved profile settings.");
         Check(window.Title.Contains(typeof(MainWindow).Assembly.GetName().Version!.ToString(3)),
             "Window title must identify the running application version.");
         var compatibilityRule = new MacroRule { Key = "F", Action = ActionType.RecordedCombo, KeyboardInputMode = KeyboardInputMode.VirtualKey };

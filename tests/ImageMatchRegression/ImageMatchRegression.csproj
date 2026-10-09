@@ -12,6 +12,8 @@
     <Compile Include="../../InputSimulator.cs" Link="InputSimulator.cs" />
     <Compile Include="../../FakerInputKeyboard.cs" Link="FakerInputKeyboard.cs" />
     <Compile Include="../../FakerInputTransport.cs" Link="FakerInputTransport.cs" />
+    <Compile Include="../../AionTargetBarMatcher.cs" Link="AionTargetBarMatcher.cs" />
+    <Compile Include="../../AionCombatRunner.cs" Link="AionCombatRunner.cs" />
     <Compile Include="../../Aio2ProfileSetup.cs" Link="Aio2ProfileSetup.cs" />
     <Compile Include="../../ReferenceImageService.cs" Link="ReferenceImageService.cs" />
     <EmbeddedResource Include="../../Assets/Aio2/Alt-1-prompt.png" LogicalName="ClickyBot.Aio2.Alt1.png" />
@@ -19,6 +21,9 @@
     <EmbeddedResource Include="../../Assets/Aio2/F-prompt.png" LogicalName="ClickyBot.Aio2.F.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Gather-prompt.png" LogicalName="ClickyBot.Aio2.Gather.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Skip-prompt.png" LogicalName="ClickyBot.Aio2.Skip.png" />
+    <EmbeddedResource Include="../../Assets/Aio2/Target-HP-bar.png" LogicalName="ClickyBot.Aio2.TargetBar.png" />
+    <Content Include="fixtures/Aio2-target-hp.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="fixtures/Aio2-world-hp.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-Skip-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-F-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-Gather-prompt.png" CopyToOutputDirectory="PreserveNewest" />

@@ -73,6 +73,21 @@ internal static class FakerInputRegression
             fail = false;
             Check(InputSimulator.ReleaseAllHeldInputs() && reports.Count == 2 && reports[1].Skip(3).All(value => value == 0),
                 "A failed driver release must be retryable after reconnecting.");
+            reports.Clear();
+            FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, true);
+            FakerInputKeyboard.Shared.MoveMouseRelative(-32767, 32767);
+            FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, true);
+            FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, false);
+            Check(InputSimulator.ReleaseAllHeldInputs() && reports.Count == 5 && reports.All(report => report[1] == 8 && report[2] == 3)
+                && reports[2][3] == 3 && reports[3][3] == 1 && reports[4].Skip(3).All(value => value == 0),
+                "Mouse reports must preserve independent buttons and release them on emergency stop.");
+            reports.Clear();
+            FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, true);
+            fail = true;
+            Check(!InputSimulator.ReleaseAllHeldInputs(), "A failed mouse release must retain its held state.");
+            fail = false;
+            Check(InputSimulator.ReleaseAllHeldInputs() && reports.Count == 2 && reports[1][3] == 0,
+                "The driver mouse release must be retryable after reconnecting.");
             fail = true;
             try { await InputSimulator.ExecuteAsync(tap, default); throw new Exception("Driver failure was hidden."); }
             catch (InvalidOperationException ex) when (ex.Message.Contains("Simulated")) { }

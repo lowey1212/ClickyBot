@@ -53,9 +53,17 @@ The new rule is added first and inherits an existing Auto Move gate from Alt+1 o
 
 For the supplied **F Gather** prompt, choose **SET UP F GATHER (0–1s)**, select the prompt's watch area and save. When the prompt is detected, the Gather rule chooses a random 0–1000 ms reaction delay before tapping F. It keeps checking the prompt while waiting and cancels the pending tap if the prompt disappears. If Gather remains visible, it can repeat with the existing 500 ms cooldown and a new reaction delay. This setup only needs the Gather prompt area; the existing quest setup retains its Auto Move gates.
 
-Gather now uses **FakerInput (installed driver)** for its 70 ms F tap. Existing Gather presets switch to this mode once when opened, preserving their selected area, reference and timing. Save the macro to keep the change. ClickyBot communicates directly with the driver; no helper program or driver installer is bundled. If the driver is unavailable or rejects a report, ClickyBot reports the error and sends no software-input fallback. Other keyboard rules can select the same mode in the rule editor. The driver supports up to six held non-modifier keys and F1–F12; mouse actions retain their existing input method. See [FAKERINPUT-NOTICE.txt](FAKERINPUT-NOTICE.txt) for the driver protocol attribution and MIT notice.
+Gather now uses **FakerInput (installed driver)** for its 70 ms F tap. Existing Gather presets switch to this mode once when opened, preserving their selected area, reference and timing. Save the macro to keep the change. ClickyBot communicates directly with the driver; no helper program or driver installer is bundled. If the driver is unavailable or rejects a report, ClickyBot reports the error and sends no software-input fallback. Other keyboard rules can select the same mode in the rule editor. The driver supports up to six held non-modifier keys and F1–F12. Ordinary mouse actions retain their existing input method; Aion combat uses driver mouse reports too. See [FAKERINPUT-NOTICE.txt](FAKERINPUT-NOTICE.txt) for the driver protocol attribution and MIT notice.
 
 The standard rule editor has **Random reaction delay before action** with minimum and maximum values in milliseconds. Conditions and other rules keep polling while it waits, and STOP/F7 cancels normally. Existing profiles keep their original immediate responses unless this option is enabled.
+
+## Aion 2 target combat
+
+Create a separate Aion 2 macro, then choose **SET UP AION COMBAT**. Select the top-centre area where the target HP bar appears, including both end markers, and apply/save. The supplied reference is cropped from the target HUD screenshot; `AionTargetBarMatches` checks the two end-marker shapes and ignores the changing name and health fill. **TEST CONDITION** must pass with a target and wait when the bar disappears. The initial 1×1 watch area blocks combat until calibrated. If your HUD scale differs, **CAPTURE REFERENCE** around only the entire HP bar and its two ends, then apply/save.
+
+Start with your configured hotkey while Aion 2 is focused. With no target bar, the mode turns the camera and taps Tab to select the next monster. Two successful checks confirm a target; it taps 1 for 70 ms, rechecks the target, then holds left mouse for auto attack. A missing bar for 300 ms releases left mouse and restarts the search. A capture failure, game focus loss, Stop or F7 releases generated input and stops combat. Searching stops after 24 unsuccessful attempts. The profile's `AionCombat` JSON settings include `MaxSearchAttempts` and an optional `MaxAttackMs` limit; its default 0 keeps attacking until the target bar disappears.
+
+Camera turning defaults to holding right mouse for four 75-pixel relative steps. Uncheck **Hold right mouse while turning camera** if your game turns from movement alone. Adjust the pixel amount for your sensitivity; negative values turn left and zero disables turning while retaining Tab selection. No movement keys are sent. Keyboard and mouse output use the installed FakerInput driver, with no software-input fallback. Combat mode controls this profile while enabled; other saved rules remain available when the mode is disabled.
 
 ## Throne combat
 
@@ -155,8 +163,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.48.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.48-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.49.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.49-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

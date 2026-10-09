@@ -37,12 +37,13 @@ public enum ConditionType
     PurpleRingMatches,
     RegionSnapshotDiffers,
     CooldownTimerPresent,
-    CooldownTimerAbsent
+    CooldownTimerAbsent,
+    AionTargetBarMatches
 }
 
 internal static class Conditions
 {
-    internal static bool IsReference(this ConditionType condition) => condition is ConditionType.RegionSnapshotMatches or ConditionType.RegionSnapshotDiffers;
+    internal static bool IsReference(this ConditionType condition) => condition is ConditionType.RegionSnapshotMatches or ConditionType.RegionSnapshotDiffers or ConditionType.AionTargetBarMatches;
     internal static bool IsTimer(this ConditionType condition) => condition is ConditionType.CooldownTimerPresent or ConditionType.CooldownTimerAbsent;
     internal static bool UsesTimer(this MacroRule rule) => rule.Condition.IsTimer() || (rule.GateEnabled && rule.GateCondition.IsTimer());
     internal static ConditionObservation Invert(ConditionObservation observation) => observation with
@@ -115,6 +116,19 @@ public sealed class MacroProfile
     public ResourceNavigationSettings ResourceNavigation { get; set; } = new();
     public bool ThroneCombatMode { get; set; }
     public ThroneHealingSettings ThroneHealing { get; set; } = new();
+    public AionCombatSettings AionCombat { get; set; } = new();
+}
+
+public sealed class AionCombatSettings
+{
+    public bool Enabled { get; set; }
+    public Guid TargetRuleId { get; set; }
+    public bool HoldRightMouseToTurn { get; set; } = true;
+    public int TurnPixels { get; set; } = 75;
+    public int TurnSteps { get; set; } = 4;
+    public int MaxSearchAttempts { get; set; } = 24;
+    public int TargetLostMs { get; set; } = 300;
+    public int MaxAttackMs { get; set; } // 0: hold until the target bar disappears.
 }
 
 public sealed class ThroneHealingSettings
