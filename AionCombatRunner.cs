@@ -138,18 +138,12 @@ internal sealed class AionCombatRunner
                         _log("Aion combat: no target indicator matched after Tab. " + selected!.Primary.Detail);
                         if (settings.CameraTurnEnabled && settings.TurnPixels != 0)
                         {
-                            if (settings.HoldRightMouseToTurn)
-                                FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, true);
-                            try
+                            for (var step = 0; step < settings.TurnSteps; step++)
                             {
-                                for (var step = 0; step < settings.TurnSteps; step++)
-                                {
-                                    if (!Active()) return;
-                                    FakerInputKeyboard.Shared.MoveMouseRelative(settings.TurnPixels, 0);
-                                    await _delay(30, token);
-                                }
+                                if (!Active()) return;
+                                FakerInputKeyboard.Shared.MoveMouseRelative(settings.TurnPixels, 0);
+                                await _delay(30, token);
                             }
-                            finally { FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, false); }
                         }
                     }
                 }

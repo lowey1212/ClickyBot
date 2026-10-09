@@ -25,8 +25,12 @@ internal static class AionCombatRegression
         var reloaded = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(profile, options), options)!;
         Check(reloaded.AionCombat.TargetRuleId == target.Id && reloaded.AionCombat.TurnPixels == -50
             && reloaded.Rules[0].Condition == ConditionType.AionTargetBarMatches, "Combat settings must survive save/load.");
-        Check(!reloaded.AionCombat.CameraTurnEnabled && reloaded.AionCombat.HoldRightMouseToTurn,
-            "Existing camera configuration must remain available without enabling right-mouse turning.");
+        Check(!reloaded.AionCombat.CameraTurnEnabled,
+            "Existing camera configuration must remain available without enabling turning.");
+        var legacyJson = JsonSerializer.Serialize(profile, options).Replace("\"CameraTurnEnabled\":false", "\"CameraTurnEnabled\":true,\"HoldRightMouseToTurn\":true");
+        var legacy = JsonSerializer.Deserialize<MacroProfile>(legacyJson, options)!;
+        Check(legacy.AionCombat.CameraTurnEnabled && !JsonSerializer.Serialize(legacy, options).Contains("HoldRightMouseToTurn"),
+            "Old right-mouse settings must be ignored and removed on save while retaining optional camera movement.");
 
         static (byte[] Rgb, int Width, int Height) Load(string name)
         {
@@ -179,16 +183,17 @@ internal static class AionCombatRegression
             await Scenario(_ => false, _ => true,
                 list => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 2
                     && !list.Any(report => report[2] == 3 && report[3] == 1), "Search limits must stop without attacking an unconfirmed target."));
-            profile.AionCombat.CameraTurnEnabled = true;
+            profile.AionCombat = legacy.AionCombat;
             await Scenario(_ => false, _ => true, list =>
             {
                 var tab = list.FindIndex(report => report[2] == 1 && report[5] == 0x2B);
-                var right = list.FindIndex(report => report[2] == 3 && report[3] == 2);
                 var camera = list.Where(report => report[2] == 3 && report[4] != 0).ToArray();
-                Check(tab >= 0 && right > tab && camera.Length == 2 * profile.AionCombat.TurnSteps
-                    && camera.All(report => report[3] == 2
+                Check(tab >= 0 && list.FindIndex(report => report[2] == 3 && report[4] != 0) > tab
+                    && camera.Length == 2 * profile.AionCombat.TurnSteps
+                    && camera.All(report => report[3] == 0
                         && System.Buffers.Binary.BinaryPrimitives.ReadInt16LittleEndian(report.AsSpan(4, 2)) == -50)
-                    && list.Last()[3] == 0, "Optional camera must follow unsuccessful Tab and release right mouse after each turn.");
+                    && !list.Any(report => report[2] == 3 && (report[3] & 2) != 0),
+                    "Even legacy profiles with right-mouse enabled must turn with no buttons held and never press right mouse.");
             });
             await Scenario(_ => true, i => i < 4, list => Check(!list.Any(report => report[2] == 3 && report[3] == 2),
                 "Even enabled camera turning must never hold right mouse while a target is present."));

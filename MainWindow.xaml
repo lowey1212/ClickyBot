@@ -98,8 +98,7 @@
                                 <Button Content="SET UP ESC SKIP" Click="SetupAio2Skip_Click" ToolTip="Load the supplied SKIP prompt and tap Esc once when it appears. Reuses an existing Auto Move gate. Select the SKIP watch area manually." />
                                 <CheckBox x:Name="AionCombatCheckBox" Content="Tab target, 1 + hold left mouse" Margin="0,10,0,6" ToolTip="Use the target HP bar to control combat. Other rules pause while this mode is enabled." />
                                 <Button Content="SET UP AION COMBAT" Click="SetupAionCombat_Click" ToolTip="Load the supplied target HP bar markers. Select the area at the top centre where that bar appears." />
-                                <CheckBox x:Name="AionCameraEnabledCheckBox" Content="Turn camera if Tab finds no target" Margin="0,6,0,4" ToolTip="Optional. Leave unchecked to use only Tab, 1 and left mouse." />
-                                <CheckBox x:Name="AionCameraRightCheckBox" Content="Use right mouse for optional camera turn" IsChecked="True" Margin="0,6,0,4" ToolTip="Only used when camera turning is enabled. Uncheck if your camera turns from mouse movement alone." />
+                                <CheckBox x:Name="AionCameraEnabledCheckBox" Content="Move camera if Tab finds no target" Margin="0,6,0,4" ToolTip="Optional mouse movement with no button held. Aion combat never presses right mouse." />
                                 <Label Content="Camera turn per step (pixels; 0 disables)" />
                                 <TextBox x:Name="AionCameraPixelsBox" Text="75" ToolTip="Positive turns right; negative turns left. Adjust for your game sensitivity." />
                                 <Label Content="Optional camera steps after failed Tab" />

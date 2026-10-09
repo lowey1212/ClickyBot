@@ -63,7 +63,7 @@ Create a separate Aion 2 macro, then choose **SET UP AION COMBAT**. Select the a
 
 Start with your configured hotkey while Aion 2 is focused. With no target bar, the mode taps Tab to select the next monster and checks for its indicator before any optional camera movement. The first successful color match immediately taps 1 for 70 ms, then holds left mouse for auto attack. After Tab, the detector checks every 50 ms for up to 400 ms and starts attacking as soon as a hit arrives. No second match is required. A missing bar for 300 ms releases left mouse and restarts the search. A capture failure, game focus loss, Stop or F7 releases generated input and stops combat. Searching stops after 24 unsuccessful attempts. The profile's `AionCombat` JSON settings include `MaxSearchAttempts` and an optional `MaxAttackMs` limit; its default 0 keeps attacking until the target bar disappears.
 
-Camera turning is disabled by default, including for profiles saved before 0.1.51. Enable **Turn camera if Tab finds no target** only if needed. Optional turning can hold right mouse for four 75-pixel relative steps, releasing it before the next target check. Uncheck **Use right mouse for optional camera turn** if your game turns from movement alone. Adjust the pixel amount for your sensitivity; negative values turn left and zero disables turning while retaining Tab selection. No movement keys are sent. Keyboard and mouse output use the installed FakerInput driver, with no software-input fallback. Combat mode controls this profile while enabled; other saved rules remain available when the mode is disabled.
+Aion combat never presses right mouse. The previous right-mouse camera option and saved setting are removed. Optional camera movement, if enabled, uses only relative mouse movement with no button held. Camera movement remains disabled by default. Tab, 1 and held left mouse use the installed FakerInput driver. Combat mode controls this profile while enabled; other saved rules remain available when the mode is disabled.
 
 ## Throne combat
 
@@ -163,8 +163,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.52.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.52-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.53.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.53-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

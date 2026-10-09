@@ -856,7 +856,6 @@ public partial class MainWindow : Window
         _profile.ThroneHealing.LowHpPercent = ReadInt(ThroneLowHpBox, 82, 1, 100);
         _profile.AionCombat ??= new();
         _profile.AionCombat.Enabled = IsAio2Game(_profile.Game) && AionCombatCheckBox.IsChecked == true;
-        _profile.AionCombat.HoldRightMouseToTurn = AionCameraRightCheckBox.IsChecked == true;
         _profile.AionCombat.CameraTurnEnabled = AionCameraEnabledCheckBox.IsChecked == true;
         _profile.AionCombat.TurnPixels = ReadInt(AionCameraPixelsBox, 75, -500, 500);
         _profile.AionCombat.TurnSteps = ReadInt(AionCameraStepsBox, 4, 1, 20);
@@ -869,7 +868,6 @@ public partial class MainWindow : Window
         ThroneOptionsPanel.Visibility = IsThroneGame(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         Aio2OptionsPanel.Visibility = IsAio2Game(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         AionCombatCheckBox.IsChecked = _profile.AionCombat?.Enabled == true;
-        AionCameraRightCheckBox.IsChecked = _profile.AionCombat?.HoldRightMouseToTurn ?? true;
         AionCameraEnabledCheckBox.IsChecked = _profile.AionCombat?.CameraTurnEnabled == true;
         AionCameraPixelsBox.Text = (_profile.AionCombat?.TurnPixels ?? 75).ToString();
         AionCameraStepsBox.Text = (_profile.AionCombat?.TurnSteps ?? 4).ToString();

@@ -207,17 +207,16 @@ internal static class Program
         typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [targetRule]);
         Check(Control<CheckBox>("AionCombatCheckBox").IsChecked == true
             && Control<CheckBox>("AionCameraEnabledCheckBox").IsChecked == false
-            && Control<CheckBox>("AionCameraRightCheckBox").IsChecked == true
+            && typeof(MainWindow).GetField("AionCameraRightCheckBox", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public) is null
             && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Visible
             && !Control<ComboBox>("ImageMatchMethodCombo").IsEnabled
             && Control<Label>("CoverageThresholdLabel").Content.ToString()!.Contains("end-marker"),
             "Aion combat must expose camera controls and the target marker watch editor.");
-        Control<CheckBox>("AionCameraRightCheckBox").IsChecked = false;
         Control<CheckBox>("AionCameraEnabledCheckBox").IsChecked = true;
         Control<TextBox>("AionCameraPixelsBox").Text = "-85";
         Control<TextBox>("AionCameraStepsBox").Text = "3";
         typeof(MainWindow).GetMethod("ApplyProfileEditorToModel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
-        Check(combatProfile.AionCombat.Enabled && combatProfile.AionCombat.CameraTurnEnabled && !combatProfile.AionCombat.HoldRightMouseToTurn
+        Check(combatProfile.AionCombat.Enabled && combatProfile.AionCombat.CameraTurnEnabled
             && combatProfile.AionCombat.TurnPixels == -85 && combatProfile.AionCombat.TurnSteps == 3,
             "Aion camera controls must apply and preserve signed movement and turning mode.");
         Control<CheckBox>("AionCombatCheckBox").IsChecked = false;
