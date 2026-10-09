@@ -8,8 +8,29 @@ using ClickyBot;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        if (Environment.GetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_INSTALLER") == "1")
+        {
+            var marker = Environment.GetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_MARKER")!;
+            var exited = false;
+            try { using var originalProcess = System.Diagnostics.Process.GetProcessById(int.Parse(Environment.GetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_PID")!)); exited = originalProcess.HasExited; }
+            catch (ArgumentException) { exited = true; }
+            System.IO.File.WriteAllText(marker, exited ? "CLOSED" : "STILL_RUNNING");
+            return;
+        }
+        if (args.Length == 3 && args[0] == "--update-exit-probe")
+        {
+            Environment.SetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_INSTALLER", "1");
+            Environment.SetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_MARKER", args[2]);
+            Environment.SetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_PID", Environment.ProcessId.ToString());
+            var started = (bool)typeof(MainWindow).Assembly.GetType("ClickyBot.UpdateService")!
+                .GetMethod("StartInstallerAfterExit")!.Invoke(null, [args[1]])!;
+            if (!started) throw new Exception("The update helper did not start.");
+            System.Threading.Thread.Sleep(800);
+            if (System.IO.File.Exists(args[2])) throw new Exception("Installer started before the app exited.");
+            return;
+        }
         // Construct the real editor without showing a window, starting the
         // engine, registering hotkeys, saving settings, or sending input.
         var app = new App();
@@ -188,6 +209,55 @@ internal static class Program
                 "Keyboard compatibility controls have incorrect visibility for " + action);
         }
         Console.WriteLine("PASS: real WPF keyboard mode selection, apply/load, and keyboard-only visibility.");
+
+        var updateFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClickyBot-update-save-" + Guid.NewGuid());
+        var updateSettings = new AppSettings { MacroFolder = updateFolder, CheckForUpdatesOnStartup = false };
+        typeof(MainWindow).GetField("_settings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, updateSettings);
+        Control<ComboBox>("GameCombo").Text = "aio2";
+        Control<ComboBox>("ProfileNameCombo").Text = "Update preservation";
+        var updateRules = (System.Collections.ObjectModel.ObservableCollection<MacroRule>)Control<ListBox>("RulesListBox").ItemsSource;
+        updateRules.Clear();
+        var updateRule = new MacroRule { Name = "Before editing", Key = "F", Action = ActionType.KeyPress };
+        updateRules.Add(updateRule);
+        Control<ListBox>("RulesListBox").SelectedItem = updateRule;
+        Control<TextBox>("RuleNameBox").Text = "Unsaved quest change";
+        Control<TextBox>("PollIntervalBox").Text = "170";
+        typeof(MainWindow).GetField("_currentMacroPath", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, "");
+        Check((bool)typeof(MainWindow).GetMethod("SaveCurrentMacroForUpdate", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!,
+            "The update must save a new profile before closing.");
+        var updateJsonOptions = (JsonSerializerOptions)typeof(MainWindow).GetField("_jsonOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        var savedUpdateProfile = JsonSerializer.Deserialize<MacroProfile>(System.IO.File.ReadAllText(updateSettings.LastMacroPath), updateJsonOptions)!;
+        Check(savedUpdateProfile.Name == "Update preservation" && savedUpdateProfile.Game == "aio2"
+            && savedUpdateProfile.PollIntervalMs == 170 && savedUpdateProfile.Rules.Single().Name == "Unsaved quest change"
+            && savedUpdateProfile.Rules.Single().Key == "F",
+            "The update save must retain pending profile and selected-rule edits, not just the last applied model.");
+        Control<TextBox>("RuleNameBox").Text = "Second pending change";
+        Check((bool)typeof(MainWindow).GetMethod("SaveCurrentMacroForUpdate", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!,
+            "The update must save an existing profile too.");
+        Check(JsonSerializer.Deserialize<MacroProfile>(System.IO.File.ReadAllText(updateSettings.LastMacroPath), updateJsonOptions)!.Rules.Single().Name == "Second pending change"
+            && System.IO.Directory.GetFiles(updateFolder).Length == 1,
+            "An existing profile must retain its latest edits without creating duplicate macro files.");
+        System.IO.File.Delete(updateSettings.LastMacroPath);
+        System.IO.Directory.Delete(updateFolder);
+        Console.WriteLine("PASS: update preserves unsaved profile and rule edits for both new and existing macros without sending input or closing the test app.");
+
+        // Exercise the real exit-waiting helper using a harmless installer stand-in.
+        var probeFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClickyBot-update-exit-" + Guid.NewGuid());
+        System.IO.Directory.CreateDirectory(probeFolder);
+        var probeInstaller = System.IO.Path.ChangeExtension(typeof(Program).Assembly.Location, ".exe");
+        var probeMarker = System.IO.Path.Combine(probeFolder, "result.txt");
+        var probeStart = new System.Diagnostics.ProcessStartInfo("dotnet") { UseShellExecute = false, CreateNoWindow = true };
+        foreach (var argument in new[] { typeof(Program).Assembly.Location, "--update-exit-probe", probeInstaller, probeMarker })
+            probeStart.ArgumentList.Add(argument);
+        using var probeProcess = System.Diagnostics.Process.Start(probeStart)!;
+        Check(probeProcess.WaitForExit(15000) && probeProcess.ExitCode == 0, "The update probe app must exit normally.");
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (!System.IO.File.Exists(probeMarker) && DateTime.UtcNow < deadline) System.Threading.Thread.Sleep(100);
+        Check(System.IO.File.Exists(probeMarker) && System.IO.File.ReadAllText(probeMarker).Trim() == "CLOSED",
+            "The installer must launch only after the update process has exited.");
+        System.IO.File.Delete(probeMarker);
+        System.IO.Directory.Delete(probeFolder);
+        Console.WriteLine("PASS: real update helper waits for the app process to exit before launching the installer stand-in.");
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)

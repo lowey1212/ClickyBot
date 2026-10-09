@@ -189,7 +189,7 @@ public partial class MainWindow : Window
             AppendLog($"ClickyBot update available: {update.LatestVersion}.");
             var answer = MessageBox.Show(
                 this,
-                $"ClickyBot {update.LatestVersion} is available. Download and install it now?\n\nThe app will close, then the installer will ask whether to launch ClickyBot when it finishes.",
+                $"ClickyBot {update.LatestVersion} is available. Download and install it now?\n\nYour current macro will be saved automatically. ClickyBot will close before the installer opens.",
                 "ClickyBot update available",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
@@ -211,7 +211,15 @@ public partial class MainWindow : Window
                 }
             });
             var installerPath = await UpdateService.DownloadInstallerAsync(update, downloadProgress, _updateCancellation.Token);
-            AppendLog($"Downloaded {update.AssetName}. ClickyBot will restart to install it.");
+            StopEngine("Stopped for update.");
+            if (!SaveCurrentMacroForUpdate())
+            {
+                AppendLog("Update paused because the current macro could not be saved. ClickyBot remains open.");
+                return;
+            }
+            if (!AppSettingsStore.Save(_settings, out var settingsError))
+                throw new IOException($"The update could not save your settings: {settingsError}");
+            AppendLog($"Downloaded {update.AssetName}. Macro saved; closing ClickyBot to install it.");
             if (!UpdateService.StartInstallerAfterExit(installerPath))
             {
                 throw new InvalidOperationException("The downloaded installer could not be started.");
@@ -754,6 +762,13 @@ public partial class MainWindow : Window
         ApplyEditorToSelectedRule();
         ApplyProfileEditorToModel();
         SaveMacroToPath(CurrentSavePath(), "Saved macro");
+    }
+
+    private bool SaveCurrentMacroForUpdate()
+    {
+        ApplyEditorToSelectedRule();
+        ApplyProfileEditorToModel();
+        return SaveMacroToPath(CurrentSavePath(), "Saved macro before update");
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
