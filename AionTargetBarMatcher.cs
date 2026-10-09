@@ -49,7 +49,7 @@ internal static class AionTargetBarMatcher
                     foreach (var point in points)
                     {
                         var i = ((y + point.Y) * width + x + point.X) * 3;
-                        if (!BrightNeutral(frame[i], frame[i + 1], frame[i + 2])) matches--;
+                        if (!MarkerColor(frame[i], frame[i + 1], frame[i + 2])) matches--;
                         // Reject unlikely positions early so broad user watch
                         // areas stay responsive to Stop and cancellation.
                         if (matches * 80d / points.Length + 20 < required) return 0;
@@ -58,9 +58,12 @@ internal static class AionTargetBarMatcher
                     foreach (var point in edges)
                     {
                         var i = ((y + point.Y) * width + x + point.X) * 3;
-                        if (BrightNeutral(frame[i], frame[i + 1], frame[i + 2])) edgeMatches--;
+                        if (MarkerColor(frame[i], frame[i + 1], frame[i + 2])) edgeMatches--;
                         if (matches * 80d / points.Length + edgeMatches * 20d / edges.Length < required) return 0;
                     }
+                    // A solid pale patch must not pass a relaxed threshold:
+                    // the marker still needs a visible color boundary.
+                    if (edgeMatches * 4 < edges.Length) return 0;
                     return matches * 80d / points.Length + edgeMatches * 20d / edges.Length;
                 }
                 var score = Score(left, leftEdges);
@@ -72,8 +75,9 @@ internal static class AionTargetBarMatcher
         return (null, 0);
     }
 
-    private static bool BrightNeutral(byte r, byte g, byte b)
-        => Math.Min(r, Math.Min(g, b)) >= 150 && Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b)) <= 60;
+    private static bool MarkerColor(byte r, byte g, byte b)
+        => (Math.Min(r, Math.Min(g, b)) >= 150 && Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b)) <= 60)
+            || (r >= 70 && g >= 150 && b >= 170 && b >= r + 20 && g >= r + 10 && Math.Abs(b - g) <= 80);
 
     private static (int X, int Y)[] Edges(byte[] reference, int width, int height, (int X, int Y)[] points)
     {
@@ -84,7 +88,7 @@ internal static class AionTargetBarMatcher
             var x = point.X + dx; var y = point.Y + dy;
             if (x < 0 || x >= width || y < 0 || y >= height) continue;
             var i = (y * width + x) * 3;
-            if (!BrightNeutral(reference[i], reference[i + 1], reference[i + 2])) edges.Add((x, y));
+            if (!MarkerColor(reference[i], reference[i + 1], reference[i + 2])) edges.Add((x, y));
         }
         return Sample(edges.ToArray());
     }
@@ -99,7 +103,7 @@ internal static class AionTargetBarMatcher
         for (var x = start; x < start + markerWidth; x++)
         {
             var i = (y * width + x) * 3;
-            if (BrightNeutral(reference[i], reference[i + 1], reference[i + 2])) points.Add((x, y));
+            if (MarkerColor(reference[i], reference[i + 1], reference[i + 2])) points.Add((x, y));
         }
         return Sample(points.ToArray());
     }

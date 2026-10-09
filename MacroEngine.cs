@@ -32,7 +32,7 @@ internal sealed class MacroEngine
             {
                 Evaluate(rule, checkToken);
                 return rule.LastInspection!;
-            }, () => NativeMethods.GetForegroundWindow() == gameWindow, message => Log?.Invoke(message));
+            }, () => NativeMethods.GetForegroundWindow() == gameWindow, message => Log?.Invoke(message), reportAction: ReportAction);
             await runner.RunAsync(token);
             return;
         }
@@ -292,8 +292,8 @@ internal sealed class MacroEngine
                         rule.WatchWidth, rule.WatchHeight, rule.CoverageThreshold, token);
                     match = result.Location is { } point ? new(point.X + rule.SearchX, point.Y + rule.SearchY) : null;
                     primary = new(match.HasValue, match.HasValue
-                        ? $"Target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} matched {result.Score:F1}% (requires {rule.CoverageThreshold}%)."
-                        : $"No target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} match at {rule.CoverageThreshold}%.");
+                        ? $"Target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} color match {result.Score:F1}% (requires {rule.CoverageThreshold}%)."
+                        : $"No target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} color match at {rule.CoverageThreshold}%.");
                 }
                 else primary = new(null, "Target HP bar capture is unavailable.");
             }

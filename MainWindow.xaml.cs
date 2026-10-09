@@ -1939,7 +1939,7 @@ public partial class MainWindow : Window
         }
         if (condition == ConditionType.AionTargetBarMatches)
         {
-            CoverageHelpText.Text = "Capture one target arrow tightly, or the whole HP bar with its end markers. Arrow captures track that marker; bar captures check both ends and ignore the changing middle.";
+            CoverageHelpText.Text = "Matches the white/cyan marker colors, ignoring background detail. Capture one target arrow tightly, or the whole HP bar with its end markers. One successful hit triggers 1 immediately, then held LEFT mouse.";
             CoverageThresholdLabel.Content = "Target end-marker match threshold (%)";
         }
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
@@ -1947,7 +1947,7 @@ public partial class MainWindow : Window
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost or ConditionType.PurpleRingMatches || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
         CoverageThresholdLabel.Content = snapshotCondition ? pixelColors ? "Pixel-color match threshold (%)" : "Image similarity threshold (%)" : "Region coverage / match threshold (%)";
-        if (condition == ConditionType.AionTargetBarMatches) CoverageThresholdLabel.Content = "Target end-marker match threshold (%)";
+        if (condition == ConditionType.AionTargetBarMatches) CoverageThresholdLabel.Content = "Target end-marker color match threshold (%)";
         CoverageThresholdLabel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         CoverageThresholdBox.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;

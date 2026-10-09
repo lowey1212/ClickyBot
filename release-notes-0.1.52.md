@@ -1,0 +1,5 @@
+ClickyBot 0.1.52 makes the first target arrow hit trigger 1 immediately, followed by held LEFT mouse. It removes the second-match requirement and polls for a target every 50 ms after Tab instead of waiting 400 ms before looking. A brief single hit now starts the attack; target absence for 300 ms releases left mouse.
+
+The target detector matches white/cyan marker colors and their boundary, ignoring photographed background detail. It accepts cyan glow variation while rejecting flat white/cyan areas even at a 75% threshold. Existing target captures, watch areas, threshold and optional camera settings are preserved. The inspector now shows the combat action actually performed, including pressing 1 and holding left mouse.
+
+Validation: six real user captures including the newest cyan arrow and saved 27×43 reference, color variation and flat-area rejection at 75%, a single-hit-after-Tab regression asserting 1 is sent before any second capture, existing input/combat/matching tests, WPF editor/inspector checks and both release packages. No real game input was sent during tests; in-game acceptance requires a retry.

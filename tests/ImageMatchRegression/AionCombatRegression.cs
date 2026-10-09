@@ -64,7 +64,7 @@ internal static class AionCombatRegression
         }
         Console.WriteLine("PASS: supplied target HUD, changing names/health, both markers required, overhead bars/flat areas rejected, calibration/persistence and cancelled detection.");
 
-        foreach (var file in new[] { "Aio2-captured-marker.png", "Aio2-captured-114.png", "Aio2-captured-118.png", "Aio2-captured-119.png" })
+        foreach (var file in new[] { "Aio2-captured-marker.png", "Aio2-captured-114.png", "Aio2-captured-118.png", "Aio2-captured-119.png", "Aio2-captured-122.png", "Aio2-captured-cyan-arrow.png" })
         {
             var capture = Load(file);
             var capturedRule = new MacroRule { Condition = ConditionType.AionTargetBarMatches, SearchReference = true,
@@ -89,7 +89,25 @@ internal static class AionCombatRegression
             try { AionCombatRunner.Validate(capturedProfile); throw new Exception("Missing reference accepted."); }
             catch (InvalidOperationException ex) { Check(ex.Message.Contains("not loaded"), "Missing reference failure must not incorrectly ask to reselect the watch area."); }
         }
-        Console.WriteLine("PASS: all four real user arrow/whole-bar captures, broad saved watch area, target presence/absence and specific startup errors; no real input sent.");
+        Console.WriteLine("PASS: all six real user arrow/whole-bar captures and white/cyan matching, broad saved watch area, target presence/absence and specific startup errors; no real input sent.");
+        var arrow = Load("Aio2-captured-cyan-arrow.png");
+        var colored = arrow.Rgb.ToArray();
+        for (var i = 0; i < colored.Length; i += 3)
+        {
+            // Recolor the white arrow core cyan, retaining the photographed
+            // background. Cyan halo variations must still count as a hit.
+            if (Math.Min(colored[i], Math.Min(colored[i + 1], colored[i + 2])) < 150) continue;
+            colored[i] = 110; colored[i + 1] = 195; colored[i + 2] = 225;
+        }
+        Check(AionTargetBarMatcher.Find(colored, arrow.Width, arrow.Height, arrow.Rgb, arrow.Width, arrow.Height, 75, default).Location is not null,
+            "White-to-cyan arrow color changes must match without comparing the photographed background.");
+        foreach (var color in new byte[][] { [180, 180, 180], [110, 195, 225], [180, 120, 35] })
+        {
+            var flat = new byte[arrow.Rgb.Length];
+            for (var i = 0; i < flat.Length; i += 3) Array.Copy(color, 0, flat, i, 3);
+            Check(AionTargetBarMatcher.Find(flat, arrow.Width, arrow.Height, arrow.Rgb, arrow.Width, arrow.Height, 75, default).Location is null,
+                "Flat white/cyan areas and orange grass must fail even at the user's relaxed 75% threshold.");
+        }
 
         var previous = FakerInputKeyboard.Shared;
         var reports = new List<byte[]>();
@@ -123,21 +141,38 @@ internal static class AionCombatRegression
             Check(NativeMethods.KeyboardInputs.Count == 0 && NativeMethods.MouseInputs.Count == 0,
                 "Combat must use only driver reports, with no software keyboard or mouse input fallback.");
 
-            async Task Scenario(Func<int, bool?> reading, Func<int, bool> focused, Action<List<byte[]>> check, int? maxAttack = null)
+            async Task Scenario(Func<int, bool?> reading, Func<int, bool> focused, Action<List<byte[]>> check, int? maxAttack = null,
+                Action<byte[], int>? onReport = null, Action<string>? onStatus = null)
             {
                 reports.Clear(); var count = 0; long elapsed = 0;
-                FakerInputKeyboard.Shared = new(() => new CombatTransport(report => reports.Add(report.ToArray())));
+                FakerInputKeyboard.Shared = new(() => new CombatTransport(report => { reports.Add(report.ToArray()); onReport?.Invoke(report, count); }));
                 if (maxAttack.HasValue) profile.AionCombat.MaxAttackMs = maxAttack.Value;
                 profile.AionCombat.MaxSearchAttempts = 2;
                 var task = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
                     new(reading(++count), "Simulated target"), null, ""), () => focused(count), _ => { },
-                    (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed);
+                    (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed,
+                    (_, status) => onStatus?.Invoke(status));
                 try { await task.RunAsync(default); } catch (InvalidOperationException) { }
                 check(reports);
             }
             await Scenario(i => i <= 3 ? true : null, _ => true,
                 list => Check(list.Any(report => report[2] == 3 && report[3] == 1) && list.Last()[3] == 0,
                     "An unavailable capture during attack must release left mouse and stop."));
+            var actionStatuses = new List<string>();
+            await Scenario(i => i == 1 ? false : i == 2 ? true : null, _ => true,
+                list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && list.Any(report => report[2] == 3 && report[3] == 1) && list.Last()[3] == 0,
+                    "One target hit after Tab must tap 1 then hold left without requiring another match; capture loss releases it."),
+                onReport: (report, reads) => { if (report[2] == 1 && report[5] == 0x1E) Check(reads == 2,
+                    "1 must be sent on the first positive reading after Tab, before any second capture."); }, onStatus: actionStatuses.Add);
+            Check(actionStatuses.Any(status => status.Contains("pressing 1"))
+                && actionStatuses.Any(status => status.Contains("holding LEFT"))
+                && actionStatuses.Last() == "Combat stopped; generated input released.",
+                "Combat inspection must report the actual 1/left-mouse actions and final release.");
+            await Scenario(i => i >= 6 ? null : i % 2 == 1, _ => true,
+                list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && list.Count(report => report[2] == 3 && report[3] == 1) == 1,
+                    "Brief color flicker must not restart the attack or spam 1 before the target-loss timeout."));
             await Scenario(_ => true, i => i < 4,
                 list => Check(list.Any(report => report[2] == 3 && report[3] == 1) && list.Last()[3] == 0,
                     "Game focus loss during attack must release left mouse."));

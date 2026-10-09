@@ -104,7 +104,7 @@
                                 <TextBox x:Name="AionCameraPixelsBox" Text="75" ToolTip="Positive turns right; negative turns left. Adjust for your game sensitivity." />
                                 <Label Content="Optional camera steps after failed Tab" />
                                 <TextBox x:Name="AionCameraStepsBox" Text="4" />
-                                <TextBlock Text="Watch the target HP bar or target arrow. Capture one arrow tightly, or the whole bar with both ends. Target confirmed: tap 1, then hold left mouse until the captured indicator disappears. Tab selects the next target while searching. F7, Stop and focus loss release buttons. No walking." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
+                                <TextBlock Text="Watch the target HP bar or target arrow. Capture one arrow tightly, or the whole bar with both ends. First white/cyan color hit: tap 1 immediately, then hold left mouse until the captured indicator disappears. Tab selects the next target while searching. F7, Stop and focus loss release buttons. No walking." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
                             </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />
