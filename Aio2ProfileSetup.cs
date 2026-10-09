@@ -9,6 +9,7 @@ internal static class Aio2ProfileSetup
     internal const string RuleName = "Alt+1 — quest prompt under minimap";
     internal const string InteractionRuleName = "F — tap while interaction prompt is visible";
     internal const string SkipRuleName = "Esc — skip when SKIP prompt is visible";
+    internal const string GatherRuleName = "F — Gather with random 0–1 second reaction";
 
     internal static MacroRule Configure(MacroProfile profile, string referenceFolder)
     {
@@ -63,8 +64,19 @@ internal static class Aio2ProfileSetup
         => ConfigureKeyPrompt(profile, referenceFolder, SkipRuleName, "ClickyBot.Aio2.Skip.png", "aio2-Skip-prompt",
             "Escape", RepeatMode.OnRisingEdge, 0, ImageMatchMethod.ImageSimilarity);
 
+    internal static MacroRule ConfigureGather(MacroProfile profile, string referenceFolder)
+    {
+        var rule = ConfigureKeyPrompt(profile, referenceFolder, GatherRuleName, "ClickyBot.Aio2.Gather.png", "aio2-F-Gather",
+            "F", RepeatMode.WhileTrue, 500, ImageMatchMethod.ImageSimilarity, useAutoMoveGate: false);
+        rule.RandomizeReactionDelay = true;
+        rule.ReactionDelayMinMs = 0;
+        rule.ReactionDelayMaxMs = 1000;
+        rule.DelayAfterActionMs = 0;
+        return rule;
+    }
+
     private static MacroRule ConfigureKeyPrompt(MacroProfile profile, string referenceFolder, string name,
-        string resource, string referenceName, string key, RepeatMode repeat, int cooldown, ImageMatchMethod method)
+        string resource, string referenceName, string key, RepeatMode repeat, int cooldown, ImageMatchMethod method, bool useAutoMoveGate = true)
     {
         using var stream = typeof(Aio2ProfileSetup).Assembly.GetManifestResourceStream(resource)
             ?? throw new IOException($"The bundled {key} reference is missing.");
@@ -80,9 +92,9 @@ internal static class Aio2ProfileSetup
         if (rule is null)
         {
             rule = new MacroRule { Name = name, SearchWidth = 1, SearchHeight = 1 };
-            var questRule = profile.Rules.Where(rule => (rule.Name == RuleName || rule.Name == InteractionRuleName)
+            var questRule = useAutoMoveGate ? profile.Rules.Where(rule => (rule.Name == RuleName || rule.Name == InteractionRuleName)
                 && rule.GateEnabled && rule.GateCondition == ConditionType.RegionSnapshotDiffers)
-                .OrderByDescending(rule => rule.GateAreaSelected && rule.GateReferenceRgb.Length > 0).FirstOrDefault();
+                .OrderByDescending(rule => rule.GateAreaSelected && rule.GateReferenceRgb.Length > 0).FirstOrDefault() : null;
             if (questRule is not null)
             {
                 // Reuse the user's existing Auto Move calibration for new prompts.
@@ -98,7 +110,7 @@ internal static class Aio2ProfileSetup
             }
             profile.Rules.Insert(0, rule);
         }
-        ConfigureAutoMoveGate(rule, referenceFolder);
+        if (useAutoMoveGate) ConfigureAutoMoveGate(rule, referenceFolder);
         rule.Enabled = true;
         rule.Condition = ConditionType.RegionSnapshotMatches;
         rule.WatchWidth = bitmap.PixelWidth; rule.WatchHeight = bitmap.PixelHeight;

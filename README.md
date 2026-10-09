@@ -51,6 +51,10 @@ Click **SET UP ESC SKIP** to add the supplied SKIP word and arrows as a separate
 
 The new rule is added first and inherits an existing Auto Move gate from Alt+1 or F, preferring a calibrated gate. An unconfigured or unreadable gate blocks it. Existing rules are preserved; repeating skip setup preserves its selected watch/gate areas and does not add duplicates.
 
+For the supplied **F Gather** prompt, choose **SET UP F GATHER (0–1s)**, select the prompt's watch area and save. When the prompt is detected, the Gather rule chooses a random 0–1000 ms reaction delay before tapping F. It keeps checking the prompt while waiting and cancels the pending tap if the prompt disappears. If Gather remains visible, it can repeat with the existing 500 ms cooldown and a new reaction delay. This setup only needs the Gather prompt area; the existing quest setup retains its Auto Move gates.
+
+The standard rule editor has **Random reaction delay before action** with minimum and maximum values in milliseconds. Conditions and other rules keep polling while it waits, and STOP/F7 cancels normally. Existing profiles keep their original immediate responses unless this option is enabled.
+
 ## Throne combat
 
 Choose the `Throne` (or `Throne and Liberty`) game and open your macro. **USE 1920 × 1080 PRESET** uses the supplied screenshot's V area (1260,610,110×110) and main play area for Q (0,140,1540×710). For another layout, click **SET UP THRONE COMBAT**, draw a tight watch area where the V badge appears, then draw the area where the purple Q defence circle appears. The mode uses `Always → 1`, `V badge → V`, `PurpleRingMatches → Q`, and optional ready-image 7/8 healing; your other rules are preserved and ignored while this mode is on.
@@ -149,8 +153,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.46.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.46-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.47.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.47-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

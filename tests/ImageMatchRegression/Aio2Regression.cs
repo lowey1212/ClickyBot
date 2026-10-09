@@ -163,5 +163,55 @@ internal static class Aio2Regression
         Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
             new (ushort, uint)[] { (0x1B, 8), (0x1B, 10) }), "Skip must send exactly one Esc down/up pair.");
         Console.WriteLine("PASS: actual SKIP prompt, brightness variation, absence/unset area, once-per-appearance configuration, inherited Auto Move gate, preservation, save/load and simulated Esc tap.");
+
+        var beforeGather = profile.Rules.ToDictionary(item => item.Id, item => JsonSerializer.Serialize(item, options));
+        var gather = Aio2ProfileSetup.ConfigureGather(profile, folder);
+        Check(beforeGather.All(pair => JsonSerializer.Serialize(profile.Rules.Single(item => item.Id == pair.Key), options) == pair.Value),
+            "Gather setup must preserve all existing rules.");
+        Check(gather.Action == ActionType.KeyPress && gather.Key == "F" && gather.Repeat == RepeatMode.WhileTrue
+            && gather.RandomizeReactionDelay && gather.ReactionDelayMinMs == 0 && gather.ReactionDelayMaxMs == 1000
+            && !gather.GateEnabled && gather.SearchWidth == 1 && gather.SearchHeight == 1,
+            "Gather needs only its manually selected prompt area and random 0–1 second reaction delays.");
+        var gatherBitmap = new BitmapImage(new Uri(Path.Combine(AppContext.BaseDirectory, "fixtures", "Aio2-Gather-prompt.png")));
+        var gatherConverted = new FormatConvertedBitmap(gatherBitmap, PixelFormats.Rgb24, null, 0);
+        var gatherFrame = new byte[gatherBitmap.PixelWidth * gatherBitmap.PixelHeight * 3];
+        gatherConverted.CopyPixels(gatherFrame, gatherBitmap.PixelWidth * 3, 0);
+        var gatherMatch = ImageMatcher.FindSimilar(gatherFrame, gatherBitmap.PixelWidth, gatherBitmap.PixelHeight,
+            gather.ReferenceRgb, gather.WatchWidth, gather.WatchHeight, default);
+        Check(gatherMatch.Location == new MatchLocation(101, 42) && gatherMatch.Score >= gather.CoverageThreshold,
+            "The supplied F Gather screenshot must match the cropped prompt.");
+        Check(ImageMatcher.FindSimilar(new byte[gatherFrame.Length], gatherBitmap.PixelWidth, gatherBitmap.PixelHeight,
+            gather.ReferenceRgb, gather.WatchWidth, gather.WatchHeight, default).Location is null,
+            "An absent Gather prompt must not authorize a tap.");
+        var delays = Enumerable.Range(0, 1000).Select(_ => gather.SampleReactionDelayMs()).ToArray();
+        Check(delays.All(delay => delay >= 0 && delay <= 1000) && delays.Distinct().Count() > 1,
+            "Random reaction delays must vary and stay within 0–1 seconds.");
+        gather.SearchX = 300; gather.SearchY = 400; gather.SearchWidth = 220; gather.SearchHeight = 100;
+        Check(ReferenceEquals(gather, Aio2ProfileSetup.ConfigureGather(profile, folder)) && profile.Rules.Count == 5
+            && gather.SearchX == 300 && gather.SearchWidth == 220, "Gather setup must preserve watch calibration and avoid duplicate rules.");
+        gather.PendingReactionUtc = DateTime.UtcNow.AddSeconds(1);
+        var gatherJson = JsonSerializer.Serialize(gather, options);
+        var restoredGather = JsonSerializer.Deserialize<MacroRule>(gatherJson, options)!;
+        Check(restoredGather.RandomizeReactionDelay && restoredGather.ReactionDelayMinMs == 0 && restoredGather.ReactionDelayMaxMs == 1000
+            && restoredGather.PendingReactionUtc is null && !gatherJson.Contains("PendingReaction"),
+            "Save/load must retain random settings without retaining an old scheduled wait.");
+        restoredGather.ReactionDelayMinMs = 1000; restoredGather.ReactionDelayMaxMs = 0;
+        Check(restoredGather.SampleReactionDelayMs() is >= 0 and <= 1000, "Reversed ranges must normalize safely.");
+        restoredGather.ReactionDelayMinMs = -1; restoredGather.ReactionDelayMaxMs = int.MaxValue;
+        Check(restoredGather.SampleReactionDelayMs() is >= 0 and <= 60000, "Imported ranges must stay within supported limits.");
+        Check(!JsonSerializer.Deserialize<MacroRule>("{}")!.RandomizeReactionDelay, "Legacy profiles must retain immediate reactions.");
+        var reactionRule = new MacroRule { RandomizeReactionDelay = true, ReactionDelayMinMs = 1000, ReactionDelayMaxMs = 1000 };
+        var detectedAt = DateTime.UtcNow;
+        Check(!reactionRule.ReactionReady(true, detectedAt) && !reactionRule.ReactionReady(true, detectedAt.AddMilliseconds(999))
+            && reactionRule.PendingReactionUtc == detectedAt.AddSeconds(1), "Polling must preserve the originally selected reaction deadline.");
+        Check(!reactionRule.ReactionReady(false, detectedAt.AddMilliseconds(999)) && reactionRule.PendingReactionUtc is null,
+            "Losing the required condition must cancel a pending tap.");
+        Check(!reactionRule.ReactionReady(true, detectedAt.AddSeconds(2)) && reactionRule.ReactionReady(true, detectedAt.AddSeconds(3)),
+            "A reappearing prompt must get a fresh reaction delay.");
+        NativeMethods.KeyboardInputs.Clear();
+        await InputSimulator.ExecuteAsync(gather, default);
+        Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
+            new (ushort, uint)[] { (0x46, 8), (0x46, 10) }), "Gather must send exactly one simulated F down/up pair.");
+        Console.WriteLine("PASS: supplied F Gather screenshot and absence, random 0–1s reaction, cancellation/reappearance, legacy timing, calibration/persistence and one simulated F tap.");
     }
 }

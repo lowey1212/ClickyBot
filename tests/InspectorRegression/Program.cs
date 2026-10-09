@@ -63,6 +63,67 @@ internal static class Program
                 "An invalid key must fail only its action; subsequent rules and later polls must keep running.");
         }
         Console.WriteLine("PASS: real engine continues across invalid-key actions and three polling cycles until cancelled.");
+        using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+        {
+            var reactions = 0;
+            var polls = 0;
+            DateTime? scheduledDeadline = null;
+            var randomRule = new MacroRule { Name = "Delayed action", Condition = ConditionType.Always, Action = ActionType.Wait,
+                Repeat = RepeatMode.WhileTrue, RandomizeReactionDelay = true, ReactionDelayMinMs = 1000, ReactionDelayMaxMs = 1000, DelayAfterActionMs = 0 };
+            var randomEngine = new MacroEngine();
+            randomEngine.Log += message =>
+            {
+                if (message.StartsWith("Delayed action: sent")) reactions++;
+                if (message.StartsWith("Other rule: sent"))
+                {
+                    scheduledDeadline ??= randomRule.PendingReactionUtc;
+                    Check(randomRule.PendingReactionUtc == scheduledDeadline, "Polling must not resample the pending reaction delay.");
+                    if (++polls == 8) stop.Cancel();
+                }
+            };
+            var profile = new MacroProfile { PollIntervalMs = 20, Rules = [randomRule,
+                new() { Name = "Other rule", Condition = ConditionType.Always, Action = ActionType.Wait,
+                    Repeat = RepeatMode.WhileTrue, CooldownMs = 0, DelayAfterActionMs = 0 }] };
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            try { randomEngine.RunAsync(profile, stop.Token).GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            Check(reactions == 0 && polls == 8 && scheduledDeadline.HasValue && elapsed.ElapsedMilliseconds < 1000,
+                "Reaction waiting must let other rules continue and cancellation must prevent the pending action.");
+        }
+        using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+        {
+            var reactions = 0;
+            var polls = 0;
+            DateTime? reappearedDeadline = null;
+            var randomRule = new MacroRule { Name = "Conditional delayed action", Condition = ConditionType.Always, Action = ActionType.Wait,
+                Repeat = RepeatMode.OnRisingEdge, RandomizeReactionDelay = true, ReactionDelayMinMs = 60, ReactionDelayMaxMs = 60, DelayAfterActionMs = 0 };
+            var randomEngine = new MacroEngine();
+            randomEngine.Log += message =>
+            {
+                if (message.StartsWith("Conditional delayed action: sent"))
+                {
+                    reactions++;
+                    Check(reappearedDeadline.HasValue && DateTime.UtcNow >= reappearedDeadline, "Reappearing conditions must finish a fresh reaction delay.");
+                }
+                if (message.StartsWith("Polling continues: sent"))
+                {
+                    polls++;
+                    if (polls == 1) { randomRule.GateEnabled = true; randomRule.GateCondition = ConditionType.RegionSnapshotMatches; randomRule.GateReferenceRgb = []; }
+                    if (polls == 4) Check(randomRule.PendingReactionUtc is null && reactions == 0, "An unavailable condition must cancel the pending action.");
+                    if (polls == 8) randomRule.GateEnabled = false;
+                    if (polls == 9) reappearedDeadline = randomRule.PendingReactionUtc;
+                    if (polls == 20) stop.Cancel();
+                }
+            };
+            var profile = new MacroProfile { PollIntervalMs = 20, Rules = [randomRule,
+                new() { Name = "Polling continues", Condition = ConditionType.Always, Action = ActionType.Wait,
+                    Repeat = RepeatMode.WhileTrue, CooldownMs = 0, DelayAfterActionMs = 0 }] };
+            try { randomEngine.RunAsync(profile, stop.Token).GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            Check(reactions == 1 && polls == 20,
+                "Delayed rising-edge actions must fire once when still valid, even after the initial detection poll.");
+        }
+        Console.WriteLine("PASS: real engine keeps polling through reaction waits, cancels on condition loss/STOP, rearms on reappearance and handles delayed rising-edge actions; no keyboard input sent.");
         var rule = new MacroRule
         {
             Condition = ConditionType.Always, GateEnabled = true,

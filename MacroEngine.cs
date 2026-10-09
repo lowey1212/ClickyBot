@@ -45,6 +45,7 @@ internal sealed class MacroEngine
         {
             rule.LastCondition = false;
             rule.LastTriggeredUtc = DateTime.MinValue;
+            rule.PendingReactionUtc = null;
             rule.KeyHoldActive = false;
             ScreenProbe.ResetPurpleRingTiming(rule);
         }
@@ -74,6 +75,7 @@ internal sealed class MacroEngine
             {
                 if (!rule.Enabled || rule.ThroneHealingOnly)
                 {
+                    rule.PendingReactionUtc = null;
                     ReleaseHeldKey(rule);
                     continue;
                 }
@@ -94,6 +96,7 @@ internal sealed class MacroEngine
 
                 if (rule.Action == ActionType.KeyHold)
                 {
+                    rule.PendingReactionUtc = null;
                     if (condition && !rule.KeyHoldActive)
                     {
                         try
@@ -121,10 +124,11 @@ internal sealed class MacroEngine
                 }
 
                 ReleaseHeldKey(rule);
-                var shouldTrigger = condition && (rule.Repeat == RepeatMode.WhileTrue || risingEdge);
+                var shouldTrigger = condition && (rule.Repeat == RepeatMode.WhileTrue || risingEdge || rule.PendingReactionUtc.HasValue);
+                var now = DateTime.UtcNow;
+                var eligible = shouldTrigger && now - rule.LastTriggeredUtc >= TimeSpan.FromMilliseconds(Math.Max(0, rule.CooldownMs));
 
-                if (shouldTrigger
-                    && DateTime.UtcNow - rule.LastTriggeredUtc >= TimeSpan.FromMilliseconds(Math.Max(0, rule.CooldownMs)))
+                if (rule.ReactionReady(eligible, now))
                 {
                     try
                     {
@@ -132,6 +136,7 @@ internal sealed class MacroEngine
                         await InputSimulator.ExecuteAsync(rule, token);
                         ReportAction(rule, "Action completed.");
                         rule.LastTriggeredUtc = DateTime.UtcNow;
+                        rule.PendingReactionUtc = null;
                         var targetDetail = rule.Action is ActionType.MouseClick or ActionType.MouseMove
                             ? $" at {rule.ResolveMouseTarget().X},{rule.ResolveMouseTarget().Y}" : "";
                         var modeDetail = rule.Action is ActionType.KeyPress or ActionType.RecordedCombo
@@ -144,12 +149,15 @@ internal sealed class MacroEngine
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
                     {
+                        rule.PendingReactionUtc = null;
                         ReportAction(rule, $"Action failed: {ex.Message}");
                         Log?.Invoke($"{rule.Name}: action failed — {ex.Message}");
                     }
                 }
 
-                if (!shouldTrigger && condition) ReportAction(rule, "Already handled this appearance; waiting for the condition to reset.");
+                if (rule.PendingReactionUtc is { } due)
+                    ReportAction(rule, $"Reaction delay: {Math.Max(0, (due - DateTime.UtcNow).TotalMilliseconds):0} ms remaining.");
+                else if (!shouldTrigger && condition) ReportAction(rule, "Already handled this appearance; waiting for the condition to reset.");
                 else if (shouldTrigger && DateTime.UtcNow - rule.LastTriggeredUtc < TimeSpan.FromMilliseconds(Math.Max(0, rule.CooldownMs)))
                     ReportAction(rule, "Cooling down.");
                 rule.LastCondition = condition;

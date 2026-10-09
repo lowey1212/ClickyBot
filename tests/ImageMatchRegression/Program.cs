@@ -18,6 +18,17 @@ if (args.Length == 4 && (args[0] == "--add-aio2-f" || args[0] == "--add-aio2-ski
     Console.WriteLine("Added prompt; select its watch area. Existing rules and watch areas preserved.");
     return;
 }
+if (args.Length == 3 && args[0] == "--prepare-aio2-gather")
+{
+    var profile = new MacroProfile { Game = "Aion 2", Name = "aion-2-f-gather-random", PollIntervalMs = 100 };
+    Aio2ProfileSetup.ConfigureGather(profile, Path.GetFullPath(args[2]));
+    File.WriteAllText(args[1], JsonSerializer.Serialize(profile, new JsonSerializerOptions
+    {
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
+    }));
+    Console.WriteLine($"Prepared {args[1]}; select the F Gather watch area before running.");
+    return;
+}
 if (args.Length == 3 && args[0] == "--prepare-aio2")
 {
     var profile = new MacroProfile { Game = "aio2", Name = "aio2-quest-prompt", PollIntervalMs = 100 };

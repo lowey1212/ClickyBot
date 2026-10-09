@@ -918,6 +918,27 @@ public partial class MainWindow : Window
         catch (Exception ex) { AppendLog($"SKIP setup failed: {ex.Message}"); }
     }
 
+    private void SetupAio2Gather_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop the macro before setting up F Gather."); return; }
+        ApplyEditorToSelectedRule();
+        ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            var prompt = Aio2ProfileSetup.ConfigureGather(prepared, _settings.ReferenceImageFolder);
+            _profile = prepared;
+            _rules.Clear();
+            foreach (var rule in prepared.Rules) _rules.Add(rule);
+            RulesListBox.SelectedItem = prompt;
+            UpdateRuleCount();
+            PersistCurrentMacro();
+            AppendLog("F Gather reference loaded. Select its area to watch, then APPLY CHANGES and SAVE MACRO. Taps F while Gather is visible, with a random 0–1 second reaction delay before each tap. A disappearing prompt cancels the pending tap.");
+        }
+        catch (Exception ex) { AppendLog($"F Gather setup failed: {ex.Message}"); }
+    }
+
     private void SetupThroneCombat_Click(object sender, RoutedEventArgs e)
     {
         if (_isRunning) { AppendLog("Stop combat before changing its setup."); return; }
@@ -1756,6 +1777,9 @@ public partial class MainWindow : Window
         MouseMoveDelayBox.Text = rule.MouseMoveDelayMs.ToString();
         RepeatCombo.SelectedItem = rule.Repeat;
         CooldownBox.Text = rule.CooldownMs.ToString();
+        ReactionDelayCheckBox.IsChecked = rule.RandomizeReactionDelay;
+        ReactionDelayMinBox.Text = rule.ReactionDelayMinMs.ToString();
+        ReactionDelayMaxBox.Text = rule.ReactionDelayMaxMs.ToString();
         DelayAfterActionBox.Text = rule.DelayAfterActionMs.ToString();
         UpdateRecordedComboSummary(rule.RecordedSteps);
         UpdateEditorState();
@@ -1818,13 +1842,26 @@ public partial class MainWindow : Window
         rule.MouseMoveDelayMs = ReadInt(MouseMoveDelayBox, rule.MouseMoveDelayMs, 0, 60000);
         rule.Repeat = RepeatCombo.SelectedItem is RepeatMode repeat ? repeat : RepeatMode.OnRisingEdge;
         rule.CooldownMs = ReadInt(CooldownBox, rule.CooldownMs, 0, 600000);
+        rule.RandomizeReactionDelay = ReactionDelayCheckBox.IsChecked == true && rule.Action != ActionType.KeyHold;
+        var randomMin = ReadInt(ReactionDelayMinBox, rule.ReactionDelayMinMs, 0, 60000);
+        var randomMax = ReadInt(ReactionDelayMaxBox, rule.ReactionDelayMaxMs, 0, 60000);
+        rule.ReactionDelayMinMs = Math.Min(randomMin, randomMax);
+        rule.ReactionDelayMaxMs = Math.Max(randomMin, randomMax);
         rule.DelayAfterActionMs = ReadInt(DelayAfterActionBox, rule.DelayAfterActionMs, 0, 60000);
+    }
+
+    private void ReactionDelay_Changed(object sender, RoutedEventArgs e)
+    {
+        if (IsInitialized) UpdateEditorState();
     }
 
     private void UpdateEditorState()
     {
         var condition = ConditionCombo.SelectedItem is ConditionType selectedCondition ? selectedCondition : ConditionType.Always;
         var action = ActionCombo.SelectedItem is ActionType selectedAction ? selectedAction : ActionType.KeyPress;
+        ReactionDelayCheckBox.IsEnabled = action != ActionType.KeyHold;
+        var randomDelay = ReactionDelayCheckBox.IsChecked == true && action != ActionType.KeyHold;
+        ReactionDelayPanel.Visibility = randomDelay ? Visibility.Visible : Visibility.Collapsed;
         KeyboardInputPanel.Visibility = action is ActionType.KeyPress or ActionType.KeyHold or ActionType.RecordedCombo ? Visibility.Visible : Visibility.Collapsed;
         var gateCondition = GateConditionCombo.SelectedItem is ConditionType selectedGateCondition ? selectedGateCondition : ConditionType.PixelDiffers;
         ConditionTargetPanel.IsEnabled = condition != ConditionType.Always;

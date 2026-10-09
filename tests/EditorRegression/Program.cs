@@ -210,6 +210,21 @@ internal static class Program
         }
         Console.WriteLine("PASS: real WPF keyboard mode selection, apply/load, and keyboard-only visibility.");
 
+        var randomRule = new MacroRule { Key = "F", RandomizeReactionDelay = true, ReactionDelayMinMs = 0, ReactionDelayMaxMs = 1000 };
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [randomRule]);
+        Check(Control<CheckBox>("ReactionDelayCheckBox").IsChecked == true && Control<StackPanel>("ReactionDelayPanel").Visibility == Visibility.Visible
+            && Control<TextBox>("CooldownBox").IsEnabled && Control<TextBox>("ReactionDelayMinBox").Text == "0"
+            && Control<TextBox>("ReactionDelayMaxBox").Text == "1000", "Random reaction timing must load visibly alongside the existing cooldown.");
+        Control<TextBox>("ReactionDelayMinBox").Text = "1000";
+        Control<TextBox>("ReactionDelayMaxBox").Text = "0";
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [randomRule]);
+        Check(randomRule.RandomizeReactionDelay && randomRule.ReactionDelayMinMs == 0 && randomRule.ReactionDelayMaxMs == 1000,
+            "Applying editor changes must retain random timing and normalize reversed limits.");
+        Control<CheckBox>("ReactionDelayCheckBox").IsChecked = false;
+        Check(Control<TextBox>("CooldownBox").IsEnabled && Control<StackPanel>("ReactionDelayPanel").Visibility == Visibility.Collapsed,
+            "Turning reaction timing off must hide its range without altering the fixed cooldown.");
+        Console.WriteLine("PASS: real WPF random timing load, apply, normalized limits and return to fixed cooldown.");
+
         var updateFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClickyBot-update-save-" + Guid.NewGuid());
         var updateSettings = new AppSettings { MacroFolder = updateFolder, CheckForUpdatesOnStartup = false };
         typeof(MainWindow).GetField("_settings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, updateSettings);

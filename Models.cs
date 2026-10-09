@@ -259,6 +259,9 @@ public sealed class MacroRule
         : new MatchLocation(ClickX, ClickY);
     public RepeatMode Repeat { get; set; } = RepeatMode.OnRisingEdge;
     public int CooldownMs { get; set; } = 500;
+    public bool RandomizeReactionDelay { get; set; }
+    public int ReactionDelayMinMs { get; set; }
+    public int ReactionDelayMaxMs { get; set; } = 1000;
     public int DelayAfterActionMs { get; set; } = 20;
     public List<RecordedStep> RecordedSteps { get; set; } = [];
 
@@ -267,6 +270,28 @@ public sealed class MacroRule
 
     [JsonIgnore]
     public DateTime LastTriggeredUtc { get; set; } = DateTime.MinValue;
+
+    [JsonIgnore]
+    public DateTime? PendingReactionUtc { get; set; }
+
+    internal int SampleReactionDelayMs()
+    {
+        if (!RandomizeReactionDelay) return 0;
+        var first = Math.Clamp(ReactionDelayMinMs, 0, 60000);
+        var second = Math.Clamp(ReactionDelayMaxMs, 0, 60000);
+        return Random.Shared.Next(Math.Min(first, second), Math.Max(first, second) + 1);
+    }
+
+    internal bool ReactionReady(bool eligible, DateTime now)
+    {
+        if (!eligible || !RandomizeReactionDelay)
+        {
+            PendingReactionUtc = null;
+            return eligible;
+        }
+        PendingReactionUtc ??= now.AddMilliseconds(SampleReactionDelayMs());
+        return now >= PendingReactionUtc.Value;
+    }
 
     [JsonIgnore]
     public bool KeyHoldActive { get; set; }
