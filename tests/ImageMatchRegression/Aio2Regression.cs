@@ -169,6 +169,7 @@ internal static class Aio2Regression
         Check(beforeGather.All(pair => JsonSerializer.Serialize(profile.Rules.Single(item => item.Id == pair.Key), options) == pair.Value),
             "Gather setup must preserve all existing rules.");
         Check(gather.Action == ActionType.KeyPress && gather.Key == "F" && gather.Repeat == RepeatMode.WhileTrue
+            && gather.KeyboardInputMode == KeyboardInputMode.FakerInput
             && gather.RandomizeReactionDelay && gather.ReactionDelayMinMs == 0 && gather.ReactionDelayMaxMs == 1000
             && !gather.GateEnabled && gather.SearchWidth == 1 && gather.SearchHeight == 1,
             "Gather needs only its manually selected prompt area and random 0–1 second reaction delays.");
@@ -208,10 +209,26 @@ internal static class Aio2Regression
             "Losing the required condition must cancel a pending tap.");
         Check(!reactionRule.ReactionReady(true, detectedAt.AddSeconds(2)) && reactionRule.ReactionReady(true, detectedAt.AddSeconds(3)),
             "A reappearing prompt must get a fresh reaction delay.");
-        NativeMethods.KeyboardInputs.Clear();
-        await InputSimulator.ExecuteAsync(gather, default);
-        Check(NativeMethods.KeyboardInputs.Select(input => (input.ScanCode, input.Flags)).SequenceEqual(
-            new (ushort, uint)[] { (0x46, 8), (0x46, 10) }), "Gather must send exactly one simulated F down/up pair.");
+        var previousFaker = FakerInputKeyboard.Shared;
+        var gatherReports = new List<byte[]>();
+        FakerInputKeyboard.Shared = new(() => new RecordingFakerTransport(gatherReports));
+        try
+        {
+            NativeMethods.KeyboardInputs.Clear();
+            await InputSimulator.ExecuteAsync(gather, default);
+            Check(gatherReports.Count == 2 && gatherReports[0][5] == 9 && gatherReports[1].Skip(3).All(value => value == 0)
+                && NativeMethods.KeyboardInputs.Count == 0, "Gather must send an F HID tap with no SendInput fallback.");
+        }
+        finally { FakerInputKeyboard.Shared.ReleaseAllHeldInputs(); FakerInputKeyboard.Shared = previousFaker; }
+        var legacyGather = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(new MacroProfile { Game = "aio2", Rules = [gather] }, options), options)!;
+        legacyGather.Rules[0].KeyboardInputMode = KeyboardInputMode.ScanCode;
+        legacyGather.Rules[0].GatherInputRevision = 0;
+        Check(Aio2ProfileSetup.UpgradeGatherInput(legacyGather) && legacyGather.Rules[0].KeyboardInputMode == KeyboardInputMode.FakerInput
+            && legacyGather.Rules[0].SearchX == 300 && legacyGather.Rules[0].SearchWidth == 220 && legacyGather.Rules[0].ReactionDelayMaxMs == 1000,
+            "Existing Gather presets must upgrade the backend while retaining their calibration and reaction timing.");
+        legacyGather.Rules[0].KeyboardInputMode = KeyboardInputMode.VirtualKey;
+        Check(!Aio2ProfileSetup.UpgradeGatherInput(legacyGather) && legacyGather.Rules[0].KeyboardInputMode == KeyboardInputMode.VirtualKey,
+            "After migration, later explicit input-mode choices must be respected.");
         Console.WriteLine("PASS: supplied F Gather screenshot and absence, random 0–1s reaction, cancellation/reappearance, legacy timing, calibration/persistence and one simulated F tap.");
     }
 }

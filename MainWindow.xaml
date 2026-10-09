@@ -316,9 +316,10 @@
                             <ComboBox x:Name="ActionCombo" SelectionChanged="ActionCombo_SelectionChanged" ToolTip="Choose MouseClick to move and click, MouseMove to move only, or a keyboard/combo action." />
                             <StackPanel x:Name="KeyboardInputPanel">
                                 <Label Content="Keyboard input mode" />
-                                <ComboBox x:Name="KeyboardInputModeCombo" SelectedValuePath="Tag" ToolTip="Scan codes use the physical key position. Windows key codes provide an alternative format for compatibility testing. Both generate software input.">
+                                <ComboBox x:Name="KeyboardInputModeCombo" SelectedValuePath="Tag" ToolTip="Scan codes and Windows key codes use Windows software input. FakerInput sends keyboard reports through the separately installed FakerInput driver.">
                                     <ComboBoxItem Content="Scan codes (default)" Tag="{x:Static local:KeyboardInputMode.ScanCode}" />
                                     <ComboBoxItem Content="Windows key codes (compatibility)" Tag="{x:Static local:KeyboardInputMode.VirtualKey}" />
+                                    <ComboBoxItem Content="FakerInput (installed driver)" Tag="{x:Static local:KeyboardInputMode.FakerInput}" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel x:Name="KeyPanel">

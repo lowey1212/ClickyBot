@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../ClickyBot.csproj" />
+    <None Include="../../App.xaml" Link="AppResources.xaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

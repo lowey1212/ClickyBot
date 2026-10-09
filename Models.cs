@@ -79,7 +79,8 @@ public enum RepeatMode
 public enum KeyboardInputMode
 {
     ScanCode,
-    VirtualKey
+    VirtualKey,
+    FakerInput
 }
 
 public enum MouseButtonType
@@ -243,6 +244,7 @@ public sealed class MacroRule
 
     public ActionType Action { get; set; } = ActionType.KeyPress;
     public KeyboardInputMode KeyboardInputMode { get; set; } = KeyboardInputMode.ScanCode;
+    public int GatherInputRevision { get; set; }
     public string Key { get; set; } = "1";
     public int ClickX { get; set; } = 0;
     public int ClickY { get; set; } = 0;

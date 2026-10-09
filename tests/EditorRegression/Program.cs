@@ -10,6 +10,14 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == "--check-fakerinput")
+        {
+            var shared = typeof(MainWindow).Assembly.GetType("ClickyBot.FakerInputKeyboard")!.GetProperty("Shared", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+            shared.GetType().GetMethod("CheckAvailable", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(shared, null);
+            shared.GetType().GetMethod("ReleaseAllHeldInputs", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(shared, null);
+            Console.WriteLine("PASS: installed FakerInput keyboard control interface and API v1 handshake; no keyboard input sent.");
+            return;
+        }
         if (Environment.GetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_INSTALLER") == "1")
         {
             var marker = Environment.GetEnvironmentVariable("CLICKYBOT_UPDATE_PROBE_MARKER")!;
@@ -209,6 +217,12 @@ internal static class Program
                 "Keyboard compatibility controls have incorrect visibility for " + action);
         }
         Console.WriteLine("PASS: real WPF keyboard mode selection, apply/load, and keyboard-only visibility.");
+        Control<ComboBox>("KeyboardInputModeCombo").SelectedValue = KeyboardInputMode.FakerInput;
+        var driverRule = new MacroRule();
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [driverRule]);
+        Check(driverRule.KeyboardInputMode == KeyboardInputMode.FakerInput, "The editor must save the installed-driver input mode.");
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [driverRule]);
+        Check(Control<ComboBox>("KeyboardInputModeCombo").SelectedValue is KeyboardInputMode.FakerInput, "The editor must display saved driver mode.");
 
         var randomRule = new MacroRule { Key = "F", RandomizeReactionDelay = true, ReactionDelayMinMs = 0, ReactionDelayMaxMs = 1000 };
         typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [randomRule]);

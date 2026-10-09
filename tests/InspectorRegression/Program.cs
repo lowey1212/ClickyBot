@@ -6,6 +6,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Collections.ObjectModel;
+using System.Windows.Markup;
+using System.Xml.Linq;
 using ClickyBot;
 
 internal static class Program
@@ -169,8 +171,14 @@ internal static class Program
             "A large preview must be downscaled before allocating the RGB buffer.");
         Console.WriteLine("PASS: unavailable conditions fail closed, gates are independent, preview has no execution side effects, cancellation and bounded frozen images.");
 
-        var app = new App();
-        app.InitializeComponent();
+        // Use the real resources with a plain Application. Pumping the
+        // Dispatcher must not run ClickyBot's single-instance startup.
+        var app = new Application();
+        var resources = XDocument.Load(System.IO.Path.Combine(AppContext.BaseDirectory, "AppResources.xaml"))
+            .Root!.Elements().Single(element => element.Name.LocalName == "Application.Resources");
+        var dictionary = new XElement(XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml/presentation") + "ResourceDictionary",
+            new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"), resources.Nodes());
+        app.Resources = (ResourceDictionary)XamlReader.Parse(dictionary.ToString());
         var window = new MainWindow();
         var rules = (ListBox)window.FindName("RulesListBox");
         var selected = (MacroRule)rules.SelectedItem;

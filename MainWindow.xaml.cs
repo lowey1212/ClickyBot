@@ -386,6 +386,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_profile.Rules.Any(rule => rule.Enabled && rule.KeyboardInputMode == KeyboardInputMode.FakerInput
+            && rule.Action is ActionType.KeyPress or ActionType.KeyHold or ActionType.RecordedCombo))
+        {
+            try { FakerInputKeyboard.Shared.CheckAvailable(); }
+            catch (InvalidOperationException ex) { AppendLog($"Cannot start: {ex.Message}"); return; }
+        }
         _engineCancellation = new CancellationTokenSource();
         var runGeneration = ++_runGeneration;
         _isRunning = true;
@@ -458,7 +464,7 @@ public partial class MainWindow : Window
         _runGeneration++;
         _engineCancellation?.Cancel();
         _engineCancellation = null;
-        InputSimulator.ReleaseAllHeldInputs();
+        if (!InputSimulator.ReleaseAllHeldInputs()) AppendLog("Could not release all generated keys. Check the input driver connection and stop again.");
         _isRunning = false;
         UpdateStatus(false);
         if (!string.IsNullOrWhiteSpace(message))
@@ -716,8 +722,10 @@ public partial class MainWindow : Window
         {
             var json = File.ReadAllText(path);
             var loaded = JsonSerializer.Deserialize<MacroProfile>(json, _jsonOptions) ?? throw new InvalidDataException("The file did not contain a profile.");
+            var upgradedGather = Aio2ProfileSetup.UpgradeGatherInput(loaded);
             StopEngine(announce ? "Loaded macro." : "");
             _profile = loaded;
+            if (upgradedGather) AppendLog("Gather now uses the FakerInput driver. Its watch area and reaction timing were preserved; SAVE MACRO keeps this setting.");
             _profile.Name = MacroDisplayName(path);
             _profile.Game = NormalizeGameName(_profile.Game);
             _currentMacroPath = path;

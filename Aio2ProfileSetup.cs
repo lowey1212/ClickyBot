@@ -71,8 +71,22 @@ internal static class Aio2ProfileSetup
         rule.RandomizeReactionDelay = true;
         rule.ReactionDelayMinMs = 0;
         rule.ReactionDelayMaxMs = 1000;
+        rule.KeyboardInputMode = KeyboardInputMode.FakerInput;
+        rule.GatherInputRevision = 1;
         rule.DelayAfterActionMs = 0;
         return rule;
+    }
+
+    internal static bool UpgradeGatherInput(MacroProfile profile)
+    {
+        var changed = false;
+        foreach (var rule in profile.Rules.Where(rule => rule.Name == GatherRuleName && string.Equals(rule.Key, "F", StringComparison.OrdinalIgnoreCase) && rule.GatherInputRevision < 1))
+        {
+            rule.KeyboardInputMode = KeyboardInputMode.FakerInput;
+            rule.GatherInputRevision = 1;
+            changed = true;
+        }
+        return changed;
     }
 
     private static MacroRule ConfigureKeyPrompt(MacroProfile profile, string referenceFolder, string name,

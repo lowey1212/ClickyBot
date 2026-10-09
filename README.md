@@ -26,7 +26,7 @@ ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by
 - Global hotkeys: `F12` start/stop by default (changeable in `SETTINGS`), `F7` panic stop, `F8` select the watch area, `Ctrl+F8` select the gate area, and `F9` select a click target.
 - While running, the configured start/stop key and `F7` also stop with Shift, Ctrl, Alt, or Windows held (including combinations). These additional shortcuts are released when the macro stops. Any shortcut conflicts are reported in the activity log.
 - JSON profile save/load.
-- Per-rule keyboard input mode: scan codes (the existing default) or Windows key codes for compatibility testing. The setting applies to presses, holds, and every keyboard step in recorded combos; stopping releases the matching generated key format. Both modes use Windows software input and do not guarantee that a game accepts it.
+- Per-rule keyboard input mode: scan codes (the existing default), Windows key codes, or FakerInput using an already-installed driver. The setting applies to presses, holds, and every keyboard step in recorded combos; stopping releases generated keys. The first two modes use Windows software input.
 - Additive `SendInput` events, with 70 ms key taps for game compatibility. A physical-key observer provides a start/stop fallback in fullscreen games; normal user input continues to pass through.
 - Emergency stop releases only keys that ClickyBot generated, so cancelling a combo cannot leave a modifier held or interfere with normal keyboard input.
 - ClickyBot branding uses the supplied robot-and-mouse artwork in the window toolbar, executable icon, taskbar/desktop shortcut, and installer.
@@ -52,6 +52,8 @@ Click **SET UP ESC SKIP** to add the supplied SKIP word and arrows as a separate
 The new rule is added first and inherits an existing Auto Move gate from Alt+1 or F, preferring a calibrated gate. An unconfigured or unreadable gate blocks it. Existing rules are preserved; repeating skip setup preserves its selected watch/gate areas and does not add duplicates.
 
 For the supplied **F Gather** prompt, choose **SET UP F GATHER (0–1s)**, select the prompt's watch area and save. When the prompt is detected, the Gather rule chooses a random 0–1000 ms reaction delay before tapping F. It keeps checking the prompt while waiting and cancels the pending tap if the prompt disappears. If Gather remains visible, it can repeat with the existing 500 ms cooldown and a new reaction delay. This setup only needs the Gather prompt area; the existing quest setup retains its Auto Move gates.
+
+Gather now uses **FakerInput (installed driver)** for its 70 ms F tap. Existing Gather presets switch to this mode once when opened, preserving their selected area, reference and timing. Save the macro to keep the change. ClickyBot communicates directly with the driver; no helper program or driver installer is bundled. If the driver is unavailable or rejects a report, ClickyBot reports the error and sends no software-input fallback. Other keyboard rules can select the same mode in the rule editor. The driver supports up to six held non-modifier keys and F1–F12; mouse actions retain their existing input method. See [FAKERINPUT-NOTICE.txt](FAKERINPUT-NOTICE.txt) for the driver protocol attribution and MIT notice.
 
 The standard rule editor has **Random reaction delay before action** with minimum and maximum values in milliseconds. Conditions and other rules keep polling while it waits, and STOP/F7 cancels normally. Existing profiles keep their original immediate responses unless this option is enabled.
 
@@ -153,8 +155,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.47.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.47-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.48.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.48-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

@@ -62,10 +62,12 @@ internal static class InputSimulator
                                 await PressKeyAsync(step.Key, rule.KeyboardInputMode, token);
                                 break;
                             case RecordedStepType.KeyDown:
-                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, 0, rule.KeyboardInputMode));
+                                if (rule.KeyboardInputMode == KeyboardInputMode.FakerInput) SendKeyDown(step.Key, rule.KeyboardInputMode);
+                                else AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, 0, rule.KeyboardInputMode));
                                 break;
                             case RecordedStepType.KeyUp:
-                                AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, KeyUp, rule.KeyboardInputMode));
+                                if (rule.KeyboardInputMode == KeyboardInputMode.FakerInput) SendKeyUp(step.Key, rule.KeyboardInputMode);
+                                else AddPendingKeyboard(ref pendingKeyboard, ref pendingCount, CreateKeyInput(step.Key, KeyUp, rule.KeyboardInputMode));
                                 break;
                             case RecordedStepType.MouseClick:
                                 FlushPendingKeyboard(pendingKeyboard, ref pendingCount);
@@ -198,12 +200,20 @@ internal static class InputSimulator
 
     internal static void SendKeyDown(string text, KeyboardInputMode mode = KeyboardInputMode.ScanCode)
     {
+        if (mode == KeyboardInputMode.FakerInput) { SendFakerKey(text, down: true); return; }
         EnsureSent([CreateKeyInput(text, 0, mode)]);
     }
 
     internal static void SendKeyUp(string text, KeyboardInputMode mode = KeyboardInputMode.ScanCode)
     {
+        if (mode == KeyboardInputMode.FakerInput) { SendFakerKey(text, down: false); return; }
         EnsureSent([CreateKeyInput(text, KeyUp, mode)]);
+    }
+
+    private static void SendFakerKey(string text, bool down)
+    {
+        if (!TryGetVirtualKey(text, out var key)) throw new InvalidOperationException($"'{text}' is not a recognized key.");
+        FakerInputKeyboard.Shared.SendKey(key, down);
     }
 
     internal static void MoveMouseRelative(int deltaX, int deltaY)
@@ -225,12 +235,13 @@ internal static class InputSimulator
 
     internal static bool ReleaseAllHeldInputs()
     {
+        var fakerReleased = FakerInputKeyboard.Shared.ReleaseAllHeldInputs();
         HeldKey[] heldKeys;
         lock (HeldInputLock)
         {
             if (HeldKeys.Count == 0)
             {
-                return true;
+                return fakerReleased;
             }
 
             heldKeys = HeldKeys.ToArray();
@@ -256,7 +267,7 @@ internal static class InputSimulator
         }
 
         var sent = NativeMethods.SendInput((uint)inputs.Length, inputs, InputSize);
-        return sent == inputs.Length;
+        return sent == inputs.Length && fakerReleased;
     }
 
     private static NativeMethods.INPUT CreateKeyInput(string text, uint flags, KeyboardInputMode mode)

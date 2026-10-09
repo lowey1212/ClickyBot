@@ -140,7 +140,7 @@ internal sealed class MacroEngine
                         var targetDetail = rule.Action is ActionType.MouseClick or ActionType.MouseMove
                             ? $" at {rule.ResolveMouseTarget().X},{rule.ResolveMouseTarget().Y}" : "";
                         var modeDetail = rule.Action is ActionType.KeyPress or ActionType.RecordedCombo
-                            ? rule.KeyboardInputMode == KeyboardInputMode.VirtualKey ? " (Windows key codes)" : " (scan codes)" : "";
+                            ? rule.KeyboardInputMode switch { KeyboardInputMode.FakerInput => " (FakerInput driver)", KeyboardInputMode.VirtualKey => " (Windows key codes)", _ => " (scan codes)" } : "";
                         Log?.Invoke($"{rule.Name}: sent {rule.ActionSummary}{targetDetail}{modeDetail}");
                         if (rule.DelayAfterActionMs > 0)
                         {
