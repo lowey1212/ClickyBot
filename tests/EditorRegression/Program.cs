@@ -219,6 +219,17 @@ internal static class Program
         Check(combatProfile.AionCombat.Enabled && combatProfile.AionCombat.CameraTurnEnabled
             && combatProfile.AionCombat.TurnPixels == -85 && combatProfile.AionCombat.TurnSteps == 3,
             "Aion camera controls must apply and preserve signed movement and turning mode.");
+        var cooldownRule = (MacroRule)assembly.GetType("ClickyBot.Aio2ProfileSetup")!
+            .GetMethod("ConfigureCombatCooldown", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [combatProfile])!;
+        typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [cooldownRule]);
+        Check(Control<CheckBox>("AionCooldownStopCheckBox").IsChecked == true
+            && Control<ComboBox>("ConditionCombo").SelectedItem is ConditionType.CooldownTimerPresent,
+            "Cooldown setup must enable the stop mode and open a timer watch-area editor.");
+        Control<CheckBox>("AionCooldownStopCheckBox").IsChecked = false;
+        typeof(MainWindow).GetMethod("ApplyProfileEditorToModel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        Check(!combatProfile.AionCombat.StopOnSkillCooldown && combatProfile.AionCombat.CooldownRuleId == cooldownRule.Id,
+            "Disabling cooldown stop must preserve its saved rule and area for later reuse.");
         Control<CheckBox>("AionCombatCheckBox").IsChecked = false;
         System.IO.File.Delete(targetRule.ReferenceImagePath); System.IO.Directory.Delete(combatFolder);
         Console.WriteLine("PASS: real WPF Aion combat setup, target-marker editor, camera controls and saved profile settings.");

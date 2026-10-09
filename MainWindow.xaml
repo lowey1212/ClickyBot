@@ -98,12 +98,14 @@
                                 <Button Content="SET UP ESC SKIP" Click="SetupAio2Skip_Click" ToolTip="Load the supplied SKIP prompt and tap Esc once when it appears. Reuses an existing Auto Move gate. Select the SKIP watch area manually." />
                                 <CheckBox x:Name="AionCombatCheckBox" Content="Tab target, 1 + hold left mouse" Margin="0,10,0,6" ToolTip="Use the target HP bar to control combat. Other rules pause while this mode is enabled." />
                                 <Button Content="SET UP AION COMBAT" Click="SetupAionCombat_Click" ToolTip="Load the supplied target HP bar markers. Select the area at the top centre where that bar appears." />
+                                <CheckBox x:Name="AionCooldownStopCheckBox" Content="Hold left mouse until skill 1 cooldown clears" Margin="0,6,0,4" ToolTip="Requires a separate central timer watch area. Target arrow disappearance no longer ends the attack." />
+                                <Button Content="SET UP 1 COOLDOWN STOP" Click="SetupAionCooldown_Click" ToolTip="Create the skill 1 timer rule. Select only the central cooldown digits, excluding the hotkey 1 and Lv. text, then apply and save." />
                                 <CheckBox x:Name="AionCameraEnabledCheckBox" Content="Move camera if Tab finds no target" Margin="0,6,0,4" ToolTip="Optional mouse movement with no button held. Aion combat never presses right mouse." />
                                 <Label Content="Camera turn per step (pixels; 0 disables)" />
                                 <TextBox x:Name="AionCameraPixelsBox" Text="75" ToolTip="Positive turns right; negative turns left. Adjust for your game sensitivity." />
                                 <Label Content="Optional camera steps after failed Tab" />
                                 <TextBox x:Name="AionCameraStepsBox" Text="4" />
-                                <TextBlock Text="Watch the target HP bar or target arrow. Capture one arrow tightly, or the whole bar with both ends. First white/cyan color hit: tap 1 immediately, then hold left mouse until the captured indicator disappears. Tab selects the next target while searching. F7, Stop and focus loss release buttons. No walking." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
+                                <TextBlock Text="First target color hit: tap 1, then hold LEFT mouse. With cooldown stop enabled, watch only skill 1's central countdown digits and release when that cooldown clears. Otherwise release when the target indicator disappears. Tab selects the next monster. F7, Stop and focus loss release buttons." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
                             </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />

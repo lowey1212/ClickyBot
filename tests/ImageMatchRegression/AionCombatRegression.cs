@@ -201,6 +201,56 @@ internal static class AionCombatRegression
             await Scenario(_ => true, _ => true,
                 list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1 && list.Last()[3] == 0,
                     "Attack time limit must release left mouse without spamming 1."), 1000);
+            profile.AionCombat.MaxAttackMs = 0;
+            var timerRule = Aio2ProfileSetup.ConfigureCombatCooldown(profile);
+            try { AionCombatRunner.Validate(profile); throw new Exception("Uncalibrated cooldown accepted."); }
+            catch (InvalidOperationException ex) { Check(ex.Message.Contains("central cooldown"), "Cooldown startup must identify its missing watch area."); }
+            timerRule.WatchX = 70; timerRule.WatchY = 80; timerRule.WatchWidth = 16; timerRule.WatchHeight = 14;
+            var countBefore = profile.Rules.Count;
+            Check(ReferenceEquals(timerRule, Aio2ProfileSetup.ConfigureCombatCooldown(profile)) && profile.Rules.Count == countBefore
+                && timerRule.WatchX == 70 && timerRule.WatchWidth == 16 && target.SearchX == 90,
+                "Cooldown setup must reuse its rule and preserve both cooldown and target calibration.");
+            Check(ReferenceEquals(AionCombatRunner.ValidateCooldown(profile), timerRule), "Configured cooldown must pass startup validation.");
+            var saved = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(profile, options), options)!;
+            Check(saved.AionCombat.StopOnSkillCooldown && saved.AionCombat.CooldownRuleId == timerRule.Id,
+                "Cooldown stop and rule identity must survive save/load.");
+            reports.Clear();
+            using (var end = new CancellationTokenSource())
+            {
+                var timerReads = 0; var targetReads = 0; var tabs = 0; long elapsed = 0;
+                var messages = new List<string>();
+                FakerInputKeyboard.Shared = new(() => new CombatTransport(report =>
+                {
+                    reports.Add(report.ToArray());
+                    if (report[2] == 1 && report[5] == 0x2B && ++tabs == 2) end.Cancel();
+                    if (report[2] == 3 && report[3] == 0 && timerReads > 0)
+                        Check(timerReads >= 8, "LEFT mouse must survive initial readiness and target loss, then release only after observed cooldown clears for 300 ms.");
+                }));
+                var task = new AionCombatRunner(profile, (rule, _) =>
+                {
+                    var passed = rule.Id == timerRule.Id ? ++timerReads is 3 or 4 : ++targetReads == 2;
+                    return new(rule.Id, DateTime.UtcNow, new(passed, "Simulated cooldown/target"), null, "");
+                }, () => true, messages.Add, (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed);
+                try { await task.RunAsync(end.Token); } catch (OperationCanceledException) { }
+                Check(tabs == 2 && reports.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && messages.Any(message => message.StartsWith("Skill 1 cooldown cleared"))
+                    && !reports.Any(report => report[2] == 3 && (report[3] & 2) != 0),
+                    "Cooldown death detection must release, select the next monster with Tab and never press right mouse.");
+            }
+            foreach (var unavailable in new[] { false, true })
+            {
+                reports.Clear(); long elapsed = 0; var reads = 0;
+                FakerInputKeyboard.Shared = new(() => new CombatTransport(report => reports.Add(report.ToArray())));
+                var task = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
+                    new(rule.Id == target.Id ? true : unavailable && ++reads >= 2 ? null : unavailable, "Simulated timer failure"), null, ""),
+                    () => true, _ => { }, (ms, _) => { elapsed += ms; return Task.CompletedTask; }, () => elapsed);
+                try { await task.RunAsync(default); throw new Exception("Cooldown failure did not stop combat."); }
+                catch (InvalidOperationException ex) { Check(ex.Message.Contains("cooldown"), "Timer failure must report cooldown context."); }
+                Check(reports.Any(report => report[2] == 3 && report[3] == 1) && reports.Last()[3] == 0
+                    && reports.Count(report => report[2] == 1 && report[5] == 0x1E) == 1,
+                    "Unreadable or never-starting cooldown must stop and release LEFT mouse without repeated 1 taps.");
+            }
+            Console.WriteLine("PASS: cooldown setup/calibration/persistence, initial cooldown delay, target loss while held, cooldown clear/reacquisition and unavailable/never-seen cleanup; no real input sent.");
             Console.WriteLine("PASS: production combat search/Tab, confirmed 1 then held attack, death/reacquisition, signed camera driver reports, cancellation, focus/capture loss and bounded search/attack; no real input sent.");
         }
         finally { FakerInputKeyboard.Shared.ReleaseAllHeldInputs(); FakerInputKeyboard.Shared = previous; }

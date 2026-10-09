@@ -38,14 +38,29 @@ internal sealed class AionCombatRunner
             || settings.MaxSearchAttempts is < 1 or > 100 || settings.TargetLostMs is < 100 or > 2000
             || (settings.MaxAttackMs != 0 && settings.MaxAttackMs is < 1000 or > 300000))
             throw new InvalidOperationException("Aion combat camera or timing settings are out of range.");
+        ValidateCooldown(profile);
         return target;
+    }
+
+    internal static MacroRule? ValidateCooldown(MacroProfile profile)
+    {
+        if (!profile.AionCombat.StopOnSkillCooldown) return null;
+        var rule = profile.Rules.FirstOrDefault(rule => rule.Id == profile.AionCombat.CooldownRuleId && rule.Enabled);
+        if (rule is null || rule.Condition != ConditionType.CooldownTimerPresent || rule.SearchReference || rule.GateEnabled)
+            throw new InvalidOperationException("Use SET UP 1 COOLDOWN STOP to create the skill 1 timer rule.");
+        if (rule.WatchWidth is < 16 or > 160 || rule.WatchHeight is < 10 or > 64)
+            throw new InvalidOperationException("Select only skill 1's central cooldown number (16–160 × 10–64 pixels), excluding the corner hotkey and Lv. text; then apply and save.");
+        return rule;
     }
 
     internal async Task RunAsync(CancellationToken token)
     {
         var target = Validate(_profile);
         var settings = _profile.AionCombat;
+        var cooldown = ValidateCooldown(_profile);
         var held = false;
+        var cooldownSeen = false;
+        var seekNext = false;
         var searching = 0;
         long attackStarted = 0;
         long? absentSince = null;
@@ -70,9 +85,11 @@ internal sealed class AionCombatRunner
             _log("Aion combat: sent 1 (FakerInput driver).");
             if (!Active()) return;
             FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, true);
-            held = true; attackStarted = _now(); absentSince = null;
-            _reportAction(target, "Pressed 1; holding LEFT mouse until the target disappears.");
-            _log("Aion combat: holding LEFT mouse until the target indicator disappears.");
+            held = true; cooldownSeen = false; seekNext = false; attackStarted = _now(); absentSince = null;
+            _reportAction(target, cooldown is null ? "Pressed 1; holding LEFT mouse until the target disappears."
+                : "Pressed 1; holding LEFT mouse until skill 1 cooldown clears.");
+            _log(cooldown is null ? "Aion combat: holding LEFT mouse until the target indicator disappears."
+                : "Aion combat: holding LEFT mouse; waiting to see skill 1's cooldown, then its disappearance.");
         }
         try
         {
@@ -82,29 +99,41 @@ internal sealed class AionCombatRunner
                 + (settings.CameraTurnEnabled ? "enabled only after Tab finds no target." : "disabled."));
             while (Active())
             {
-                var observation = _observe(target, token);
-                if (!observation.Valid) throw new InvalidOperationException("Aion combat stopped: target HP bar capture or reference is unavailable.");
+                var watched = held && cooldown is not null ? cooldown : target;
+                var observation = _observe(watched, token);
+                if (!observation.Valid) throw new InvalidOperationException(watched == cooldown
+                    ? "Aion combat stopped: skill 1 cooldown could not be read. " + observation.Primary.Detail
+                    : "Aion combat stopped: target HP bar capture or reference is unavailable.");
                 if (!Active()) return;
                 if (held)
                 {
-                    _reportAction(target, "Pressed 1; holding LEFT mouse until the target disappears.");
+                    _reportAction(target, cooldown is null ? "Pressed 1; holding LEFT mouse until the target disappears."
+                        : "Pressed 1; holding LEFT mouse until skill 1 cooldown clears.");
                     if (settings.MaxAttackMs > 0 && _now() - attackStarted >= settings.MaxAttackMs)
                     {
                         _log("Aion combat attack time limit reached. Stopping and releasing left mouse.");
                         return;
                     }
-                    if (observation.Passed) absentSince = null;
-                    else absentSince ??= _now();
+                    if (observation.Passed)
+                    {
+                        if (cooldown is not null && !cooldownSeen) _log("Skill 1 cooldown detected. Keeping LEFT mouse held until it clears.");
+                        cooldownSeen = true; absentSince = null;
+                    }
+                    else if (cooldown is null || cooldownSeen) absentSince ??= _now();
+                    else if (_now() - attackStarted >= 5000)
+                        throw new InvalidOperationException("Skill 1 cooldown was not detected within 5 seconds. Stopped and released LEFT mouse; check the central timer watch area.");
                     if (absentSince is { } missing && _now() - missing >= settings.TargetLostMs)
                     {
                         FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, false);
-                        held = false; searching = 0; absentSince = null;
-                        _reportAction(target, "Target disappeared; released LEFT mouse.");
-                        _log("Target HP bar disappeared. Released left mouse; looking for the next monster.");
+                        held = false; seekNext = true; searching = 0; absentSince = null;
+                        _reportAction(target, cooldown is null ? "Target disappeared; released LEFT mouse."
+                            : "Skill 1 cooldown cleared; released LEFT mouse.");
+                        _log(cooldown is null ? "Target HP bar disappeared. Released left mouse; looking for the next monster."
+                            : "Skill 1 cooldown cleared. Released LEFT mouse; Tab will select the next monster.");
                         await _delay(500, token);
                     }
                 }
-                else if (observation.Passed)
+                else if (observation.Passed && !seekNext)
                 {
                     await BeginAttack();
                 }

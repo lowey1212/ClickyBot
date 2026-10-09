@@ -11,6 +11,25 @@ internal static class Aio2ProfileSetup
     internal const string SkipRuleName = "Esc — skip when SKIP prompt is visible";
     internal const string GatherRuleName = "F — Gather with random 0–1 second reaction";
     internal const string CombatRuleName = "Combat — target health bar visible";
+    internal const string CombatCooldownRuleName = "Combat — skill 1 cooldown visible";
+
+    internal static MacroRule ConfigureCombatCooldown(MacroProfile profile)
+    {
+        profile.AionCombat ??= new();
+        var rule = profile.Rules.FirstOrDefault(rule => rule.Id == profile.AionCombat.CooldownRuleId)
+            ?? profile.Rules.FirstOrDefault(rule => rule.Name == CombatCooldownRuleName);
+        if (rule is null)
+        {
+            rule = new MacroRule { Name = CombatCooldownRuleName, WatchWidth = 1, WatchHeight = 1,
+                Action = ActionType.Wait, DelayAfterActionMs = 0 };
+            profile.Rules.Add(rule);
+        }
+        rule.Condition = ConditionType.CooldownTimerPresent;
+        rule.Enabled = true; rule.SearchReference = false; rule.GateEnabled = false;
+        profile.AionCombat.CooldownRuleId = rule.Id;
+        profile.AionCombat.StopOnSkillCooldown = true;
+        return rule;
+    }
 
     internal static MacroRule ConfigureCombat(MacroProfile profile, string referenceFolder)
     {

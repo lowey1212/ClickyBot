@@ -123,6 +123,8 @@ public sealed class AionCombatSettings
 {
     public bool Enabled { get; set; }
     public Guid TargetRuleId { get; set; }
+    public bool StopOnSkillCooldown { get; set; }
+    public Guid CooldownRuleId { get; set; }
     public bool CameraTurnEnabled { get; set; }
     public int TurnPixels { get; set; } = 75;
     public int TurnSteps { get; set; } = 4;

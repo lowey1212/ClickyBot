@@ -857,6 +857,7 @@ public partial class MainWindow : Window
         _profile.AionCombat ??= new();
         _profile.AionCombat.Enabled = IsAio2Game(_profile.Game) && AionCombatCheckBox.IsChecked == true;
         _profile.AionCombat.CameraTurnEnabled = AionCameraEnabledCheckBox.IsChecked == true;
+        _profile.AionCombat.StopOnSkillCooldown = AionCooldownStopCheckBox.IsChecked == true;
         _profile.AionCombat.TurnPixels = ReadInt(AionCameraPixelsBox, 75, -500, 500);
         _profile.AionCombat.TurnSteps = ReadInt(AionCameraStepsBox, 4, 1, 20);
         _profile.Rules = _rules.ToList();
@@ -869,6 +870,7 @@ public partial class MainWindow : Window
         Aio2OptionsPanel.Visibility = IsAio2Game(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         AionCombatCheckBox.IsChecked = _profile.AionCombat?.Enabled == true;
         AionCameraEnabledCheckBox.IsChecked = _profile.AionCombat?.CameraTurnEnabled == true;
+        AionCooldownStopCheckBox.IsChecked = _profile.AionCombat?.StopOnSkillCooldown == true;
         AionCameraPixelsBox.Text = (_profile.AionCombat?.TurnPixels ?? 75).ToString();
         AionCameraStepsBox.Text = (_profile.AionCombat?.TurnSteps ?? 4).ToString();
         ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
@@ -964,6 +966,26 @@ public partial class MainWindow : Window
             AppendLog("F Gather reference loaded. Select its area to watch, then APPLY CHANGES and SAVE MACRO. Taps F while Gather is visible, with a random 0–1 second reaction delay before each tap. A disappearing prompt cancels the pending tap.");
         }
         catch (Exception ex) { AppendLog($"F Gather setup failed: {ex.Message}"); }
+    }
+
+    private void SetupAionCooldown_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop the macro before setting up the cooldown area."); return; }
+        ApplyEditorToSelectedRule(); ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            if (prepared.AionCombat.TargetRuleId == Guid.Empty) Aio2ProfileSetup.ConfigureCombat(prepared, _settings.ReferenceImageFolder);
+            var cooldown = Aio2ProfileSetup.ConfigureCombatCooldown(prepared);
+            prepared.AionCombat.Enabled = true;
+            _profile = prepared;
+            _rules.Clear(); foreach (var rule in prepared.Rules) _rules.Add(rule);
+            RulesListBox.SelectedItem = cooldown;
+            UpdatePaxResourceOptions(); UpdateRuleCount(); PersistCurrentMacro();
+            AppendLog("Skill 1 cooldown stop configured. SELECT AREA TO WATCH tightly around the central countdown number only (at least 16×10 pixels); exclude the corner 1 and Lv. text. APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass on cooldown and wait when ready. LEFT mouse stays held even if the target arrow disappears, until cooldown clears.");
+        }
+        catch (Exception ex) { AppendLog($"Cooldown setup failed: {ex.Message}"); }
     }
 
     private void SetupAionCombat_Click(object sender, RoutedEventArgs e)

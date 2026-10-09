@@ -36,13 +36,15 @@ internal static class Program
         foreach (var path in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "fixtures"), "*.png"))
         {
             var source = new BitmapImage(new Uri(path));
-            var bitmap = new FormatConvertedBitmap(source, PixelFormats.Rgb24, null, 0);
+            BitmapSource area = Path.GetFileName(path) == "aion-skill1-cooldown.png"
+                ? new CroppedBitmap(source, new Int32Rect(17, 23, 16, 14)) : source;
+            var bitmap = new FormatConvertedBitmap(area, PixelFormats.Rgb24, null, 0);
             var rgb = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 3]; bitmap.CopyPixels(rgb, bitmap.PixelWidth * 3, 0);
             var reading = CooldownTimerReader.Read(rgb, bitmap.PixelWidth, bitmap.PixelHeight, CancellationToken.None);
             Console.WriteLine($"{Path.GetFileName(path)}: {reading.Present} {reading.Detail}");
             Check(reading.Present == !Path.GetFileName(path).StartsWith("ready-"), $"Wrong timer result: {path} {reading.Detail}");
         }
-        foreach (var text in new[] { "1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s", "0s", "10s", "59s", "125s", "0.8s", "1.2", "2m" })
+        foreach (var text in new[] { "1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s", "0s", "10s", "59s", "125s", "0.8s", "1.2", "2m", "1", "2", "9", "10", "11" })
         {
             var visual = new DrawingVisual();
             using (var dc = visual.RenderOpen())
