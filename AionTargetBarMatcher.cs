@@ -2,53 +2,78 @@ namespace ClickyBot;
 
 internal static class AionTargetBarMatcher
 {
-    internal static bool ValidReference(byte[] reference, int width, int height)
-        => width is >= 60 and <= 1200 && height is >= 10 and <= 100
-            && reference.LongLength == (long)width * height * 3
-            && Marker(reference, width, height, false).Length >= 8
-            && Marker(reference, width, height, true).Length >= 8;
+    internal static bool IsMarkerReference(int width, int height) => width < 60 || width <= height * 2;
+    internal static bool ValidReference(byte[] reference, int width, int height) => ReferenceProblem(reference, width, height) is null;
 
-    // Only the neutral, bright end-marker pixels matter. The centre contains
-    // changing health fill, names and scenery and is deliberately excluded.
+    internal static string? ReferenceProblem(byte[] reference, int width, int height)
+    {
+        if (width is < 8 or > 1200 || height is < 8 or > 240)
+            return $"Reference is {width}×{height}. Capture one target arrow, or the HP bar with its end markers (8–1200 px wide, 8–240 px high).";
+        if (reference.LongLength != (long)width * height * 3)
+            return "The target reference image is not loaded. Re-capture it or check its saved image path.";
+        var markerOnly = IsMarkerReference(width, height);
+        var first = Marker(reference, width, height, markerOnly ? null : false);
+        if (first.Length < 8 || Edges(reference, width, height, first).Length < 4)
+            return "The reference has no clear target arrow or left end marker. Capture the arrow tightly, or include both HP bar ends.";
+        if (!markerOnly)
+        {
+            var last = Marker(reference, width, height, true);
+            if (last.Length < 8 || Edges(reference, width, height, last).Length < 4)
+                return "The whole-bar reference is missing its right end marker. Include both ends, or capture one target arrow tightly.";
+        }
+        return null;
+    }
+
+    // Tight arrow captures track that marker; wider bars check both end shapes.
     internal static (MatchLocation? Location, double Score) Find(byte[] frame, int width, int height,
         byte[] reference, int referenceWidth, int referenceHeight, int threshold, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (!ValidReference(reference, referenceWidth, referenceHeight) || width < referenceWidth || height < referenceHeight
             || frame.LongLength != (long)width * height * 3) return (null, 0);
-        var left = Marker(reference, referenceWidth, referenceHeight, false);
-        var right = Marker(reference, referenceWidth, referenceHeight, true);
+        var markerOnly = IsMarkerReference(referenceWidth, referenceHeight);
+        var left = Marker(reference, referenceWidth, referenceHeight, markerOnly ? null : false);
         var leftEdges = Edges(reference, referenceWidth, referenceHeight, left);
-        var rightEdges = Edges(reference, referenceWidth, referenceHeight, right);
-        var best = 0d;
-        MatchLocation? location = null;
+        var right = markerOnly ? [] : Marker(reference, referenceWidth, referenceHeight, true);
+        var rightEdges = markerOnly ? [] : Edges(reference, referenceWidth, referenceHeight, right);
+        var required = Math.Clamp(threshold, 1, 100);
         for (var y = 0; y <= height - referenceHeight; y++)
         {
             token.ThrowIfCancellationRequested();
             for (var x = 0; x <= width - referenceWidth; x++)
             {
                 if ((x & 31) == 0) token.ThrowIfCancellationRequested();
-                double Score((int X, int Y)[] points, bool bright)
+                double Score((int X, int Y)[] points, (int X, int Y)[] edges)
                 {
-                    var matches = 0;
+                    var matches = points.Length;
                     foreach (var point in points)
                     {
                         var i = ((y + point.Y) * width + x + point.X) * 3;
-                        if (BrightNeutral(frame[i], frame[i + 1], frame[i + 2]) == bright) matches++;
+                        if (!BrightNeutral(frame[i], frame[i + 1], frame[i + 2])) matches--;
+                        // Reject unlikely positions early so broad user watch
+                        // areas stay responsive to Stop and cancellation.
+                        if (matches * 80d / points.Length + 20 < required) return 0;
                     }
-                    return points.Length == 0 ? 0 : matches * 100d / points.Length;
+                    var edgeMatches = edges.Length;
+                    foreach (var point in edges)
+                    {
+                        var i = ((y + point.Y) * width + x + point.X) * 3;
+                        if (BrightNeutral(frame[i], frame[i + 1], frame[i + 2])) edgeMatches--;
+                        if (matches * 80d / points.Length + edgeMatches * 20d / edges.Length < required) return 0;
+                    }
+                    return matches * 80d / points.Length + edgeMatches * 20d / edges.Length;
                 }
-                var score = Math.Min(Score(left, true) * .8 + Score(leftEdges, false) * .2,
-                    Score(right, true) * .8 + Score(rightEdges, false) * .2);
-                if (score > best) { best = score; location = new(x + referenceWidth / 2, y + referenceHeight / 2); }
-                if (best >= 100) return (location, best);
+                var score = Score(left, leftEdges);
+                if (score < required) continue;
+                if (!markerOnly) score = Math.Min(score, Score(right, rightEdges));
+                if (score >= required) return (new(x + referenceWidth / 2, y + referenceHeight / 2), score);
             }
         }
-        return (best >= Math.Clamp(threshold, 1, 100) ? location : null, best);
+        return (null, 0);
     }
 
     private static bool BrightNeutral(byte r, byte g, byte b)
-        => Math.Min(r, Math.Min(g, b)) >= 85 && Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b)) <= 60;
+        => Math.Min(r, Math.Min(g, b)) >= 150 && Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b)) <= 60;
 
     private static (int X, int Y)[] Edges(byte[] reference, int width, int height, (int X, int Y)[] points)
     {
@@ -61,20 +86,24 @@ internal static class AionTargetBarMatcher
             var i = (y * width + x) * 3;
             if (!BrightNeutral(reference[i], reference[i + 1], reference[i + 2])) edges.Add((x, y));
         }
-        return edges.Where((_, index) => index % Math.Max(1, edges.Count / 64) == 0).ToArray();
+        return Sample(edges.ToArray());
     }
 
-    private static (int X, int Y)[] Marker(byte[] reference, int width, int height, bool right)
+    private static (int X, int Y)[] Marker(byte[] reference, int width, int height, bool? right)
     {
         var points = new List<(int X, int Y)>();
-        var markerWidth = Math.Clamp(width / 16, 8, 24);
-        var start = right ? width - markerWidth : 0;
+        // A quarter at each end allows normal padding around captured arrows.
+        var markerWidth = right is null ? width : Math.Clamp(width / 4, 8, 160);
+        var start = right == true ? width - markerWidth : 0;
         for (var y = 0; y < height; y++)
         for (var x = start; x < start + markerWidth; x++)
         {
             var i = (y * width + x) * 3;
             if (BrightNeutral(reference[i], reference[i + 1], reference[i + 2])) points.Add((x, y));
         }
-        return points.Where((_, index) => index % Math.Max(1, points.Count / 64) == 0).ToArray();
+        return Sample(points.ToArray());
     }
+
+    private static (int X, int Y)[] Sample((int X, int Y)[] points)
+        => points.Length <= 64 ? points : Enumerable.Range(0, 64).Select(i => points[i * (points.Length - 1) / 63]).ToArray();
 }

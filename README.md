@@ -59,7 +59,7 @@ The standard rule editor has **Random reaction delay before action** with minimu
 
 ## Aion 2 target combat
 
-Create a separate Aion 2 macro, then choose **SET UP AION COMBAT**. Select the top-centre area where the target HP bar appears, including both end markers, and apply/save. The supplied reference is cropped from the target HUD screenshot; `AionTargetBarMatches` checks the two end-marker shapes and ignores the changing name and health fill. **TEST CONDITION** must pass with a target and wait when the bar disappears. The initial 1×1 watch area blocks combat until calibrated. If your HUD scale differs, **CAPTURE REFERENCE** around only the entire HP bar and its two ends, then apply/save.
+Create a separate Aion 2 macro, then choose **SET UP AION COMBAT**. Select the area where the target HP bar or target arrow appears, and apply/save. The supplied reference is cropped from the target HUD screenshot; `AionTargetBarMatches` checks the two end-marker shapes and ignores the changing name and health fill. You can also **CAPTURE REFERENCE** tightly around a single target arrow: small or tall captures track that marker alone, and combat releases when it disappears. Wider captures check both bar ends and allow padding around the markers. **TEST CONDITION** must pass with a target and wait without one. The initial 1×1 watch area blocks combat until calibrated. Startup and inspector messages identify an unloaded reference, missing marker or a watch area smaller than its reference, without resetting saved calibration.
 
 Start with your configured hotkey while Aion 2 is focused. With no target bar, the mode turns the camera and taps Tab to select the next monster. Two successful checks confirm a target; it taps 1 for 70 ms, rechecks the target, then holds left mouse for auto attack. A missing bar for 300 ms releases left mouse and restarts the search. A capture failure, game focus loss, Stop or F7 releases generated input and stops combat. Searching stops after 24 unsuccessful attempts. The profile's `AionCombat` JSON settings include `MaxSearchAttempts` and an optional `MaxAttackMs` limit; its default 0 keeps attacking until the target bar disappears.
 
@@ -163,8 +163,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.49.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.49-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.50.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.50-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

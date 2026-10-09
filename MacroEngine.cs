@@ -279,7 +279,8 @@ internal sealed class MacroEngine
         ConditionObservation primary;
         if (rule.Condition == ConditionType.AionTargetBarMatches)
         {
-            primary = new(null, "Select the target HP bar watch area and load its marker reference.");
+            primary = new(null, AionTargetBarMatcher.ReferenceProblem(rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight)
+                ?? $"Watch area {rule.SearchWidth}×{rule.SearchHeight} must contain the {rule.WatchWidth}×{rule.WatchHeight} reference and be no larger than 3840×2160.");
             if (AionTargetBarMatcher.ValidReference(rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight)
                 && rule.SearchWidth >= rule.WatchWidth && rule.SearchHeight >= rule.WatchHeight
                 && rule.SearchWidth <= ScreenProbe.MaxSearchWidth && rule.SearchHeight <= ScreenProbe.MaxSearchHeight)
@@ -290,7 +291,9 @@ internal sealed class MacroEngine
                     var result = AionTargetBarMatcher.Find(frame, rule.SearchWidth, rule.SearchHeight, rule.ReferenceRgb,
                         rule.WatchWidth, rule.WatchHeight, rule.CoverageThreshold, token);
                     match = result.Location is { } point ? new(point.X + rule.SearchX, point.Y + rule.SearchY) : null;
-                    primary = new(match.HasValue, $"Target HP end markers {result.Score:F1}% (requires {rule.CoverageThreshold}%). Names and health fill ignored.");
+                    primary = new(match.HasValue, match.HasValue
+                        ? $"Target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} matched {result.Score:F1}% (requires {rule.CoverageThreshold}%)."
+                        : $"No target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} match at {rule.CoverageThreshold}%.");
                 }
                 else primary = new(null, "Target HP bar capture is unavailable.");
             }

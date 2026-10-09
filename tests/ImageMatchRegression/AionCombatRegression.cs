@@ -62,6 +62,33 @@ internal static class AionCombatRegression
         }
         Console.WriteLine("PASS: supplied target HUD, changing names/health, both markers required, overhead bars/flat areas rejected, calibration/persistence and cancelled detection.");
 
+        foreach (var file in new[] { "Aio2-captured-marker.png", "Aio2-captured-114.png", "Aio2-captured-118.png", "Aio2-captured-119.png" })
+        {
+            var capture = Load(file);
+            var capturedRule = new MacroRule { Condition = ConditionType.AionTargetBarMatches, SearchReference = true,
+                WatchWidth = capture.Width, WatchHeight = capture.Height, ReferenceRgb = capture.Rgb,
+                SearchX = 0, SearchY = 0, SearchWidth = 1911, SearchHeight = 1058 };
+            var capturedProfile = new MacroProfile { Rules = [capturedRule], AionCombat = new() { Enabled = true, TargetRuleId = capturedRule.Id } };
+            Check(ReferenceEquals(AionCombatRunner.Validate(capturedProfile), capturedRule)
+                && capturedRule.SearchWidth == 1911 && capturedRule.SearchHeight == 1058,
+                $"User reference {file} must start combat without resetting the saved watch area.");
+            var frame = new byte[1911 * 1058 * 3];
+            for (var row = 0; row < capture.Height; row++)
+                Array.Copy(capture.Rgb, row * capture.Width * 3, frame, ((436 + row) * 1911 + 1021) * 3, capture.Width * 3);
+            var found = AionTargetBarMatcher.Find(frame, 1911, 1058, capture.Rgb, capture.Width, capture.Height, 90, default);
+            Check(found.Location is { } marker && Math.Abs(marker.X - (1021 + capture.Width / 2)) <= 2
+                && Math.Abs(marker.Y - (436 + capture.Height / 2)) <= 2, $"Captured reference {file} must match in the saved full-screen watch area; got {found}.");
+            Check(AionTargetBarMatcher.Find(new byte[1911 * 1058 * 3], 1911, 1058, capture.Rgb, capture.Width, capture.Height, 90, default).Location is null,
+                $"Absent user reference {file} must release the target condition.");
+            capturedRule.SearchWidth = capture.Width - 1;
+            try { AionCombatRunner.Validate(capturedProfile); throw new Exception("Undersized watch area accepted."); }
+            catch (InvalidOperationException ex) { Check(ex.Message.Contains("smaller than reference"), "Watch area failure must explain its actual dimensions."); }
+            capturedRule.SearchWidth = 1911; capturedRule.ReferenceRgb = [];
+            try { AionCombatRunner.Validate(capturedProfile); throw new Exception("Missing reference accepted."); }
+            catch (InvalidOperationException ex) { Check(ex.Message.Contains("not loaded"), "Missing reference failure must not incorrectly ask to reselect the watch area."); }
+        }
+        Console.WriteLine("PASS: all four real user arrow/whole-bar captures, broad saved watch area, target presence/absence and specific startup errors; no real input sent.");
+
         var previous = FakerInputKeyboard.Shared;
         var reports = new List<byte[]>();
         NativeMethods.KeyboardInputs.Clear(); NativeMethods.MouseInputs.Clear();

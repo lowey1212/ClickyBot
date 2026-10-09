@@ -1937,7 +1937,7 @@ public partial class MainWindow : Window
         }
         if (condition == ConditionType.AionTargetBarMatches)
         {
-            CoverageHelpText.Text = "Checks both target HP bar end markers; ignores the changing name and health fill. Capture only the bar with both ends if your UI scale differs.";
+            CoverageHelpText.Text = "Capture one target arrow tightly, or the whole HP bar with its end markers. Arrow captures track that marker; bar captures check both ends and ignore the changing middle.";
             CoverageThresholdLabel.Content = "Target end-marker match threshold (%)";
         }
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost

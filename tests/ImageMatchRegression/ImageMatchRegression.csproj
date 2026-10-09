@@ -24,6 +24,7 @@
     <EmbeddedResource Include="../../Assets/Aio2/Target-HP-bar.png" LogicalName="ClickyBot.Aio2.TargetBar.png" />
     <Content Include="fixtures/Aio2-target-hp.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-world-hp.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="fixtures/Aio2-captured-*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-Skip-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-F-prompt.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="fixtures/Aio2-Gather-prompt.png" CopyToOutputDirectory="PreserveNewest" />

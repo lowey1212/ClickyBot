@@ -20,12 +20,17 @@ internal sealed class AionCombatRunner
     internal static MacroRule Validate(MacroProfile profile)
     {
         var settings = profile.AionCombat;
+        if (settings is null) throw new InvalidOperationException("Use SET UP AION COMBAT to create its target rule.");
         var target = profile.Rules.FirstOrDefault(rule => rule.Id == settings.TargetRuleId && rule.Enabled);
-        if (target is null || target.Condition != ConditionType.AionTargetBarMatches || !target.SearchReference
-            || !AionTargetBarMatcher.ValidReference(target.ReferenceRgb, target.WatchWidth, target.WatchHeight)
-            || target.SearchWidth < target.WatchWidth || target.SearchHeight < target.WatchHeight
-            || target.SearchWidth > 3840 || target.SearchHeight > 2160)
-            throw new InvalidOperationException("Select the target HP bar watch area and load its end-marker reference before starting Aion combat.");
+        if (target is null) throw new InvalidOperationException("The combat target rule is missing or disabled. Enable it or use SET UP AION COMBAT.");
+        if (target.Condition != ConditionType.AionTargetBarMatches || !target.SearchReference)
+            throw new InvalidOperationException("The combat target rule must use AionTargetBarMatches and an image watch area.");
+        if (AionTargetBarMatcher.ReferenceProblem(target.ReferenceRgb, target.WatchWidth, target.WatchHeight) is { } problem)
+            throw new InvalidOperationException(problem);
+        if (target.SearchWidth < target.WatchWidth || target.SearchHeight < target.WatchHeight)
+            throw new InvalidOperationException($"Watch area {target.SearchWidth}×{target.SearchHeight} is smaller than reference {target.WatchWidth}×{target.WatchHeight}. Select a watch area containing the target.");
+        if (target.SearchWidth > 3840 || target.SearchHeight > 2160)
+            throw new InvalidOperationException("The combat watch area must be no larger than 3840×2160.");
         if (settings.TurnPixels is < -500 or > 500 || settings.TurnSteps is < 1 or > 20
             || settings.MaxSearchAttempts is < 1 or > 100 || settings.TargetLostMs is < 100 or > 2000
             || (settings.MaxAttackMs != 0 && settings.MaxAttackMs is < 1000 or > 300000))
