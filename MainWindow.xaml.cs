@@ -857,6 +857,7 @@ public partial class MainWindow : Window
         _profile.AionCombat ??= new();
         _profile.AionCombat.Enabled = IsAio2Game(_profile.Game) && AionCombatCheckBox.IsChecked == true;
         _profile.AionCombat.HoldRightMouseToTurn = AionCameraRightCheckBox.IsChecked == true;
+        _profile.AionCombat.CameraTurnEnabled = AionCameraEnabledCheckBox.IsChecked == true;
         _profile.AionCombat.TurnPixels = ReadInt(AionCameraPixelsBox, 75, -500, 500);
         _profile.AionCombat.TurnSteps = ReadInt(AionCameraStepsBox, 4, 1, 20);
         _profile.Rules = _rules.ToList();
@@ -869,6 +870,7 @@ public partial class MainWindow : Window
         Aio2OptionsPanel.Visibility = IsAio2Game(GameCombo.Text) ? Visibility.Visible : Visibility.Collapsed;
         AionCombatCheckBox.IsChecked = _profile.AionCombat?.Enabled == true;
         AionCameraRightCheckBox.IsChecked = _profile.AionCombat?.HoldRightMouseToTurn ?? true;
+        AionCameraEnabledCheckBox.IsChecked = _profile.AionCombat?.CameraTurnEnabled == true;
         AionCameraPixelsBox.Text = (_profile.AionCombat?.TurnPixels ?? 75).ToString();
         AionCameraStepsBox.Text = (_profile.AionCombat?.TurnSteps ?? 4).ToString();
         ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
@@ -980,7 +982,7 @@ public partial class MainWindow : Window
             AionCombatCheckBox.IsChecked = true;
             RulesListBox.SelectedItem = target;
             UpdateRuleCount(); PersistCurrentMacro();
-            AppendLog("Aion combat configured. Select the area for the top-centre target HP bar, including both end markers; APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass with a target and wait without one. Adjust camera turning for your controls.");
+            AppendLog("Aion combat configured. Select the target HP bar or arrow watch area; APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass with a target and wait without one. Uses Tab, 1 and held LEFT mouse. Camera turning is optional.");
         }
         catch (Exception ex) { AppendLog($"Aion combat setup failed: {ex.Message}"); }
     }

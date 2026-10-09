@@ -25,6 +25,8 @@ internal static class AionCombatRegression
         var reloaded = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(profile, options), options)!;
         Check(reloaded.AionCombat.TargetRuleId == target.Id && reloaded.AionCombat.TurnPixels == -50
             && reloaded.Rules[0].Condition == ConditionType.AionTargetBarMatches, "Combat settings must survive save/load.");
+        Check(!reloaded.AionCombat.CameraTurnEnabled && reloaded.AionCombat.HoldRightMouseToTurn,
+            "Existing camera configuration must remain available without enabling right-mouse turning.");
 
         static (byte[] Rgb, int Width, int Height) Load(string name)
         {
@@ -115,9 +117,9 @@ internal static class AionCombatRegression
                 && reports.Last()[2] == 3 && reports.Last()[3] == 0,
                 "Target disappearance must release attack and rearm exactly one 1 tap for a new appearance; cancellation releases left mouse.");
             var moves = reports.Where(report => report[2] == 3 && report[4] != 0).ToArray();
-            Check(moves.Length == profile.AionCombat.TurnSteps && moves.All(report => report[3] == 2
-                && System.Buffers.Binary.BinaryPrimitives.ReadInt16LittleEndian(report.AsSpan(4, 2)) == -50),
-                "Camera movement must preserve held right mouse and encode signed relative movement.");
+            Check(moves.Length == 0 && !reports.Any(report => report[2] == 3 && report[3] == 2)
+                && reports[0][2] == 3 && reports[0][3] == 0,
+                "Default/legacy combat must clear stale buttons and use Tab, 1 and left mouse without right-mouse turning.");
             Check(NativeMethods.KeyboardInputs.Count == 0 && NativeMethods.MouseInputs.Count == 0,
                 "Combat must use only driver reports, with no software keyboard or mouse input fallback.");
 
@@ -142,6 +144,20 @@ internal static class AionCombatRegression
             await Scenario(_ => false, _ => true,
                 list => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 2
                     && !list.Any(report => report[2] == 3 && report[3] == 1), "Search limits must stop without attacking an unconfirmed target."));
+            profile.AionCombat.CameraTurnEnabled = true;
+            await Scenario(_ => false, _ => true, list =>
+            {
+                var tab = list.FindIndex(report => report[2] == 1 && report[5] == 0x2B);
+                var right = list.FindIndex(report => report[2] == 3 && report[3] == 2);
+                var camera = list.Where(report => report[2] == 3 && report[4] != 0).ToArray();
+                Check(tab >= 0 && right > tab && camera.Length == 2 * profile.AionCombat.TurnSteps
+                    && camera.All(report => report[3] == 2
+                        && System.Buffers.Binary.BinaryPrimitives.ReadInt16LittleEndian(report.AsSpan(4, 2)) == -50)
+                    && list.Last()[3] == 0, "Optional camera must follow unsuccessful Tab and release right mouse after each turn.");
+            });
+            await Scenario(_ => true, i => i < 4, list => Check(!list.Any(report => report[2] == 3 && report[3] == 2),
+                "Even enabled camera turning must never hold right mouse while a target is present."));
+            profile.AionCombat.CameraTurnEnabled = false;
             await Scenario(_ => true, _ => true,
                 list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1 && list.Last()[3] == 0,
                     "Attack time limit must release left mouse without spamming 1."), 1000);

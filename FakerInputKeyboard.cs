@@ -66,6 +66,17 @@ internal sealed class FakerInputKeyboard
         }
     }
 
+    internal void ResetMouseButtons()
+    {
+        lock (_sync)
+        {
+            // Clear the virtual device even when a previous process left a
+            // button held and this client has no local record of it.
+            Write(BuildMouseReport(0, 0, 0));
+            _mouseButtons = 0;
+        }
+    }
+
     internal void MoveMouseRelative(int x, int y)
     {
         lock (_sync) Write(BuildMouseReport(_mouseButtons, x, y));

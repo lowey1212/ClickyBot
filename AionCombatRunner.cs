@@ -61,7 +61,10 @@ internal sealed class AionCombatRunner
         }
         try
         {
-            _log("Aion combat: searching for a target HP bar. Tab selects the next monster; F7 stops.");
+            if (!Active()) return;
+            FakerInputKeyboard.Shared.ResetMouseButtons();
+            _log("Aion combat: Tab selects a target, then 1 and held LEFT mouse. F7 stops. Camera turning "
+                + (settings.CameraTurnEnabled ? "enabled only after Tab finds no target." : "disabled."));
             while (Active())
             {
                 var observation = _observe(target, token);
@@ -90,6 +93,7 @@ internal sealed class AionCombatRunner
                     {
                         if (!Active()) return;
                         await Tap("1");
+                        _log("Aion combat: sent 1 (FakerInput driver).");
                         if (!Active()) return;
                         // Recheck after the tap so a vanished target never
                         // starts a held attack based on a stale observation.
@@ -112,22 +116,36 @@ internal sealed class AionCombatRunner
                         _log("Aion combat search limit reached without a target. Stopping.");
                         return;
                     }
-                    if (settings.HoldRightMouseToTurn && settings.TurnPixels != 0)
-                        FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, true);
-                    try
-                    {
-                        for (var step = 0; step < settings.TurnSteps && settings.TurnPixels != 0; step++)
-                        {
-                            if (!Active()) return;
-                            FakerInputKeyboard.Shared.MoveMouseRelative(settings.TurnPixels, 0);
-                            await _delay(30, token);
-                        }
-                    }
-                    finally { FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, false); }
-                    if (!Active()) return;
+                    // Try the game's target key before moving the camera. Old
+                    // profiles do not opt in to camera turning automatically.
                     await Tap("Tab");
                     searching++;
+                    _log($"Aion combat: sent Tab (FakerInput driver), search {searching}/{settings.MaxSearchAttempts}.");
                     await _delay(400, token);
+                    if (!Active()) return;
+                    var selected = _observe(target, token);
+                    if (!selected.Valid) throw new InvalidOperationException("Target HP bar capture became unavailable.");
+                    if (selected.Passed)
+                    {
+                        confirmations = 1;
+                        continue;
+                    }
+                    _log("Aion combat: no target indicator matched after Tab. " + selected.Primary.Detail);
+                    if (settings.CameraTurnEnabled && settings.TurnPixels != 0)
+                    {
+                        if (settings.HoldRightMouseToTurn)
+                            FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, true);
+                        try
+                        {
+                            for (var step = 0; step < settings.TurnSteps; step++)
+                            {
+                                if (!Active()) return;
+                                FakerInputKeyboard.Shared.MoveMouseRelative(settings.TurnPixels, 0);
+                                await _delay(30, token);
+                            }
+                        }
+                        finally { FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, false); }
+                    }
                 }
                 await _delay(Math.Clamp(_profile.PollIntervalMs, 50, 500), token);
             }
