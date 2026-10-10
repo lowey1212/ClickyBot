@@ -38,12 +38,14 @@ public enum ConditionType
     RegionSnapshotDiffers,
     CooldownTimerPresent,
     CooldownTimerAbsent,
-    AionTargetBarMatches
+    AionTargetBarMatches,
+    AionTargetXMatches
 }
 
 internal static class Conditions
 {
-    internal static bool IsReference(this ConditionType condition) => condition is ConditionType.RegionSnapshotMatches or ConditionType.RegionSnapshotDiffers or ConditionType.AionTargetBarMatches;
+    internal static bool IsAionTarget(this ConditionType condition) => condition is ConditionType.AionTargetBarMatches or ConditionType.AionTargetXMatches;
+    internal static bool IsReference(this ConditionType condition) => condition is ConditionType.RegionSnapshotMatches or ConditionType.RegionSnapshotDiffers || condition.IsAionTarget();
     internal static bool IsTimer(this ConditionType condition) => condition is ConditionType.CooldownTimerPresent or ConditionType.CooldownTimerAbsent;
     internal static bool UsesTimer(this MacroRule rule) => rule.Condition.IsTimer() || (rule.GateEnabled && rule.GateCondition.IsTimer());
     internal static ConditionObservation Invert(ConditionObservation observation) => observation with
@@ -125,6 +127,8 @@ public sealed class AionCombatSettings
     public Guid TargetRuleId { get; set; }
     public bool StopOnSkillCooldown { get; set; }
     public Guid CooldownRuleId { get; set; }
+    public bool RequireTargetX { get; set; }
+    public Guid TargetXRuleId { get; set; }
     public bool CameraTurnEnabled { get; set; }
     public int TurnPixels { get; set; } = 75;
     public int TurnSteps { get; set; } = 4;

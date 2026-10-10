@@ -65,6 +65,8 @@ Start with your configured hotkey while Aion 2 is focused. With no target bar, t
 
 For skill 1 cooldown death detection, click **SET UP 1 COOLDOWN STOP** in the existing combat macro. Select a tight area around the central countdown digits only (16–160 × 10–64 pixels), excluding the corner hotkey and Lv. text, then apply/save. The supplied 11 countdown reads correctly from a tight 16×14 crop; a wider artwork crop can miss it. **TEST CONDITION** must pass on cooldown and wait when ready. No reference number is compared: changing countdown digits all count as cooldown. Once configured, left mouse stays held even if the target arrow disappears, and releases after the observed cooldown has been absent for 300 ms. It then uses Tab for the next monster. Initial readiness before cooldown starts does not release the attack; a cooldown never seen within 5 seconds or an unreadable capture stops combat and releases input. Existing target calibration is preserved. Uncheck the cooldown-stop option to return to target-indicator death detection.
 
+For combined target-loss detection, click **SET UP TARGET X + COOLDOWN** in the existing combat macro. This loads the white X beside the target HUD from the supplied screenshot and preserves your skill 1 timer calibration. Select a tight watch area around that X, apply and save. If needed, capture the X at your current HUD scale, with a little surrounding background. **TEST CONDITION** must pass with a target and wait without one; the timer rule must pass on cooldown and wait when ready. With this mode enabled, the X confirms target presence and triggers the initial 1/LEFT attack when skill 1 is ready. Arrow visibility is no longer used for target presence. LEFT stays held while either X remains visible or cooldown is running. Only X absent **AND** skill 1 off cooldown for the target-loss delay (default 300 ms) releases LEFT; Tab then selects the next monster after rechecking both conditions. An initial active cooldown delays both 1 and Tab. No previously observed cooldown is required if X is absent and the timer is validly ready. Unreadable X or timer captures, Stop, F7 and focus loss stop combat and release inputs. The X watch area starts unconfigured and blocks this mode until selected. Existing profiles keep their previous behavior until the combined check is enabled.
+
 Aion combat never presses right mouse. The previous right-mouse camera option and saved setting are removed. Optional camera movement, if enabled, uses only relative mouse movement with no button held. Camera movement remains disabled by default. Tab, 1 and held left mouse use the installed FakerInput driver. Combat mode controls this profile while enabled; other saved rules remain available when the mode is disabled.
 
 ## Throne combat
@@ -165,8 +167,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.55.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.55-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.56.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.56-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

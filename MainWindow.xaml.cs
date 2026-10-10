@@ -68,7 +68,7 @@ public partial class MainWindow : Window
         GameCombo.ItemsSource = _gameNames;
         ProfileNameCombo.ItemsSource = _macroNames;
         ConditionCombo.ItemsSource = Enum.GetValues<ConditionType>();
-        GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>().Where(condition => condition is not ConditionType.PurpleRingMatches and not ConditionType.AionTargetBarMatches);
+        GateConditionCombo.ItemsSource = Enum.GetValues<ConditionType>().Where(condition => condition != ConditionType.PurpleRingMatches && !condition.IsAionTarget());
         ActionCombo.ItemsSource = Enum.GetValues<ActionType>();
         RepeatCombo.ItemsSource = Enum.GetValues<RepeatMode>();
         MouseButtonCombo.ItemsSource = Enum.GetValues<MouseButtonType>();
@@ -858,6 +858,7 @@ public partial class MainWindow : Window
         _profile.AionCombat.Enabled = IsAio2Game(_profile.Game) && AionCombatCheckBox.IsChecked == true;
         _profile.AionCombat.CameraTurnEnabled = AionCameraEnabledCheckBox.IsChecked == true;
         _profile.AionCombat.StopOnSkillCooldown = AionCooldownStopCheckBox.IsChecked == true;
+        _profile.AionCombat.RequireTargetX = AionTargetXCheckBox.IsChecked == true;
         _profile.AionCombat.TurnPixels = ReadInt(AionCameraPixelsBox, 75, -500, 500);
         _profile.AionCombat.TurnSteps = ReadInt(AionCameraStepsBox, 4, 1, 20);
         _profile.Rules = _rules.ToList();
@@ -871,6 +872,7 @@ public partial class MainWindow : Window
         AionCombatCheckBox.IsChecked = _profile.AionCombat?.Enabled == true;
         AionCameraEnabledCheckBox.IsChecked = _profile.AionCombat?.CameraTurnEnabled == true;
         AionCooldownStopCheckBox.IsChecked = _profile.AionCombat?.StopOnSkillCooldown == true;
+        AionTargetXCheckBox.IsChecked = _profile.AionCombat?.RequireTargetX == true;
         AionCameraPixelsBox.Text = (_profile.AionCombat?.TurnPixels ?? 75).ToString();
         AionCameraStepsBox.Text = (_profile.AionCombat?.TurnSteps ?? 4).ToString();
         ThroneCombatCheckBox.IsChecked = _profile.ThroneCombatMode;
@@ -983,9 +985,31 @@ public partial class MainWindow : Window
             _rules.Clear(); foreach (var rule in prepared.Rules) _rules.Add(rule);
             RulesListBox.SelectedItem = cooldown;
             UpdatePaxResourceOptions(); UpdateRuleCount(); PersistCurrentMacro();
-            AppendLog("Skill 1 cooldown stop configured. SELECT AREA TO WATCH tightly around the central countdown number only (at least 16×10 pixels); exclude the corner 1 and Lv. text. APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass on cooldown and wait when ready. LEFT mouse stays held even if the target arrow disappears, until cooldown clears.");
+            AppendLog("Skill 1 cooldown stop configured. SELECT AREA TO WATCH tightly around the central countdown number only (at least 16×10 pixels); exclude the corner 1 and Lv. text. APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass on cooldown and wait when ready. "
+                + (prepared.AionCombat.RequireTargetX ? "LEFT releases and Tab selects the next target only when X is missing AND skill 1 is off cooldown."
+                    : "LEFT mouse stays held even if the target arrow disappears, until cooldown clears."));
         }
         catch (Exception ex) { AppendLog($"Cooldown setup failed: {ex.Message}"); }
+    }
+
+    private void SetupAionTargetX_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRunning) { AppendLog("Stop the macro before setting up the target X area."); return; }
+        ApplyEditorToSelectedRule(); ApplyProfileEditorToModel();
+        try
+        {
+            var prepared = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(_profile, _jsonOptions), _jsonOptions)!;
+            HydrateProfileReferences(prepared);
+            if (prepared.AionCombat.TargetRuleId == Guid.Empty) Aio2ProfileSetup.ConfigureCombat(prepared, _settings.ReferenceImageFolder);
+            var targetX = Aio2ProfileSetup.ConfigureCombatTargetX(prepared, _settings.ReferenceImageFolder);
+            prepared.AionCombat.Enabled = true;
+            _profile = prepared;
+            _rules.Clear(); foreach (var rule in prepared.Rules) _rules.Add(rule);
+            RulesListBox.SelectedItem = targetX;
+            UpdatePaxResourceOptions(); UpdateRuleCount(); PersistCurrentMacro();
+            AppendLog("Target X + cooldown configured. SELECT AREA TO WATCH tightly around the target HUD X, APPLY CHANGES and SAVE MACRO. TEST CONDITION must pass with a target and wait without one. Existing skill 1 timer calibration is preserved; configure its central countdown area if unset. LEFT releases and Tab selects the next target only when X is missing AND skill 1 is off cooldown. Capture the X again if the HUD scale differs.");
+        }
+        catch (Exception ex) { AppendLog($"Target X setup failed: {ex.Message}"); }
     }
 
     private void SetupAionCombat_Click(object sender, RoutedEventArgs e)
@@ -1629,6 +1653,7 @@ public partial class MainWindow : Window
             {
                 ConditionType.RegionSnapshotDiffers => ConditionType.RegionSnapshotDiffers,
                 ConditionType.AionTargetBarMatches => ConditionType.AionTargetBarMatches,
+                ConditionType.AionTargetXMatches => ConditionType.AionTargetXMatches,
                 _ => ConditionType.RegionSnapshotMatches
             };
             CaptureReferenceInto(selection, gate: false);
@@ -1945,7 +1970,7 @@ public partial class MainWindow : Window
         RingTimingPanel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Visible : Visibility.Collapsed;
         var pixelColors = ImageMatchMethodCombo.SelectedItem is ImageMatchMethod.PixelColors;
         ImageTolerancePanel.Visibility = pixelColors ? Visibility.Visible : Visibility.Collapsed;
-        ImageMatchMethodCombo.IsEnabled = condition != ConditionType.AionTargetBarMatches;
+        ImageMatchMethodCombo.IsEnabled = !condition.IsAionTarget();
         ReferenceSummaryText.Text = _watchReferenceRgb.Length == 0
             ? "No reference captured. Capture the image you want to find."
             : $"{Path.GetFileName(_watchReferenceImagePath)} · {WatchWidthBox.Text} × {WatchHeightBox.Text} pixels";
@@ -1957,17 +1982,20 @@ public partial class MainWindow : Window
         {
             CoverageHelpText.Text = "Finds a purple circular arc as it shrinks (radius 12–120 pixels). Q waits for the configured delay while combat continues. TEST CONDITION checks detection immediately. Select the full prompt area; no reference is needed.";
         }
-        if (condition == ConditionType.AionTargetBarMatches)
+        if (condition.IsAionTarget())
         {
             CoverageHelpText.Text = "Matches the captured arrow outline using contrast with nearby pixels, tolerating brightness and color changes. Capture one clear arrow with a little surrounding background, or both HP bar ends. Keep the watch area around the target HUD to avoid similar arrows elsewhere. Minimum shape threshold is 70%. One hit triggers 1, then held LEFT mouse.";
             CoverageThresholdLabel.Content = "Target end-marker shape match threshold (%)";
         }
+        if (condition == ConditionType.AionTargetXMatches)
+            CoverageHelpText.Text = "Matches the target HUD X outline using local contrast. Select a tight watch area around that X only, and capture it again if the HUD scale differs. TEST CONDITION must pass with a target and wait without one. Combat sends Tab only when X is missing and skill 1 is off cooldown. Minimum shape threshold is 70%.";
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost or ConditionType.PurpleRingMatches || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
         CoverageThresholdLabel.Content = snapshotCondition ? pixelColors ? "Pixel-color match threshold (%)" : "Image similarity threshold (%)" : "Region coverage / match threshold (%)";
-        if (condition == ConditionType.AionTargetBarMatches) CoverageThresholdLabel.Content = "Target end-marker shape match threshold (%)";
+        if (condition.IsAionTarget()) CoverageThresholdLabel.Content = condition == ConditionType.AionTargetXMatches
+            ? "Target X shape match threshold (%)" : "Target end-marker shape match threshold (%)";
         CoverageThresholdLabel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         CoverageThresholdBox.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;

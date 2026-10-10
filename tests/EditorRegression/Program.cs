@@ -227,12 +227,28 @@ internal static class Program
         Check(Control<CheckBox>("AionCooldownStopCheckBox").IsChecked == true
             && Control<ComboBox>("ConditionCombo").SelectedItem is ConditionType.CooldownTimerPresent,
             "Cooldown setup must enable the stop mode and open a timer watch-area editor.");
+        var xRule = (MacroRule)assembly.GetType("ClickyBot.Aio2ProfileSetup")!
+            .GetMethod("ConfigureCombatTargetX", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [combatProfile, combatFolder])!;
+        typeof(MainWindow).GetMethod("UpdatePaxResourceOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [xRule]);
+        Check(Control<CheckBox>("AionTargetXCheckBox").IsChecked == true && Control<CheckBox>("AionCooldownStopCheckBox").IsChecked == true
+            && Control<ComboBox>("ConditionCombo").SelectedItem is ConditionType.AionTargetXMatches
+            && !Control<ComboBox>("ImageMatchMethodCombo").IsEnabled
+            && Control<Label>("CoverageThresholdLabel").Content.ToString()!.Contains("Target X")
+            && Control<TextBlock>("CoverageHelpText").Text.Contains("X is missing and skill 1 is off cooldown"),
+            "Combined setup must enable both checks and display the X shape editor and AND requirement.");
+        var editedX = new MacroRule();
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [editedX]);
+        Check(editedX.Condition == ConditionType.AionTargetXMatches && editedX.SearchReference,
+            "Applying an X rule must retain its condition and image-search mode.");
+        Control<CheckBox>("AionTargetXCheckBox").IsChecked = false;
         Control<CheckBox>("AionCooldownStopCheckBox").IsChecked = false;
         typeof(MainWindow).GetMethod("ApplyProfileEditorToModel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
-        Check(!combatProfile.AionCombat.StopOnSkillCooldown && combatProfile.AionCombat.CooldownRuleId == cooldownRule.Id,
+        Check(!combatProfile.AionCombat.StopOnSkillCooldown && !combatProfile.AionCombat.RequireTargetX
+            && combatProfile.AionCombat.CooldownRuleId == cooldownRule.Id && combatProfile.AionCombat.TargetXRuleId == xRule.Id,
             "Disabling cooldown stop must preserve its saved rule and area for later reuse.");
         Control<CheckBox>("AionCombatCheckBox").IsChecked = false;
-        System.IO.File.Delete(targetRule.ReferenceImagePath); System.IO.Directory.Delete(combatFolder);
+        System.IO.File.Delete(xRule.ReferenceImagePath); System.IO.File.Delete(targetRule.ReferenceImagePath); System.IO.Directory.Delete(combatFolder);
         Console.WriteLine("PASS: real WPF Aion combat setup, target-marker editor, camera controls and saved profile settings.");
         Check(window.Title.Contains(typeof(MainWindow).Assembly.GetName().Version!.ToString(3)),
             "Window title must identify the running application version.");

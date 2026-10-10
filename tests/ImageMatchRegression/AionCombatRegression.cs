@@ -321,6 +321,91 @@ internal static class AionCombatRegression
                     "Unreadable or never-starting cooldown must stop and release LEFT mouse without repeated 1 taps.");
             }
             Console.WriteLine("PASS: cooldown setup/calibration/persistence, initial cooldown delay, target loss while held, cooldown clear/reacquisition and unavailable/never-seen cleanup; no real input sent.");
+            var targetX = Aio2ProfileSetup.ConfigureCombatTargetX(profile, Path.GetDirectoryName(target.ReferenceImagePath)!);
+            Check(profile.AionCombat.RequireTargetX && profile.AionCombat.StopOnSkillCooldown
+                && profile.AionCombat.CooldownRuleId == timerRule.Id && timerRule.WatchWidth == 16,
+                "X setup must enable combined checking and preserve the existing cooldown calibration.");
+            try { AionCombatRunner.Validate(profile); throw new Exception("Uncalibrated X accepted."); }
+            catch (InvalidOperationException ex) { Check(ex.Message.Contains("target HUD X"), "X setup must explain its missing watch area."); }
+            targetX.SearchX = 464; targetX.SearchY = 9; targetX.SearchWidth = targetX.WatchWidth; targetX.SearchHeight = targetX.WatchHeight;
+            var xReference = targetX.ReferenceImagePath;
+            Check(ReferenceEquals(targetX, Aio2ProfileSetup.ConfigureCombatTargetX(profile, Path.GetDirectoryName(xReference)!))
+                && targetX.SearchX == 464 && targetX.ReferenceImagePath == xReference && timerRule.WatchWidth == 16,
+                "Repeated X setup must preserve the saved X reference, area and timer.");
+            var xSaved = JsonSerializer.Deserialize<MacroProfile>(JsonSerializer.Serialize(profile, options), options)!;
+            Check(xSaved.AionCombat.RequireTargetX && xSaved.AionCombat.TargetXRuleId == targetX.Id
+                && xSaved.Rules.Single(rule => rule.Id == targetX.Id).Condition == ConditionType.AionTargetXMatches,
+                "Combined X settings must survive save/load without changing legacy condition values.");
+            var xShot = Load("Aio2-target-hp.png");
+            var xMatch = AionTargetBarMatcher.Find(xShot.Rgb, xShot.Width, xShot.Height, targetX.ReferenceRgb,
+                targetX.WatchWidth, targetX.WatchHeight, 90, default);
+            Check(xMatch.Location is { } xPoint && Math.Abs(xPoint.X - 482) <= 1 && Math.Abs(xPoint.Y - 27) <= 1,
+                $"The real target screenshot X must match at its correct position; got {xMatch}.");
+            for (var y = 9; y < 45; y++) Array.Clear(xShot.Rgb, (y * xShot.Width + 464) * 3, 36 * 3);
+            Check(AionTargetBarMatcher.Find(xShot.Rgb, xShot.Width, xShot.Height, targetX.ReferenceRgb,
+                targetX.WatchWidth, targetX.WatchHeight, 90, default).Location is null,
+                "Removing the screenshot X while retaining its HP bar must mean no target X.");
+            var dimX = targetX.ReferenceRgb.Select(value => (byte)(value * 0.35)).ToArray();
+            Check(AionTargetBarMatcher.Find(dimX, targetX.WatchWidth, targetX.WatchHeight, targetX.ReferenceRgb,
+                targetX.WatchWidth, targetX.WatchHeight, 90, default).Location is not null,
+                "The real X must still match when dimmed to 35% brightness.");
+
+            async Task CombinedScenario(Func<int, (bool? X, bool? Timer)> reading,
+                Action<List<byte[]>, int, long> verify, int focusReads = 30)
+            {
+                reports.Clear(); var reads = 0; long elapsed = 0;
+                profile.AionCombat.MaxSearchAttempts = 1;
+                FakerInputKeyboard.Shared = new(() => new CombatTransport(report =>
+                {
+                    reports.Add(report.ToArray());
+                    if (report[2] == 1 && report[5] == 0x2B)
+                        Check(reading(reads) == (false, false), "Every Tab must have X absent AND a valid ready cooldown.");
+                    if (report[2] == 1 && report[5] == 0x1E)
+                        Check(reading(reads) == (true, false), "Every skill 1 press must have X present AND a valid ready cooldown.");
+                }));
+                var task = new AionCombatRunner(profile, (rule, _) =>
+                {
+                    if (rule.Id == targetX.Id) reads++;
+                    Check(rule.Id == targetX.Id || rule.Id == timerRule.Id, "Combined mode must use X presence instead of unreliable arrows.");
+                    var state = reading(reads);
+                    return new(rule.Id, DateTime.UtcNow, new(rule.Id == targetX.Id ? state.X : state.Timer, "Simulated X/cooldown"), null, "");
+                }, () => reads < focusReads, _ => { }, (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed);
+                try { await task.RunAsync(default); } catch (InvalidOperationException) { }
+                Check(reports.Last(report => report[2] == 3)[3] == 0, "Combined mode must release generated input when stopped.");
+                verify(reports, reads, elapsed);
+            }
+            foreach (var retained in new[] { (true, true), (true, false), (false, true) })
+            {
+                await CombinedScenario(i => i == 1 ? (true, false) : retained,
+                    (list, _, _) => Check(list.Count(report => report[2] == 3 && report[3] == 1) == 1
+                        && !list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                        $"X={retained.Item1}, cooldown={retained.Item2} must retain the attack without Tab."), 8);
+            }
+            await CombinedScenario(i => i == 1 ? (true, false) : (false, false),
+                (list, _, elapsed) => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 1
+                    && list.FindIndex(report => report[2] == 3 && report[3] == 0 && list.IndexOf(report) > 0)
+                        < list.FindIndex(report => report[2] == 1 && report[5] == 0x2B)
+                    && elapsed >= 300, "Missing X AND ready skill 1 must debounce, release LEFT and send Tab exactly once even if no cooldown was observed."));
+            await CombinedScenario(i => i == 1 ? (true, false) : (false, true),
+                (list, _, _) => Check(!list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                    "Missing X while skill 1 is on cooldown must not send Tab."), 8);
+            await CombinedScenario(i => (false, i < 4),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 1
+                    && !list.Any(report => report[2] == 3 && report[3] == 1),
+                    "Startup without X must wait for cooldown readiness before Tab, without attacking."));
+            await CombinedScenario(i => (true, i < 4),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && !list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                    "Startup with X must wait for skill 1 readiness, then attack without Tab."), 8);
+            await CombinedScenario(i => i == 1 || i >= 4 ? (true, false) : (false, false),
+                (list, _, _) => Check(!list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                    "Brief X loss must reset when the X returns before the target-loss delay."), 8);
+            foreach (var failure in new[] { (X: (bool?)null, Timer: (bool?)false), (X: (bool?)false, Timer: (bool?)null) })
+                await CombinedScenario(i => i == 1 ? (true, false) : failure,
+                    (list, _, _) => Check(!list.Any(report => report[2] == 1 && report[5] == 0x2B)
+                        && list.Any(report => report[2] == 3 && report[3] == 1),
+                        "An unreadable X or timer must stop and release LEFT without Tab."));
+            Console.WriteLine("PASS: real X presence/absence/dimming, setup/save-load/calibration preservation, all X/cooldown truth-table states, idle cooldown gating, flicker and unavailable capture cleanup; no real input sent.");
             Console.WriteLine("PASS: production combat search/Tab, confirmed 1 then held attack, death/reacquisition, signed camera driver reports, cancellation, focus/capture loss and bounded search/attack; no real input sent.");
         }
         finally { FakerInputKeyboard.Shared.ReleaseAllHeldInputs(); FakerInputKeyboard.Shared = previous; }

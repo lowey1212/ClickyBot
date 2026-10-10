@@ -277,8 +277,10 @@ internal sealed class MacroEngine
         rule.ObservationValid = false;
         MatchLocation? match = null;
         ConditionObservation primary;
-        if (rule.Condition == ConditionType.AionTargetBarMatches)
+        if (rule.Condition.IsAionTarget())
         {
+            var targetLabel = rule.Condition == ConditionType.AionTargetXMatches ? "X"
+                : AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers";
             primary = new(null, AionTargetBarMatcher.ReferenceProblem(rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight)
                 ?? $"Watch area {rule.SearchWidth}×{rule.SearchHeight} must contain the {rule.WatchWidth}×{rule.WatchHeight} reference and be no larger than 3840×2160.");
             if (AionTargetBarMatcher.ValidReference(rule.ReferenceRgb, rule.WatchWidth, rule.WatchHeight)
@@ -292,10 +294,10 @@ internal sealed class MacroEngine
                         rule.WatchWidth, rule.WatchHeight, rule.CoverageThreshold, token);
                     match = result.Location is { } point ? new(point.X + rule.SearchX, point.Y + rule.SearchY) : null;
                     primary = new(match.HasValue, match.HasValue
-                        ? $"Target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} shape match {result.Score:F1}% (requires {AionTargetBarMatcher.MatchThreshold(rule.CoverageThreshold)}%)."
-                        : $"No target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} shape match at {AionTargetBarMatcher.MatchThreshold(rule.CoverageThreshold)}%.");
+                        ? $"Target {targetLabel} shape match {result.Score:F1}% (requires {AionTargetBarMatcher.MatchThreshold(rule.CoverageThreshold)}%)."
+                        : $"No target {targetLabel} shape match at {AionTargetBarMatcher.MatchThreshold(rule.CoverageThreshold)}%.");
                 }
-                else primary = new(null, "Target HP bar capture is unavailable.");
+                else primary = new(null, $"Target {targetLabel} capture is unavailable.");
             }
             rule.ImageSearchDiagnostic = primary.Detail;
         }
