@@ -1959,15 +1959,15 @@ public partial class MainWindow : Window
         }
         if (condition == ConditionType.AionTargetBarMatches)
         {
-            CoverageHelpText.Text = "Matches the white/cyan marker colors, ignoring background detail. Capture one target arrow tightly, or the whole HP bar with its end markers. One successful hit triggers 1 immediately, then held LEFT mouse.";
-            CoverageThresholdLabel.Content = "Target end-marker match threshold (%)";
+            CoverageHelpText.Text = "Matches the captured arrow outline using contrast with nearby pixels, tolerating brightness and color changes. Capture one clear arrow with a little surrounding background, or both HP bar ends. Keep the watch area around the target HUD to avoid similar arrows elsewhere. Minimum shape threshold is 70%. One hit triggers 1, then held LEFT mouse.";
+            CoverageThresholdLabel.Content = "Target end-marker shape match threshold (%)";
         }
         ColorPanel.Visibility = condition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         CoveragePanel.Visibility = condition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost or ConditionType.PurpleRingMatches || snapshotCondition
             ? Visibility.Visible : Visibility.Collapsed;
         CoverageThresholdLabel.Content = snapshotCondition ? pixelColors ? "Pixel-color match threshold (%)" : "Image similarity threshold (%)" : "Region coverage / match threshold (%)";
-        if (condition == ConditionType.AionTargetBarMatches) CoverageThresholdLabel.Content = "Target end-marker color match threshold (%)";
+        if (condition == ConditionType.AionTargetBarMatches) CoverageThresholdLabel.Content = "Target end-marker shape match threshold (%)";
         CoverageThresholdLabel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         CoverageThresholdBox.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Collapsed : Visibility.Visible;
         var isKeyAction = action is ActionType.KeyPress or ActionType.KeyHold;

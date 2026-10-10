@@ -210,7 +210,8 @@ internal static class Program
             && typeof(MainWindow).GetField("AionCameraRightCheckBox", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public) is null
             && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Visible
             && !Control<ComboBox>("ImageMatchMethodCombo").IsEnabled
-            && Control<Label>("CoverageThresholdLabel").Content.ToString()!.Contains("end-marker"),
+            && Control<Label>("CoverageThresholdLabel").Content.ToString()!.Contains("end-marker shape")
+            && Control<TextBlock>("CoverageHelpText").Text.Contains("contrast"),
             "Aion combat must expose camera controls and the target marker watch editor.");
         Control<CheckBox>("AionCameraEnabledCheckBox").IsChecked = true;
         Control<TextBox>("AionCameraPixelsBox").Text = "-85";

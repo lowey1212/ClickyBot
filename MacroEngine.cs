@@ -292,8 +292,8 @@ internal sealed class MacroEngine
                         rule.WatchWidth, rule.WatchHeight, rule.CoverageThreshold, token);
                     match = result.Location is { } point ? new(point.X + rule.SearchX, point.Y + rule.SearchY) : null;
                     primary = new(match.HasValue, match.HasValue
-                        ? $"Target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} color match {result.Score:F1}% (requires {rule.CoverageThreshold}%)."
-                        : $"No target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} color match at {rule.CoverageThreshold}%.");
+                        ? $"Target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} shape match {result.Score:F1}% (requires {AionTargetBarMatcher.MatchThreshold(rule.CoverageThreshold)}%)."
+                        : $"No target {(AionTargetBarMatcher.IsMarkerReference(rule.WatchWidth, rule.WatchHeight) ? "arrow" : "HP end markers")} shape match at {AionTargetBarMatcher.MatchThreshold(rule.CoverageThreshold)}%.");
                 }
                 else primary = new(null, "Target HP bar capture is unavailable.");
             }

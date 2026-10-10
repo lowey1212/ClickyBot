@@ -105,7 +105,7 @@
                                 <TextBox x:Name="AionCameraPixelsBox" Text="75" ToolTip="Positive turns right; negative turns left. Adjust for your game sensitivity." />
                                 <Label Content="Optional camera steps after failed Tab" />
                                 <TextBox x:Name="AionCameraStepsBox" Text="4" />
-                                <TextBlock Text="First target color hit: tap 1, then hold LEFT mouse. With cooldown stop enabled, watch only skill 1's central countdown digits and release when that cooldown clears. Otherwise release when the target indicator disappears. Tab selects the next monster. F7, Stop and focus loss release buttons." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
+                                <TextBlock Text="First target shape hit: tap 1, then hold LEFT mouse. With cooldown stop enabled, watch only skill 1's central countdown digits and release when that cooldown clears. Otherwise release when the target indicator disappears. Tab selects the next monster. F7, Stop and focus loss release buttons." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
                             </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />

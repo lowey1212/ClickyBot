@@ -71,6 +71,43 @@ internal static class AionCombatRegression
         foreach (var file in new[] { "Aio2-captured-marker.png", "Aio2-captured-114.png", "Aio2-captured-118.png", "Aio2-captured-119.png", "Aio2-captured-122.png", "Aio2-captured-cyan-arrow.png" })
         {
             var capture = Load(file);
+            foreach (var (gain, offset) in new[] { (0.35, 0), (0.6, 35), (0.8, 45) })
+            {
+                var changed = capture.Rgb.Select(value => (byte)Math.Clamp(value * gain + offset, 0, 255)).ToArray();
+                Check(AionTargetBarMatcher.Find(changed, capture.Width, capture.Height, capture.Rgb,
+                    capture.Width, capture.Height, 90, default).Location is not null,
+                    $"{file} must retain its outline at brightness gain {gain} and offset {offset}.");
+            }
+            foreach (var tint in new[] { new[] { 0.9, 0.55, 0.2 }, new[] { 0.2, 0.65, 0.9 }, new[] { 0.8, 0.25, 0.7 } })
+            {
+                var changed = capture.Rgb.ToArray();
+                for (var i = 0; i < changed.Length; i += 3)
+                {
+                    var value = (capture.Rgb[i] + capture.Rgb[i + 1] + capture.Rgb[i + 2]) / 3d;
+                    for (var channel = 0; channel < 3; channel++) changed[i + channel] = (byte)(value * tint[channel]);
+                }
+                Check(AionTargetBarMatcher.Find(changed, capture.Width, capture.Height, capture.Rgb,
+                    capture.Width, capture.Height, 90, default).Location is not null,
+                    $"{file} must match yellow, blue and magenta outlines without a white/cyan live color requirement.");
+            }
+            foreach (var (foreground, background) in new[]
+            {
+                (new byte[] { 185, 155, 105 }, new byte[] { 100, 85, 65 }),
+                (new byte[] { 95, 65, 45 }, new byte[] { 20, 15, 10 })
+            })
+            {
+                var changed = capture.Rgb.ToArray();
+                for (var i = 0; i < changed.Length; i += 3)
+                {
+                    var r = capture.Rgb[i]; var g = capture.Rgb[i + 1]; var b = capture.Rgb[i + 2];
+                    var core = (Math.Min(r, Math.Min(g, b)) >= 150 && Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b)) <= 60)
+                        || (r >= 70 && g >= 150 && b >= 170 && b >= r + 20 && g >= r + 10 && Math.Abs(b - g) <= 80);
+                    Array.Copy(core ? foreground : background, 0, changed, i, 3);
+                }
+                Check(AionTargetBarMatcher.Find(changed, capture.Width, capture.Height, capture.Rgb,
+                    capture.Width, capture.Height, 90, default).Location is not null,
+                    $"{file} must retain its silhouette with a different background and dim orange arrow.");
+            }
             var capturedRule = new MacroRule { Condition = ConditionType.AionTargetBarMatches, SearchReference = true,
                 WatchWidth = capture.Width, WatchHeight = capture.Height, ReferenceRgb = capture.Rgb,
                 SearchX = 0, SearchY = 0, SearchWidth = 1911, SearchHeight = 1058 };
@@ -93,7 +130,7 @@ internal static class AionCombatRegression
             try { AionCombatRunner.Validate(capturedProfile); throw new Exception("Missing reference accepted."); }
             catch (InvalidOperationException ex) { Check(ex.Message.Contains("not loaded"), "Missing reference failure must not incorrectly ask to reselect the watch area."); }
         }
-        Console.WriteLine("PASS: all six real user arrow/whole-bar captures and white/cyan matching, broad saved watch area, target presence/absence and specific startup errors; no real input sent.");
+        Console.WriteLine("PASS: all six real user arrow/whole-bar captures, dim/bright/tinted outlines, broad saved watch area, target presence/absence and specific startup errors; no real input sent.");
         var arrow = Load("Aio2-captured-cyan-arrow.png");
         var colored = arrow.Rgb.ToArray();
         for (var i = 0; i < colored.Length; i += 3)
@@ -112,6 +149,39 @@ internal static class AionCombatRegression
             Check(AionTargetBarMatcher.Find(flat, arrow.Width, arrow.Height, arrow.Rgb, arrow.Width, arrow.Height, 75, default).Location is null,
                 "Flat white/cyan areas and orange grass must fail even at the user's relaxed 75% threshold.");
         }
+
+        foreach (var shape in new[] { "rectangle", "circle", "stripe", "noise", "mirrored" })
+        {
+            var impostor = new byte[arrow.Rgb.Length];
+            var random = new Random(1212);
+            for (var y = 0; y < arrow.Height; y++)
+            for (var x = 0; x < arrow.Width; x++)
+            {
+                var i = (y * arrow.Width + x) * 3;
+                var lit = shape switch
+                {
+                    "rectangle" => x >= 10 && x <= 25 && y >= 10 && y <= 42,
+                    "circle" => (x - 18) * (x - 18) + (y - 26) * (y - 26) <= 14 * 14,
+                    "stripe" => x >= 15 && x <= 22,
+                    "noise" => random.Next(2) == 0,
+                    _ => false
+                };
+                if (shape == "mirrored") Array.Copy(arrow.Rgb, (y * arrow.Width + arrow.Width - x - 1) * 3, impostor, i, 3);
+                else for (var channel = 0; channel < 3; channel++) impostor[i + channel] = lit ? (byte)230 : (byte)30;
+            }
+            Check(AionTargetBarMatcher.Find(impostor, arrow.Width, arrow.Height, arrow.Rgb,
+                arrow.Width, arrow.Height, 75, default).Location is null, $"Bright {shape} must not impersonate the captured arrow outline.");
+        }
+        Check(AionTargetBarMatcher.Find(arrow.Rgb[..^3], arrow.Width, arrow.Height, arrow.Rgb,
+            arrow.Width, arrow.Height, 75, default).Location is null, "Malformed frames must fail without reading beyond the buffer.");
+        Check(AionTargetBarMatcher.MatchThreshold(1) == 70 && AionTargetBarMatcher.MatchThreshold(75) == 75
+            && AionTargetBarMatcher.MatchThreshold(120) == 100, "Shape thresholds must retain their documented minimum.");
+        var scanClock = System.Diagnostics.Stopwatch.StartNew();
+        Check(AionTargetBarMatcher.Find(new byte[1911 * 1058 * 3], 1911, 1058, arrow.Rgb,
+            arrow.Width, arrow.Height, 75, default).Location is null, "Full-screen absence must remain a negative result.");
+        scanClock.Stop();
+        Check(scanClock.ElapsedMilliseconds < 2000, "A full-screen absent target scan must remain responsive.");
+        Console.WriteLine($"PASS: wrong silhouettes, texture, flat colors and malformed frames rejected; full-screen absent outline scan {scanClock.ElapsedMilliseconds} ms.");
 
         var previous = FakerInputKeyboard.Shared;
         var reports = new List<byte[]>();

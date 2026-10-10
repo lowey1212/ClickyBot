@@ -79,7 +79,7 @@ internal sealed class AionCombatRunner
         async Task BeginAttack()
         {
             if (!Active()) return;
-            _log("Aion combat: target color match detected; pressing 1 now.");
+            _log("Aion combat: target shape match detected; pressing 1 now.");
             _reportAction(target, "Target matched; pressing 1.");
             await Tap("1");
             _log("Aion combat: sent 1 (FakerInput driver).");
@@ -147,7 +147,7 @@ internal sealed class AionCombatRunner
                     // Try the game's target key before moving the camera. Old
                     // profiles do not opt in to camera turning automatically.
                     await Tap("Tab");
-                    _reportAction(target, "Sent Tab; waiting for target colors.");
+                    _reportAction(target, "Sent Tab; waiting for target arrow shape.");
                     searching++;
                     _log($"Aion combat: sent Tab (FakerInput driver), search {searching}/{settings.MaxSearchAttempts}.");
                     RuleObservation? selected = null;
