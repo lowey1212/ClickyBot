@@ -83,6 +83,9 @@ internal sealed class AionCombatRunner
         var indicator = targetX ?? target;
         var held = false;
         var cooldownSeen = false;
+        var cooldownRetrying = false;
+        var driverReset = false;
+        string? recoveryReason = null;
         var seekNext = false;
         var searching = 0;
         long attackStarted = 0;
@@ -94,18 +97,27 @@ internal sealed class AionCombatRunner
         RuleObservation Read(MacroRule rule)
         {
             var reading = _observe(rule, token);
-            if (!reading.Valid) throw new InvalidOperationException(rule == cooldown
-                ? "Aion combat stopped: skill 1 cooldown could not be read. " + reading.Primary.Detail
-                : rule == targetX ? "Aion combat stopped: target X could not be read. " + reading.Primary.Detail
-                : "Aion combat stopped: target HP bar capture or reference is unavailable.");
+            if (!reading.Valid && !(rule == cooldown && reading.Primary.Retryable && reading.Gate is null))
+                throw new InvalidOperationException(rule == cooldown
+                ? "Skill 1 cooldown could not be read. " + reading.Primary.Detail
+                : rule == targetX ? "Target X could not be read. " + reading.Primary.Detail
+                : "Target HP bar capture or reference is unavailable.");
             return reading;
         }
-        bool Active()
+        void RetryCooldown(RuleObservation reading)
+        {
+            absentSince = null;
+            var status = held ? "Cooldown reading uncertain; keeping LEFT held and retrying. Tab blocked until skill 1 is reliably ready."
+                : "Cooldown reading uncertain; retrying. Waiting before Tab or skill 1.";
+            if (!cooldownRetrying) _log("Aion combat: " + status + " " + reading.Primary.Detail);
+            cooldownRetrying = true;
+            _reportAction(indicator, status);
+        }
+        void EnsureActive()
         {
             token.ThrowIfCancellationRequested();
-            if (_focused()) return true;
-            _log("Aion combat stopped because the game lost focus.");
-            return false;
+            if (_focused()) return;
+            throw new InvalidOperationException("Game is not focused; waiting to resume combat.");
         }
         async Task Tap(string key)
         {
@@ -114,12 +126,12 @@ internal sealed class AionCombatRunner
         }
         async Task BeginAttack()
         {
-            if (!Active()) return;
+            EnsureActive();
             _log("Aion combat: target shape match detected; pressing 1 now.");
             _reportAction(indicator, targetX is null ? "Target matched; pressing 1." : "Target X matched and skill 1 ready; pressing 1.");
             await Tap("1");
             _log("Aion combat: sent 1 (FakerInput driver).");
-            if (!Active()) return;
+            EnsureActive();
             FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, true);
             held = true; cooldownSeen = false; seekNext = false; attackStarted = _now(); absentSince = null;
             _reportAction(indicator, HoldingStatus());
@@ -129,100 +141,139 @@ internal sealed class AionCombatRunner
         }
         try
         {
-            if (!Active()) return;
-            FakerInputKeyboard.Shared.ResetMouseButtons();
             _log("Aion combat: Tab selects a target, then 1 and held LEFT mouse. F7 stops. Camera turning "
                 + (settings.CameraTurnEnabled ? "enabled only after Tab finds no target." : "disabled."));
-            while (Active())
+            while (!token.IsCancellationRequested)
             {
-                var watched = held && cooldown is not null && targetX is null ? cooldown : indicator;
-                var observation = Read(watched);
-                var timer = targetX is not null ? Read(cooldown!) : null;
-                if (!Active()) return;
-                if (held)
+                try
                 {
-                    _reportAction(indicator, HoldingStatus());
-                    if (settings.MaxAttackMs > 0 && _now() - attackStarted >= settings.MaxAttackMs)
+                    EnsureActive();
+                    if (!driverReset) { FakerInputKeyboard.Shared.ResetMouseButtons(); driverReset = true; }
+                    var watched = held && cooldown is not null && targetX is null ? cooldown : indicator;
+                    var observation = Read(watched);
+                    var timer = targetX is not null ? Read(cooldown!) : null;
+                    EnsureActive();
+                    if (held && settings.MaxAttackMs > 0 && _now() - attackStarted >= settings.MaxAttackMs)
                     {
-                        _log("Aion combat attack time limit reached. Stopping and releasing left mouse.");
-                        return;
+                        throw new InvalidOperationException("Attack time limit reached; restarting the combat cycle.");
                     }
-                    if (targetX is not null)
+                    var cooldownReading = timer ?? (watched == cooldown ? observation : null);
+                    if (cooldownReading is { Valid: false })
                     {
-                        if (!observation.Passed && !timer!.Passed) absentSince ??= _now();
-                        else absentSince = null;
+                        RetryCooldown(cooldownReading);
+                        await _delay(Math.Clamp(_profile.PollIntervalMs, 50, 500), token);
+                        continue;
                     }
-                    else if (observation.Passed)
+                    if (cooldownRetrying && cooldownReading is { Valid: true })
                     {
-                        if (cooldown is not null && !cooldownSeen) _log("Skill 1 cooldown detected. Keeping LEFT mouse held until it clears.");
-                        cooldownSeen = true; absentSince = null;
+                        _log("Aion combat: cooldown reading recovered; normal target checks resumed.");
+                        cooldownRetrying = false;
                     }
-                    else if (cooldown is null || cooldownSeen) absentSince ??= _now();
-                    else if (_now() - attackStarted >= 5000)
-                        throw new InvalidOperationException("Skill 1 cooldown was not detected within 5 seconds. Stopped and released LEFT mouse; check the central timer watch area.");
-                    if (absentSince is { } missing && _now() - missing >= settings.TargetLostMs)
+                    if (held)
                     {
-                        FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, false);
-                        held = false; seekNext = true; searching = 0; absentSince = null;
-                        _reportAction(indicator, targetX is not null ? "Target X missing and skill 1 ready; released LEFT mouse."
-                            : cooldown is null ? "Target disappeared; released LEFT mouse."
-                            : "Skill 1 cooldown cleared; released LEFT mouse.");
-                        _log(targetX is not null ? "Target X missing and skill 1 off cooldown. Released LEFT mouse; Tab will select the next monster."
-                            : cooldown is null ? "Target HP bar disappeared. Released left mouse; looking for the next monster."
-                            : "Skill 1 cooldown cleared. Released LEFT mouse; Tab will select the next monster.");
-                        await _delay(500, token);
-                    }
-                }
-                else if (targetX is not null && timer!.Passed)
-                {
-                    _reportAction(indicator, "Skill 1 still on cooldown; waiting before targeting or attacking.");
-                }
-                else if (observation.Passed && (!seekNext || targetX is not null))
-                {
-                    await BeginAttack();
-                }
-                else
-                {
-                    if (searching >= settings.MaxSearchAttempts)
-                    {
-                        _log("Aion combat search limit reached without a target. Stopping.");
-                        return;
-                    }
-                    // Try the game's target key before moving the camera. Old
-                    // profiles do not opt in to camera turning automatically.
-                    await Tap("Tab");
-                    _reportAction(indicator, targetX is null ? "Sent Tab; waiting for target arrow shape." : "X missing and skill 1 ready; sent Tab, waiting for target X.");
-                    searching++;
-                    _log($"Aion combat: sent Tab (FakerInput driver), search {searching}/{settings.MaxSearchAttempts}.");
-                    RuleObservation? selected = null;
-                    for (var waited = 0; waited < 400; waited += 50)
-                    {
-                        await _delay(50, token);
-                        if (!Active()) return;
-                        selected = Read(indicator);
-                        if (!selected.Passed) continue;
-                        if (targetX is not null && Read(cooldown!).Passed) continue;
-                        if (!Active()) return;
-                        await BeginAttack();
-                        break;
-                    }
-                    if (!Active()) return;
-                    if (!held)
-                    {
-                        _log(selected!.Passed ? "Aion combat: target X present; waiting for skill 1 cooldown."
-                            : "Aion combat: no target indicator matched after Tab. " + selected.Primary.Detail);
-                        if (!selected.Passed && settings.CameraTurnEnabled && settings.TurnPixels != 0)
+                        _reportAction(indicator, HoldingStatus());
+                        if (targetX is not null)
                         {
-                            for (var step = 0; step < settings.TurnSteps; step++)
+                            if (!observation.Passed && !timer!.Passed) absentSince ??= _now();
+                            else absentSince = null;
+                        }
+                        else if (observation.Passed)
+                        {
+                            if (cooldown is not null && !cooldownSeen) _log("Skill 1 cooldown detected. Keeping LEFT mouse held until it clears.");
+                            cooldownSeen = true; absentSince = null;
+                        }
+                        else if (cooldown is null || cooldownSeen) absentSince ??= _now();
+                        else if (_now() - attackStarted >= 5000)
+                            throw new InvalidOperationException("Skill 1 cooldown was not detected within 5 seconds; restarting the combat cycle. Check the central timer watch area.");
+                        if (absentSince is { } missing && _now() - missing >= settings.TargetLostMs)
+                        {
+                            FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, false);
+                            held = false; seekNext = true; searching = 0; absentSince = null;
+                            _reportAction(indicator, targetX is not null ? "Target X missing and skill 1 ready; released LEFT mouse."
+                                : cooldown is null ? "Target disappeared; released LEFT mouse."
+                                : "Skill 1 cooldown cleared; released LEFT mouse.");
+                            _log(targetX is not null ? "Target X missing and skill 1 off cooldown. Released LEFT mouse; Tab will select the next monster."
+                                : cooldown is null ? "Target HP bar disappeared. Released left mouse; looking for the next monster."
+                                : "Skill 1 cooldown cleared. Released LEFT mouse; Tab will select the next monster.");
+                            await _delay(500, token);
+                        }
+                    }
+                    else if (targetX is not null && timer!.Passed)
+                    {
+                        _reportAction(indicator, "Skill 1 still on cooldown; waiting before targeting or attacking.");
+                    }
+                    else if (observation.Passed && (!seekNext || targetX is not null))
+                    {
+                        await BeginAttack();
+                    }
+                    else
+                    {
+                        if (searching >= settings.MaxSearchAttempts)
+                        {
+                            _log("Aion combat search batch complete without a target; restarting the search.");
+                            _reportAction(indicator, "Search restarted; waiting for a target. Combat is still running.");
+                            searching = 0;
+                            await _delay(500, token);
+                            continue;
+                        }
+                        // Try the game's target key before moving the camera. Old
+                        // profiles do not opt in to camera turning automatically.
+                        await Tap("Tab");
+                        _reportAction(indicator, targetX is null ? "Sent Tab; waiting for target arrow shape." : "X missing and skill 1 ready; sent Tab, waiting for target X.");
+                        searching++;
+                        _log($"Aion combat: sent Tab (FakerInput driver), search {searching}/{settings.MaxSearchAttempts}.");
+                        RuleObservation? selected = null;
+                        for (var waited = 0; waited < 400; waited += 50)
+                        {
+                            await _delay(50, token);
+                            EnsureActive();
+                            selected = Read(indicator);
+                            if (!selected.Passed) continue;
+                            if (targetX is not null)
                             {
-                                if (!Active()) return;
-                                FakerInputKeyboard.Shared.MoveMouseRelative(settings.TurnPixels, 0);
-                                await _delay(30, token);
+                                var selectedTimer = Read(cooldown!);
+                                if (!selectedTimer.Valid) { RetryCooldown(selectedTimer); continue; }
+                                if (selectedTimer.Passed) continue;
+                            }
+                            EnsureActive();
+                            await BeginAttack();
+                            break;
+                        }
+                        EnsureActive();
+                        if (!held)
+                        {
+                            _log(selected!.Passed ? "Aion combat: target X present; waiting for skill 1 cooldown."
+                                : "Aion combat: no target indicator matched after Tab. " + selected.Primary.Detail);
+                            if (!selected.Passed && settings.CameraTurnEnabled && settings.TurnPixels != 0)
+                            {
+                                for (var step = 0; step < settings.TurnSteps; step++)
+                                {
+                                    EnsureActive();
+                                    FakerInputKeyboard.Shared.MoveMouseRelative(settings.TurnPixels, 0);
+                                    await _delay(30, token);
+                                }
                             }
                         }
                     }
+                    if (recoveryReason is not null)
+                    {
+                        _log("Aion combat: recovered; combat resumed.");
+                        recoveryReason = null;
+                    }
+                    await _delay(Math.Clamp(_profile.PollIntervalMs, 50, 500), token);
                 }
-                await _delay(Math.Clamp(_profile.PollIntervalMs, 50, 500), token);
+                catch (Exception ex) when (ex is not OperationCanceledException || !token.IsCancellationRequested)
+                {
+                    var released = InputSimulator.ReleaseAllHeldInputs();
+                    held = false; cooldownSeen = false; cooldownRetrying = false;
+                    seekNext = false; searching = 0; absentSince = null; driverReset = false;
+                    var reason = ex.Message;
+                    if (!released) reason += " Input cleanup is being retried.";
+                    if (recoveryReason != reason) _log("Aion combat: " + reason + " Retrying; combat is still running.");
+                    recoveryReason = reason;
+                    _reportAction(indicator, "Waiting to recover; combat is still running. " + reason);
+                    await _delay(500, token);
+                }
             }
         }
         finally

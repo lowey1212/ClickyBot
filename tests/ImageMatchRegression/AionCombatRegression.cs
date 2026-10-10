@@ -219,19 +219,28 @@ internal static class AionCombatRegression
                 Action<byte[], int>? onReport = null, Action<string>? onStatus = null)
             {
                 reports.Clear(); var count = 0; long elapsed = 0;
-                FakerInputKeyboard.Shared = new(() => new CombatTransport(report => { reports.Add(report.ToArray()); onReport?.Invoke(report, count); }));
+                using var end = new CancellationTokenSource();
+                var callbackFailures = new List<Exception>();
+                FakerInputKeyboard.Shared = new(() => new CombatTransport(report =>
+                {
+                    reports.Add(report.ToArray());
+                    try { onReport?.Invoke(report, count); } catch (Exception ex) { callbackFailures.Add(ex); }
+                }));
                 if (maxAttack.HasValue) profile.AionCombat.MaxAttackMs = maxAttack.Value;
                 profile.AionCombat.MaxSearchAttempts = 2;
                 var task = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
-                    new(reading(++count), "Simulated target"), null, ""), () => focused(count), _ => { },
+                    new(reading(++count), "Simulated target"), null, ""), () =>
+                    { if (count >= 20 || !focused(count)) end.Cancel(); return focused(count); }, _ => { },
                     (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed,
                     (_, status) => onStatus?.Invoke(status));
-                try { await task.RunAsync(default); } catch (InvalidOperationException) { }
+                try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
+                Check(end.IsCancellationRequested, "Runtime failures or limits must not end combat automatically.");
+                Check(callbackFailures.Count == 0, string.Join(" ", callbackFailures.Select(ex => ex.Message)));
                 check(reports);
             }
             await Scenario(i => i <= 3 ? true : null, _ => true,
                 list => Check(list.Any(report => report[2] == 3 && report[3] == 1) && list.Last()[3] == 0,
-                    "An unavailable capture during attack must release left mouse and stop."));
+                    "An unavailable capture during attack must release left mouse while recovery keeps running."));
             var actionStatuses = new List<string>();
             await Scenario(i => i == 1 ? false : i == 2 ? true : null, _ => true,
                 list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
@@ -252,7 +261,7 @@ internal static class AionCombatRegression
                     "Game focus loss during attack must release left mouse."));
             await Scenario(_ => false, _ => true,
                 list => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 2
-                    && !list.Any(report => report[2] == 3 && report[3] == 1), "Search limits must stop without attacking an unconfirmed target."));
+                    && !list.Any(report => report[2] == 3 && report[3] == 1), "A completed search batch must restart without attacking an unconfirmed target."));
             profile.AionCombat = legacy.AionCombat;
             await Scenario(_ => false, _ => true, list =>
             {
@@ -269,8 +278,8 @@ internal static class AionCombatRegression
                 "Even enabled camera turning must never hold right mouse while a target is present."));
             profile.AionCombat.CameraTurnEnabled = false;
             await Scenario(_ => true, _ => true,
-                list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1 && list.Last()[3] == 0,
-                    "Attack time limit must release left mouse without spamming 1."), 1000);
+                list => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 2 && list.Last()[3] == 0,
+                    "Attack time limit must release left mouse and restart the combat cycle until manually cancelled."), 1000);
             profile.AionCombat.MaxAttackMs = 0;
             var timerRule = Aio2ProfileSetup.ConfigureCombatCooldown(profile);
             try { AionCombatRunner.Validate(profile); throw new Exception("Uncalibrated cooldown accepted."); }
@@ -310,15 +319,17 @@ internal static class AionCombatRegression
             foreach (var unavailable in new[] { false, true })
             {
                 reports.Clear(); long elapsed = 0; var reads = 0;
+                using var end = new CancellationTokenSource();
                 FakerInputKeyboard.Shared = new(() => new CombatTransport(report => reports.Add(report.ToArray())));
+                var messages = new List<string>();
                 var task = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
                     new(rule.Id == target.Id ? true : unavailable && ++reads >= 2 ? null : unavailable, "Simulated timer failure"), null, ""),
-                    () => true, _ => { }, (ms, _) => { elapsed += ms; return Task.CompletedTask; }, () => elapsed);
-                try { await task.RunAsync(default); throw new Exception("Cooldown failure did not stop combat."); }
-                catch (InvalidOperationException ex) { Check(ex.Message.Contains("cooldown"), "Timer failure must report cooldown context."); }
-                Check(reports.Any(report => report[2] == 3 && report[3] == 1) && reports.Last()[3] == 0
-                    && reports.Count(report => report[2] == 1 && report[5] == 0x1E) == 1,
-                    "Unreadable or never-starting cooldown must stop and release LEFT mouse without repeated 1 taps.");
+                    () => true, messages.Add, (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; if (elapsed >= 6500) end.Cancel(); return Task.CompletedTask; }, () => elapsed);
+                try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
+                Check(end.IsCancellationRequested && reports.Any(report => report[2] == 3 && report[3] == 1)
+                    && reports.Last(report => report[2] == 3)[3] == 0
+                    && messages.Any(message => message.Contains("Retrying; combat is still running")),
+                    "Unavailable or never-starting cooldown must recover and release inputs without automatically ending combat.");
             }
             Console.WriteLine("PASS: cooldown setup/calibration/persistence, initial cooldown delay, target loss while held, cooldown clear/reacquisition and unavailable/never-seen cleanup; no real input sent.");
             var targetX = Aio2ProfileSetup.ConfigureCombatTargetX(profile, Path.GetDirectoryName(target.ReferenceImagePath)!);
@@ -351,28 +362,41 @@ internal static class AionCombatRegression
                 "The real X must still match when dimmed to 35% brightness.");
 
             async Task CombinedScenario(Func<int, (bool? X, bool? Timer)> reading,
-                Action<List<byte[]>, int, long> verify, int focusReads = 30)
+                Action<List<byte[]>, int, long> verify, int focusReads = 30, bool retryableCooldown = false,
+                bool stopAfterSearch = true, Action<List<string>, List<string>>? verifyDiagnostics = null,
+                Action<byte[], int>? onReport = null, Exception? injectAtSecondRead = null)
             {
-                reports.Clear(); var reads = 0; long elapsed = 0;
+                reports.Clear(); var reads = 0; var tabs = 0; long elapsed = 0;
+                var messages = new List<string>(); var statuses = new List<string>();
+                var violations = new List<string>();
+                using var end = new CancellationTokenSource();
                 profile.AionCombat.MaxSearchAttempts = 1;
                 FakerInputKeyboard.Shared = new(() => new CombatTransport(report =>
                 {
                     reports.Add(report.ToArray());
+                    onReport?.Invoke(report, reads);
                     if (report[2] == 1 && report[5] == 0x2B)
-                        Check(reading(reads) == (false, false), "Every Tab must have X absent AND a valid ready cooldown.");
+                        { tabs++; if (reading(reads) != (false, false)) violations.Add("Tab without X absent AND valid readiness."); }
                     if (report[2] == 1 && report[5] == 0x1E)
-                        Check(reading(reads) == (true, false), "Every skill 1 press must have X present AND a valid ready cooldown.");
+                        if (reading(reads) != (true, false)) violations.Add("Skill 1 without X present AND valid readiness.");
                 }));
                 var task = new AionCombatRunner(profile, (rule, _) =>
                 {
                     if (rule.Id == targetX.Id) reads++;
+                    if (rule.Id == targetX.Id && reads == 2 && injectAtSecondRead is not null) throw injectAtSecondRead;
                     Check(rule.Id == targetX.Id || rule.Id == timerRule.Id, "Combined mode must use X presence instead of unreliable arrows.");
                     var state = reading(reads);
-                    return new(rule.Id, DateTime.UtcNow, new(rule.Id == targetX.Id ? state.X : state.Timer, "Simulated X/cooldown"), null, "");
-                }, () => reads < focusReads, _ => { }, (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed);
-                try { await task.RunAsync(default); } catch (InvalidOperationException) { }
+                    return new(rule.Id, DateTime.UtcNow, new(rule.Id == targetX.Id ? state.X : state.Timer, "Simulated X/cooldown",
+                        Retryable: rule.Id == timerRule.Id && state.Timer is null && retryableCooldown), null, "");
+                }, () => { if (reads >= focusReads) end.Cancel(); return true; }, messages.Add,
+                    (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; if (stopAfterSearch && tabs > 0 && ms == 100) end.Cancel(); return Task.CompletedTask; },
+                    () => elapsed, (_, status) => statuses.Add(status));
+                try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
+                Check(end.IsCancellationRequested, "Combined combat must remain running until manually cancelled.");
+                Check(violations.Count == 0, string.Join(" ", violations));
                 Check(reports.Last(report => report[2] == 3)[3] == 0, "Combined mode must release generated input when stopped.");
                 verify(reports, reads, elapsed);
+                verifyDiagnostics?.Invoke(messages, statuses);
             }
             foreach (var retained in new[] { (true, true), (true, false), (false, true) })
             {
@@ -404,9 +428,83 @@ internal static class AionCombatRegression
                 await CombinedScenario(i => i == 1 ? (true, false) : failure,
                     (list, _, _) => Check(!list.Any(report => report[2] == 1 && report[5] == 0x2B)
                         && list.Any(report => report[2] == 3 && report[3] == 1),
-                        "An unreadable X or timer must stop and release LEFT without Tab."));
+                        "An unreadable X or timer must retry recovery and release LEFT without Tab."));
+
+            var releaseReads = new List<int>();
+            await CombinedScenario(i => i == 1 ? (true, false) : i is 4 or 5 ? (false, null) : (false, false),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && list.Count(report => report[2] == 1 && report[5] == 0x2B) == 1
+                    && releaseReads.Count > 0 && releaseReads.Min() >= 9,
+                    "Ambiguous OCR must preserve LEFT and the single 1 tap, reset target-loss debounce, recover and then Tab."),
+                retryableCooldown: true,
+                verifyDiagnostics: (messages, statuses) => Check(messages.Count(message => message.Contains("Cooldown reading uncertain")) == 1
+                    && messages.Count(message => message.Contains("cooldown reading recovered")) == 1
+                    && statuses.Any(status => status.Contains("keeping LEFT held")), "Retry logging must be once per episode and report recovery and held input."),
+                onReport: (report, reads) => { if (report[2] == 3 && report[3] == 0 && reads > 1) releaseReads.Add(reads); });
+            await CombinedScenario(i => i == 1 ? (true, false) : (false, null),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && list.Count(report => report[2] == 3 && report[3] == 1) == 1
+                    && !list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                    "Persistent ambiguous OCR must keep the macro and attack active without false readiness or repeated 1."), 10,
+                retryableCooldown: true,
+                verifyDiagnostics: (messages, _) => Check(messages.Count(message => message.Contains("Cooldown reading uncertain")) == 1,
+                    "Persistent OCR uncertainty must not flood the activity log."));
+            await CombinedScenario(i => (false, i < 4 ? null : false),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 1
+                    && !list.Any(report => report[2] == 1 && report[5] == 0x1E),
+                    "Startup uncertainty must wait before Tab until a valid ready reading arrives."), retryableCooldown: true);
+            await CombinedScenario(i => (true, i < 4 ? null : false),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
+                    && !list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                    "Startup uncertainty with X present must wait before 1 until a valid ready reading arrives."), 8, retryableCooldown: true);
+            await CombinedScenario(i => i == 1 ? (false, false) : (true, i < 5 ? null : false),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 1
+                    && list.Count(report => report[2] == 1 && report[5] == 0x1E) == 1,
+                    "Unknown cooldown after Tab must not be treated as ready; valid recovery can start the attack."), retryableCooldown: true);
+            await CombinedScenario(i => i is 2 or 3 ? (null, false) : (true, false),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 2
+                    && !list.Any(report => report[2] == 1 && report[5] == 0x2B),
+                    "Unavailable target capture must release, retry and restart combat when it recovers."), 8, stopAfterSearch: false);
+            await CombinedScenario(_ => (false, false),
+                (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x2B) == 3,
+                    "Search batches must restart indefinitely until manually cancelled."), stopAfterSearch: false,
+                verifyDiagnostics: (messages, _) => Check(messages.Count(message => message.Contains("restarting the search")) >= 2,
+                    "Search-batch restarts must remain visible in Activity."));
+            foreach (var failure in new Exception[] { new InvalidOperationException("Injected capture failure"),
+                new OperationCanceledException("Injected capture interruption") })
+                await CombinedScenario(_ => (true, false),
+                    (list, _, _) => Check(list.Count(report => report[2] == 1 && report[5] == 0x1E) == 2,
+                        "Runtime exceptions, including unrelated cancellation errors, must recover until the user's Stop token is cancelled."),
+                    8, stopAfterSearch: false, injectAtSecondRead: failure);
+
+            reports.Clear();
+            using (var end = new CancellationTokenSource())
+            {
+                long elapsed = 0; var violations = new List<string>(); var messages = new List<string>();
+                bool Focused() => elapsed < 300 || elapsed >= 1300;
+                FakerInputKeyboard.Shared = new(() => new CombatTransport(report =>
+                {
+                    reports.Add(report.ToArray());
+                    if (!Focused() && ((report[2] == 1 && report[5] != 0) || (report[2] == 3 && report[3] != 0)))
+                        violations.Add("Generated input while the game was unfocused.");
+                }));
+                var task = new AionCombatRunner(profile, (rule, _) =>
+                {
+                    if (!Focused()) violations.Add("Captured HUD while the game was unfocused.");
+                    return new(rule.Id, DateTime.UtcNow, new(rule.Id == targetX.Id, "Focused X/cooldown"), null, "");
+                }, Focused, messages.Add, (ms, token) =>
+                { token.ThrowIfCancellationRequested(); elapsed += ms; if (elapsed >= 1500) end.Cancel(); return Task.CompletedTask; }, () => elapsed);
+                try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
+                Check(end.IsCancellationRequested && violations.Count == 0
+                    && reports.Count(report => report[2] == 1 && report[5] == 0x1E) == 2
+                    && reports.Last(report => report[2] == 3)[3] == 0
+                    && messages.Count(message => message.Contains("Game is not focused")) == 1
+                    && messages.Any(message => message.Contains("combat resumed")),
+                    "Focus loss must release and pause without stopping, generate no input while unfocused, then resume until manual Stop.");
+            }
+            Console.WriteLine("PASS: ambiguous OCR retains held input, retries and recovers without false Tab/1 or log spam; startup/after-Tab readiness, hard capture recovery, indefinite search restart, focus pause/resume and manual Stop cleanup.");
             Console.WriteLine("PASS: real X presence/absence/dimming, setup/save-load/calibration preservation, all X/cooldown truth-table states, idle cooldown gating, flicker and unavailable capture cleanup; no real input sent.");
-            Console.WriteLine("PASS: production combat search/Tab, confirmed 1 then held attack, death/reacquisition, signed camera driver reports, cancellation, focus/capture loss and bounded search/attack; no real input sent.");
+            Console.WriteLine("PASS: production combat search/Tab, confirmed 1 then held attack, death/reacquisition, signed camera driver reports, cancellation, focus/capture recovery and restarted search/attack; no real input sent.");
         }
         finally { FakerInputKeyboard.Shared.ReleaseAllHeldInputs(); FakerInputKeyboard.Shared = previous; }
     }

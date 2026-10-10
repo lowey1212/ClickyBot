@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace ClickyBot;
 
-internal sealed record ConditionObservation(bool? Passed, string Detail)
+internal sealed record ConditionObservation(bool? Passed, string Detail, bool Retryable = false)
 {
     public string Status => Detail.StartsWith("Not checked", StringComparison.Ordinal) ? "Not checked"
         : Passed switch { true => "Passed", false => "Waiting", null => "Unavailable" };
@@ -134,7 +134,7 @@ public sealed class AionCombatSettings
     public int TurnSteps { get; set; } = 4;
     public int MaxSearchAttempts { get; set; } = 24;
     public int TargetLostMs { get; set; } = 300;
-    public int MaxAttackMs { get; set; } // 0: hold until the target bar disappears.
+    public int MaxAttackMs { get; set; } // 0: no timed cycle restart.
 }
 
 public sealed class ThroneHealingSettings

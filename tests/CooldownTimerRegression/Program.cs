@@ -15,6 +15,12 @@ internal static class Program
         foreach (var text in new[] { "", "ready", "Timer", "attack", "Q", "1ready" })
             Check(!CooldownTimerReader.IsTimerText(text), $"Non-timer text accepted: {text}");
         Check(new TimerReading(null, "Unknown").Observe(true).Passed is null, "Unknown must not pass absence.");
+        var transient = new TimerReading(null, "Uncertain OCR", Retryable: true);
+        Check(transient.Observe(true).Passed is null && transient.Observe(false).Passed is null
+            && transient.Observe(true).Retryable && transient.Observe(false).Retryable,
+            "Retryable OCR must remain unknown for both timer conditions and retain its retry classification.");
+        Check(!CooldownTimerReader.Read([], 1, 1, default).Retryable,
+            "Invalid timer calibration must not be classified as a transient OCR result.");
         Check(Conditions.Invert(new(null, "Missing capture")).Passed is null, "Missing reference must not pass inversion.");
         Check(Conditions.Invert(new(true, "Match")).Passed == false && Conditions.Invert(new(false, "No match")).Passed == true,
             "Inverted reference matching must require a valid non-match.");
@@ -26,7 +32,8 @@ internal static class Program
         invalid.WatchWidth = 1; invalid.WatchHeight = 1;
         Check(!new MacroEngine().EvaluateNow(invalid) && !invalid.ObservationValid,
             "A malformed timer rectangle must not allow casting in the real engine.");
-        Check(CooldownTimerReader.Read(new byte[36 * 18 * 3], 36, 18, CancellationToken.None).Present is null,
+        var blank = CooldownTimerReader.Read(new byte[36 * 18 * 3], 36, 18, CancellationToken.None);
+        Check(blank.Present is null && blank.Retryable,
             "Blank captures must be unknown.");
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
         try { CooldownTimerReader.Read([], 36, 18, cancelled.Token); throw new Exception("Cancellation was ignored."); }
@@ -44,7 +51,7 @@ internal static class Program
             Console.WriteLine($"{Path.GetFileName(path)}: {reading.Present} {reading.Detail}");
             Check(reading.Present == !Path.GetFileName(path).StartsWith("ready-"), $"Wrong timer result: {path} {reading.Detail}");
         }
-        foreach (var text in new[] { "1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s", "0s", "10s", "59s", "125s", "0.8s", "1.2", "2m", "1", "2", "9", "10", "11" })
+        foreach (var text in new[] { "1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s", "0s", "10s", "59s", "125s", "0.8s", "1.2", "2m", "1", "2", "9", "10", "11", "ready" })
         {
             var visual = new DrawingVisual();
             using (var dc = visual.RenderOpen())
@@ -58,7 +65,9 @@ internal static class Program
             var rgb = new byte[48 * 18 * 3]; bitmap.CopyPixels(rgb, 48*3, 0);
             var reading = CooldownTimerReader.Read(rgb, 48, 18, CancellationToken.None);
             Console.WriteLine($"Generated {text}: {reading.Present} {reading.Detail}");
-            Check(reading.Present == true, $"Changing countdown {text} was missed.");
+            if (text == "ready") Check(reading.Present is null && reading.Retryable
+                && reading.Detail.Contains("could not be identified reliably"), "The reported ambiguous-text error must be retryable while blocking readiness.");
+            else Check(reading.Present == true, $"Changing countdown {text} was missed.");
         }
         Console.WriteLine($"PASS: supplied timers, ready artwork, all digits and decimal timers; invalid/blank reads block casting; cancellation, inversion and real engine. Elapsed {clock.ElapsedMilliseconds} ms.");
     }

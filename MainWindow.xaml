@@ -107,7 +107,7 @@
                                 <TextBox x:Name="AionCameraPixelsBox" Text="75" ToolTip="Positive turns right; negative turns left. Adjust for your game sensitivity." />
                                 <Label Content="Optional camera steps after failed Tab" />
                                 <TextBox x:Name="AionCameraStepsBox" Text="4" />
-                                <TextBlock Text="Target confirmed: tap 1, then hold LEFT mouse. With X checking enabled, release and press Tab only when X is missing AND skill 1 is off cooldown. Select separate tight X and central countdown watch areas. F7, Stop and focus loss release buttons." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
+                                <TextBlock Text="Target confirmed: tap 1, then hold LEFT mouse. With X checking enabled, press Tab only when X is missing AND skill 1 is off cooldown. Uncertain cooldown readings retry while keeping LEFT held. Other runtime errors restart automatically. Focus loss releases inputs and pauses until you return. Stop or F7 ends combat." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" />
                             </StackPanel>
                             <StackPanel x:Name="ThroneOptionsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="ThroneCombatCheckBox" Content="Tap 1 + V chains + Q defence" Margin="0,10,0,6" />

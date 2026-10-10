@@ -9,10 +9,10 @@ using Windows.Media.Ocr;
 
 namespace ClickyBot;
 
-internal sealed record TimerReading(bool? Present, string Detail)
+internal sealed record TimerReading(bool? Present, string Detail, bool Retryable = false)
 {
     internal ConditionObservation Observe(bool requireAbsent) => new(
-        Present.HasValue ? requireAbsent ? !Present.Value : Present.Value : null, Detail);
+        Present.HasValue ? requireAbsent ? !Present.Value : Present.Value : null, Detail, Retryable);
 }
 
 // Windows OCR runs locally. No screenshots or recognised text leave the PC.
@@ -36,7 +36,7 @@ internal static class CooldownTimerReader
             var value = (rgb[i] + rgb[i + 1] + rgb[i + 2]) / 3;
             min = Math.Min(min, value); max = Math.Max(max, value);
         }
-        if (max - min < 20) return new(null, "Timer area is blank or has too little contrast; readiness is unavailable.");
+        if (max - min < 20) return new(null, "Timer area is blank or has too little contrast; readiness is unavailable.", Retryable: true);
 
         ReaderLock.Wait(token);
         try
@@ -66,7 +66,7 @@ internal static class CooldownTimerReader
                 if (IsTimerText(text)) return new(true, $"Cooldown timer detected: {text}. The value is not compared with a reference number.");
                 if (words.Length > 0) uncertain = true;
             }
-            return uncertain ? new(null, "Text in the timer area could not be identified reliably; readiness is blocked. Tighten the timer area.")
+            return uncertain ? new(null, "Text in the timer area could not be identified reliably; readiness is blocked. Tighten the timer area.", Retryable: true)
                 : new(false, "No cooldown timer detected in the selected central area.");
         }
         catch (OperationCanceledException) { throw; }
