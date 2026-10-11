@@ -199,7 +199,7 @@ internal static class AionCombatRegression
             var observations = new bool[] { false, true, true, true, true, false, false, false, false, true, true, true };
             var runner = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
                 new(observations[Math.Min(calls++, observations.Length - 1)], "Simulated target"), null, ""),
-                () => true, _ => { }, (ms, token) => { token.ThrowIfCancellationRequested(); clock += ms; return Task.CompletedTask; }, () => clock);
+                () => true, _ => { }, _ => new(false, "No range message"), (ms, token) => { token.ThrowIfCancellationRequested(); clock += ms; return Task.CompletedTask; }, () => clock);
             try { await runner.RunAsync(stop.Token); } catch (OperationCanceledException) { }
             var firstOne = reports.FindIndex(report => report[2] == 1 && report[5] == 0x1E);
             var firstLeft = reports.FindIndex(report => report[2] == 3 && report[3] == 1);
@@ -230,7 +230,7 @@ internal static class AionCombatRegression
                 profile.AionCombat.MaxSearchAttempts = 2;
                 var task = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
                     new(reading(++count), "Simulated target"), null, ""), () =>
-                    { if (count >= 20 || !focused(count)) end.Cancel(); return focused(count); }, _ => { },
+                    { if (count >= 20 || !focused(count)) end.Cancel(); return focused(count); }, _ => { }, _ => new(false, "No range message"),
                     (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed,
                     (_, status) => onStatus?.Invoke(status));
                 try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
@@ -309,7 +309,7 @@ internal static class AionCombatRegression
                 {
                     var passed = rule.Id == timerRule.Id ? ++timerReads is 3 or 4 : ++targetReads == 2;
                     return new(rule.Id, DateTime.UtcNow, new(passed, "Simulated cooldown/target"), null, "");
-                }, () => true, messages.Add, (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed);
+                }, () => true, messages.Add, _ => new(false, "No range message"), (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; return Task.CompletedTask; }, () => elapsed);
                 try { await task.RunAsync(end.Token); } catch (OperationCanceledException) { }
                 Check(tabs == 2 && reports.Count(report => report[2] == 1 && report[5] == 0x1E) == 1
                     && messages.Any(message => message.StartsWith("Skill 1 cooldown cleared"))
@@ -324,7 +324,7 @@ internal static class AionCombatRegression
                 var messages = new List<string>();
                 var task = new AionCombatRunner(profile, (rule, _) => new(rule.Id, DateTime.UtcNow,
                     new(rule.Id == target.Id ? true : unavailable && ++reads >= 2 ? null : unavailable, "Simulated timer failure"), null, ""),
-                    () => true, messages.Add, (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; if (elapsed >= 6500) end.Cancel(); return Task.CompletedTask; }, () => elapsed);
+                    () => true, messages.Add, _ => new(false, "No range message"), (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; if (elapsed >= 6500) end.Cancel(); return Task.CompletedTask; }, () => elapsed);
                 try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
                 Check(end.IsCancellationRequested && reports.Any(report => report[2] == 3 && report[3] == 1)
                     && reports.Last(report => report[2] == 3)[3] == 0
@@ -388,7 +388,7 @@ internal static class AionCombatRegression
                     var state = reading(reads);
                     return new(rule.Id, DateTime.UtcNow, new(rule.Id == targetX.Id ? state.X : state.Timer, "Simulated X/cooldown",
                         Retryable: rule.Id == timerRule.Id && state.Timer is null && retryableCooldown), null, "");
-                }, () => { if (reads >= focusReads) end.Cancel(); return true; }, messages.Add,
+                }, () => { if (reads >= focusReads) end.Cancel(); return true; }, messages.Add, _ => new(false, "No range message"),
                     (ms, token) => { token.ThrowIfCancellationRequested(); elapsed += ms; if (stopAfterSearch && tabs > 0 && ms == 100) end.Cancel(); return Task.CompletedTask; },
                     () => elapsed, (_, status) => statuses.Add(status));
                 try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
@@ -492,7 +492,7 @@ internal static class AionCombatRegression
                 {
                     if (!Focused()) violations.Add("Captured HUD while the game was unfocused.");
                     return new(rule.Id, DateTime.UtcNow, new(rule.Id == targetX.Id, "Focused X/cooldown"), null, "");
-                }, Focused, messages.Add, (ms, token) =>
+                }, Focused, messages.Add, _ => new(false, "No range message"), (ms, token) =>
                 { token.ThrowIfCancellationRequested(); elapsed += ms; if (elapsed >= 1500) end.Cancel(); return Task.CompletedTask; }, () => elapsed);
                 try { await task.RunAsync(end.Token); } catch (OperationCanceledException) when (end.IsCancellationRequested) { }
                 Check(end.IsCancellationRequested && violations.Count == 0

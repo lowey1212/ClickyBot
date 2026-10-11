@@ -10,9 +10,9 @@
     <ApplicationIcon>Assets\ClickyBot.ico</ApplicationIcon>
     <Platforms>AnyCPU</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.58</Version>
-    <AssemblyVersion>0.1.58.0</AssemblyVersion>
-    <FileVersion>0.1.58.0</FileVersion>
+    <Version>0.1.59</Version>
+    <AssemblyVersion>0.1.59.0</AssemblyVersion>
+    <FileVersion>0.1.59.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <OutputPath>bin\Release-macros\</OutputPath>
@@ -31,6 +31,7 @@
     <EmbeddedResource Include="Assets\Aio2\Gather-icon.png" LogicalName="ClickyBot.Aio2.GatherIcon.png" />
     <EmbeddedResource Include="Assets\Aio2\Gather-icon-live.png" LogicalName="ClickyBot.Aio2.GatherIconLive.png" />
     <EmbeddedResource Include="Assets\Aio2\Gather-bars-labels.png" LogicalName="ClickyBot.Aio2.GatherBars.png" />
+    <EmbeddedResource Include="Assets\Aio2\Out-of-range-message.png" LogicalName="ClickyBot.Aio2.OutOfRange.png" />
     <Compile Remove="installer\**" />
     <Compile Remove="tests\**" />
     <Page Remove="tests\**" />

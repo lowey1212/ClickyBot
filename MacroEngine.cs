@@ -32,7 +32,14 @@ internal sealed class MacroEngine
             {
                 Evaluate(rule, checkToken);
                 return rule.LastInspection!;
-            }, () => NativeMethods.GetForegroundWindow() == gameWindow, message => Log?.Invoke(message), reportAction: ReportAction);
+            }, () => NativeMethods.GetForegroundWindow() == gameWindow, message => Log?.Invoke(message), checkToken =>
+            {
+                var settings = profile.AionCombat;
+                if (!ScreenProbe.TryCaptureRegion(settings.RangeMessageX, settings.RangeMessageY,
+                    settings.RangeMessageWidth, settings.RangeMessageHeight, out var frame, 1200 * 240))
+                    return new(null, "Windows could not capture the range message area.");
+                return AionRangeMessageMatcher.Observe(frame, settings.RangeMessageWidth, settings.RangeMessageHeight, checkToken);
+            }, reportAction: ReportAction);
             await runner.RunAsync(token);
             return;
         }

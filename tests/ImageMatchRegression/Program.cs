@@ -303,3 +303,4 @@ await KeyboardModeRegression.Run();
 await FakerInputRegression.Run();
 await AionCombatRegression.Run();
 GatheringRegression.Run();
+await RangeMessageRegression.Run();

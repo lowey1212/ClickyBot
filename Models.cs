@@ -139,6 +139,11 @@ public sealed class AionCombatSettings
     public int MaxSearchAttempts { get; set; } = 24;
     public int TargetLostMs { get; set; } = 300;
     public int MaxAttackMs { get; set; } // 0: no timed cycle restart.
+    public bool WatchOutOfRangeMessage { get; set; } = true;
+    public int RangeMessageX { get; set; } = 730;
+    public int RangeMessageY { get; set; } = 215;
+    public int RangeMessageWidth { get; set; } = 470;
+    public int RangeMessageHeight { get; set; } = 65;
 }
 
 public sealed class ThroneHealingSettings

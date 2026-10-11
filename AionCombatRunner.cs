@@ -9,12 +9,15 @@ internal sealed class AionCombatRunner
     private readonly Func<int, CancellationToken, Task> _delay;
     private readonly Func<long> _now;
     private readonly Action<MacroRule, string> _reportAction;
+    private readonly Func<CancellationToken, ConditionObservation> _observeRangeMessage;
 
     internal AionCombatRunner(MacroProfile profile, Func<MacroRule, CancellationToken, RuleObservation> observe,
-        Func<bool> focused, Action<string> log, Func<int, CancellationToken, Task>? delay = null, Func<long>? now = null,
+        Func<bool> focused, Action<string> log, Func<CancellationToken, ConditionObservation> observeRangeMessage,
+        Func<int, CancellationToken, Task>? delay = null, Func<long>? now = null,
         Action<MacroRule, string>? reportAction = null)
     {
         _profile = profile; _observe = observe; _focused = focused; _log = log;
+        _observeRangeMessage = observeRangeMessage;
         _delay = delay ?? ((ms, token) => Task.Delay(ms, token));
         _now = now ?? (() => Environment.TickCount64);
         _reportAction = reportAction ?? ((_, _) => { });
@@ -43,6 +46,9 @@ internal sealed class AionCombatRunner
             throw new InvalidOperationException("Aion combat camera or timing settings are out of range.");
         ValidateCooldown(profile);
         ValidateTargetX(profile);
+        if (settings.WatchOutOfRangeMessage && (settings.RangeMessageWidth is < 380 or > 1200
+            || settings.RangeMessageHeight is < 26 or > 240))
+            throw new InvalidOperationException("The out-of-range message area must contain its full text (380–1200 × 26–240 pixels).");
         return target;
     }
 
@@ -87,6 +93,10 @@ internal sealed class AionCombatRunner
         var driverReset = false;
         string? recoveryReason = null;
         var seekNext = false;
+        var forceTab = false;
+        var attackAttempted = false;
+        var waitForMessageClear = false;
+        long? messageAbsentSince = null;
         var searching = 0;
         long attackStarted = 0;
         long? absentSince = null;
@@ -124,14 +134,38 @@ internal sealed class AionCombatRunner
             await InputSimulator.ExecuteAsync(new MacroRule { Action = ActionType.KeyPress, Key = key,
                 KeyboardInputMode = KeyboardInputMode.FakerInput }, token);
         }
+        bool RangeMessageVisible()
+        {
+            if (!settings.WatchOutOfRangeMessage) return false;
+            EnsureActive();
+            var reading = _observeRangeMessage(token);
+            EnsureActive();
+            if (reading.Passed is null)
+                throw new InvalidOperationException("Out-of-range message could not be read. " + reading.Detail);
+            return reading.Passed.Value;
+        }
+        void RejectOutOfRangeTarget()
+        {
+            // Keep this pending even if releasing the driver input fails.
+            forceTab = true; waitForMessageClear = true; messageAbsentSince = null;
+            if (held) FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, false);
+            held = false; attackAttempted = false; cooldownSeen = false; absentSince = null; searching = 0;
+            _log("Aion combat: target is out of reach; released LEFT. Restarting with Tab, then 1 for the next target.");
+            _reportAction(indicator, "Out of reach; attack released. Tab will select a new target.");
+        }
         async Task BeginAttack()
         {
             EnsureActive();
+            // A previous toast can linger after Tab. Do not mistake it for a
+            // rejection of a new 1, or start another attack before it clears.
+            if (RangeMessageVisible()) { waitForMessageClear = true; messageAbsentSince = null; return; }
             _log("Aion combat: target shape match detected; pressing 1 now.");
             _reportAction(indicator, targetX is null ? "Target matched; pressing 1." : "Target X matched and skill 1 ready; pressing 1.");
             await Tap("1");
+            attackAttempted = true;
             _log("Aion combat: sent 1 (FakerInput driver).");
             EnsureActive();
+            if (RangeMessageVisible()) { RejectOutOfRangeTarget(); return; }
             FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, true);
             held = true; cooldownSeen = false; seekNext = false; attackStarted = _now(); absentSince = null;
             _reportAction(indicator, HoldingStatus());
@@ -149,6 +183,32 @@ internal sealed class AionCombatRunner
                 {
                     EnsureActive();
                     if (!driverReset) { FakerInputKeyboard.Shared.ResetMouseButtons(); driverReset = true; }
+                    // Read the rejection before the cooldown, including when
+                    // OCR is uncertain or the target X remains on screen.
+                    var rangeVisible = RangeMessageVisible();
+                    if (attackAttempted && rangeVisible) RejectOutOfRangeTarget();
+                    if (forceTab)
+                    {
+                        EnsureActive();
+                        await Tap("Tab");
+                        forceTab = false; seekNext = false;
+                        _log("Aion combat: sent Tab (FakerInput driver) to replace the out-of-range target.");
+                        _reportAction(indicator, "Sent Tab for a new target; waiting for the old range message to clear before 1.");
+                        await _delay(50, token);
+                        continue;
+                    }
+                    if (waitForMessageClear)
+                    {
+                        if (rangeVisible) messageAbsentSince = null;
+                        else messageAbsentSince ??= _now();
+                        if (messageAbsentSince is null || _now() - messageAbsentSince.Value < 200)
+                        {
+                            _reportAction(indicator, "Waiting for the old out-of-range message to clear; combat is still running.");
+                            await _delay(50, token);
+                            continue;
+                        }
+                        waitForMessageClear = false; messageAbsentSince = null;
+                    }
                     var watched = held && cooldown is not null && targetX is null ? cooldown : indicator;
                     var observation = Read(watched);
                     var timer = targetX is not null ? Read(cooldown!) : null;
@@ -188,7 +248,7 @@ internal sealed class AionCombatRunner
                         if (absentSince is { } missing && _now() - missing >= settings.TargetLostMs)
                         {
                             FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Left, false);
-                            held = false; seekNext = true; searching = 0; absentSince = null;
+                            held = false; attackAttempted = false; seekNext = true; searching = 0; absentSince = null;
                             _reportAction(indicator, targetX is not null ? "Target X missing and skill 1 ready; released LEFT mouse."
                                 : cooldown is null ? "Target disappeared; released LEFT mouse."
                                 : "Skill 1 cooldown cleared; released LEFT mouse.");
@@ -240,7 +300,7 @@ internal sealed class AionCombatRunner
                             break;
                         }
                         EnsureActive();
-                        if (!held)
+                        if (!held && !forceTab && !waitForMessageClear)
                         {
                             _log(selected!.Passed ? "Aion combat: target X present; waiting for skill 1 cooldown."
                                 : "Aion combat: no target indicator matched after Tab. " + selected.Primary.Detail);
@@ -267,6 +327,7 @@ internal sealed class AionCombatRunner
                     var released = InputSimulator.ReleaseAllHeldInputs();
                     held = false; cooldownSeen = false; cooldownRetrying = false;
                     seekNext = false; searching = 0; absentSince = null; driverReset = false;
+                    messageAbsentSince = null;
                     var reason = ex.Message;
                     if (!released) reason += " Input cleanup is being retried.";
                     if (recoveryReason != reason) _log("Aion combat: " + reason + " Retrying; combat is still running.");
