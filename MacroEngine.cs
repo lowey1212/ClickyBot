@@ -51,7 +51,7 @@ internal sealed class MacroEngine
             return;
         }
 
-        var timerWindow = profile.Rules.Any(rule => rule.Enabled && rule.UsesTimer()) ? NativeMethods.GetForegroundWindow() : IntPtr.Zero;
+        var timerWindow = profile.Rules.Any(rule => rule.Enabled && rule.UsesFocusedCapture()) ? NativeMethods.GetForegroundWindow() : IntPtr.Zero;
         var observedRules = new HashSet<Guid>();
         foreach (var rule in profile.Rules)
         {
@@ -75,8 +75,8 @@ internal sealed class MacroEngine
 
         while (!token.IsCancellationRequested)
         {
-            // An absent countdown must not turn a covered/background game into
-            // ready skills. Bind timer profiles to the window used at START.
+            // Absence checks must not turn a background game into ready skills
+            // or another gathering attempt. Bind these profiles to START's window.
             if (timerWindow != IntPtr.Zero && NativeMethods.GetForegroundWindow() != timerWindow)
             {
                 foreach (var rule in profile.Rules) ReleaseHeldKey(rule);
@@ -321,7 +321,7 @@ internal sealed class MacroEngine
             primary = ObserveCondition(rule.Condition, rule.WatchX, rule.WatchY, rule.WatchWidth, rule.WatchHeight,
                 new RgbColor(rule.TargetRed, rule.TargetGreen, rule.TargetBlue), rule.ReferenceRgb,
                 rule.Tolerance, rule.CoverageThreshold, token);
-            if (rule.Condition.IsTimer()) rule.ImageSearchDiagnostic = primary.Detail;
+            if (rule.Condition.IsTimer() || rule.Condition.IsGathering()) rule.ImageSearchDiagnostic = primary.Detail;
             if (primary.Passed == true)
             {
                 if (rule.Condition == ConditionType.PixelMatches) match = new(rule.WatchX, rule.WatchY);
@@ -333,7 +333,7 @@ internal sealed class MacroEngine
         ConditionObservation? gate = null;
         if (rule.GateEnabled)
             gate = !rule.GateAreaSelected
-                ? new(null, "Select or capture the Auto Move gate area before running.")
+                ? new(null, "Select the AND gate area before running.")
                 : primary.Passed == true || inspectAllConditions
                 ? ObserveCondition(rule.GateCondition, rule.GateX, rule.GateY, rule.GateWidth, rule.GateHeight,
                     new RgbColor(rule.GateTargetRed, rule.GateTargetGreen, rule.GateTargetBlue), rule.GateReferenceRgb,
@@ -356,6 +356,12 @@ internal sealed class MacroEngine
         token.ThrowIfCancellationRequested();
         switch (condition)
         {
+            case ConditionType.GatheringIconMatches:
+            case ConditionType.GatheringBarsAbsent:
+                if (width is < 1 or > 1200 || height is < 1 or > 800
+                    || !ScreenProbe.TryCaptureRegion(x, y, width, height, out var gatheringFrame, 1200 * 800))
+                    return new(null, "Windows could not capture the gathering area; F remains blocked.");
+                return AionGatherMatcher.Observe(gatheringFrame, width, height, condition == ConditionType.GatheringBarsAbsent, token);
             case ConditionType.Always:
                 return new(true, "Always enabled condition.");
             case ConditionType.PixelMatches:

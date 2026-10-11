@@ -10,9 +10,9 @@
     <ApplicationIcon>Assets\ClickyBot.ico</ApplicationIcon>
     <Platforms>AnyCPU</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.57</Version>
-    <AssemblyVersion>0.1.57.0</AssemblyVersion>
-    <FileVersion>0.1.57.0</FileVersion>
+    <Version>0.1.58</Version>
+    <AssemblyVersion>0.1.58.0</AssemblyVersion>
+    <FileVersion>0.1.58.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <OutputPath>bin\Release-macros\</OutputPath>
@@ -28,6 +28,9 @@
     <EmbeddedResource Include="Assets\Aio2\Skip-prompt.png" LogicalName="ClickyBot.Aio2.Skip.png" />
     <EmbeddedResource Include="Assets\Aio2\Target-HP-bar.png" LogicalName="ClickyBot.Aio2.TargetBar.png" />
     <EmbeddedResource Include="Assets\Aio2\Target-X.png" LogicalName="ClickyBot.Aio2.TargetX.png" />
+    <EmbeddedResource Include="Assets\Aio2\Gather-icon.png" LogicalName="ClickyBot.Aio2.GatherIcon.png" />
+    <EmbeddedResource Include="Assets\Aio2\Gather-icon-live.png" LogicalName="ClickyBot.Aio2.GatherIconLive.png" />
+    <EmbeddedResource Include="Assets\Aio2\Gather-bars-labels.png" LogicalName="ClickyBot.Aio2.GatherBars.png" />
     <Compile Remove="installer\**" />
     <Compile Remove="tests\**" />
     <Page Remove="tests\**" />

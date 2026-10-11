@@ -40,6 +40,20 @@ internal static class Program
         Check(JsonSerializer.Deserialize<MacroRule>("{}")!.GateAreaSelected,
             "Legacy gates must retain their configured coordinates without a new selection.");
         Console.WriteLine("PASS: unconfigured Auto Move absence gate blocks, with legacy gate compatibility.");
+        var gatherGate = new MacroRule { Condition = ConditionType.Always, GateEnabled = true,
+            GateCondition = ConditionType.GatheringBarsAbsent, GateAreaSelected = false, GateWidth = 470, GateHeight = 120 };
+        Check(!engine.Inspect(gatherGate, default).Passed && !gatherGate.ObservationValid,
+            "Unselected gathering bar absence gate must block F.");
+        gatherGate.GateAreaSelected = true;
+        gatherGate.GateWidth = gatherGate.GateHeight = 1;
+        Check(!engine.Inspect(gatherGate, default).Passed && !gatherGate.ObservationValid,
+            "Too-small gathering bar capture must remain unknown and block F.");
+        var savedGather = JsonSerializer.Deserialize<MacroRule>(JsonSerializer.Serialize(gatherGate))!;
+        Check(savedGather.GateCondition == ConditionType.GatheringBarsAbsent && savedGather.UsesFocusedCapture(),
+            "Gathering absence gates must survive persistence and pause on focus loss.");
+        Check((int)ConditionType.AionTargetXMatches == 11 && (int)ConditionType.GatheringIconMatches == 12,
+            "Existing serialized condition numbers must remain unchanged.");
+        Console.WriteLine("PASS: production gathering gate blocks unselected/too-small areas; persistence, focus binding and existing condition compatibility.");
         // Exercise the real engine loop without producing keyboard input.
         // An invalid key followed by a wait action must survive several polls.
         using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5)))

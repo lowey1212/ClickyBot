@@ -53,6 +53,8 @@ The new rule is added first and inherits an existing Auto Move gate from Alt+1 o
 
 For the supplied **F Gather** prompt, choose **SET UP F GATHER (0–1s)**, select the prompt's watch area and save. When the prompt is detected, the Gather rule chooses a random 0–1000 ms reaction delay before tapping F. It keeps checking the prompt while waiting and cancels the pending tap if the prompt disappears. If Gather remains visible, it can repeat with the existing 500 ms cooldown and a new reaction delay. This setup only needs the Gather prompt area; the existing quest setup retains its Auto Move gates.
 
+For the supplied white gathering hand, use `GatheringIconMatches` with a separate `GatheringBarsAbsent` AND gate. Select the main area around the hand and use **SELECT GATE AREA** (Ctrl+F8) around the Success/Fail panel above the bottom action bar, then apply/save. Both detectors use bundled white outline patterns at the supplied HUD scale; terrain, resource names and changing blue/orange progress fill are not compared with the screenshots. No new reference capture is needed. F is eligible only while the hand is visible and both gathering labels are absent from the configured bars area. Visible bars cancel a pending reaction and block repeated F taps until the panel disappears. Unselected, too-small or unreadable gate areas block F. Keep the entire pair of labels inside the gate area; changing HUD scale or language requires matching detector patterns. TEST CONDITION checks both conditions without sending input. Gathering profiles pause when the game loses focus and resume when its original window is focused again; Stop/F7 ends the session. This is a gathering trigger, with no map route or movement added.
+
 Gather now uses **FakerInput (installed driver)** for its 70 ms F tap. Existing Gather presets switch to this mode once when opened, preserving their selected area, reference and timing. Save the macro to keep the change. ClickyBot communicates directly with the driver; no helper program or driver installer is bundled. If the driver is unavailable or rejects a report, ClickyBot reports the error and sends no software-input fallback. Other keyboard rules can select the same mode in the rule editor. The driver supports up to six held non-modifier keys and F1–F12. Ordinary mouse actions retain their existing input method; Aion combat uses driver mouse reports too. See [FAKERINPUT-NOTICE.txt](FAKERINPUT-NOTICE.txt) for the driver protocol attribution and MIT notice.
 
 The standard rule editor has **Random reaction delay before action** with minimum and maximum values in milliseconds. Conditions and other rules keep polling while it waits, and STOP/F7 cancels normally. Existing profiles keep their original immediate responses unless this option is enabled.
@@ -167,8 +169,8 @@ powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
 
 The command publishes the portable app as a self-contained single executable and builds the installed app as a compressed onedir bundle with Inno Setup. It creates these files in `dist`:
 
-- `ClickyBot-Setup-0.1.57.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
-- `ClickyBot-Portable-0.1.57-win-x64.zip` — portable copy for users who prefer to extract and run the app.
+- `ClickyBot-Setup-0.1.58.exe` — compressed per-user installer. It installs to `%LOCALAPPDATA%\Programs\ClickyBot`, creates Start Menu and desktop shortcuts, and opens ClickyBot.
+- `ClickyBot-Portable-0.1.58-win-x64.zip` — portable copy for users who prefer to extract and run the app.
 
 The installer build requires Inno Setup 6. GitHub Actions installs it automatically before running the packaging script.
 

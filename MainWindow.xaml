@@ -242,6 +242,7 @@
                                     </UniformGrid>
                                 </StackPanel>
                                 <TextBlock x:Name="TimerHelpText" Visibility="Collapsed" Text="Select only the central countdown line; exclude the key label and corner badges. Detects numbers such as 7s, 35s and decimals without a reference image. Unavailable or uncertain readings block the action. No timer does not check range, targeting or other game requirements. Start with the hotkey while the game is focused." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,10" />
+                                <TextBlock x:Name="GatheringHelpText" Visibility="Collapsed" Text="GatheringIconMatches finds the supplied white hand icon by its outline. GatheringBarsAbsent requires no Success/Fail labels in the selected area. Uses the supplied HUD scale; changing bar fill, node name and terrain are ignored. Select a tight area containing the full icon or both labels, up to 1200×800. Unavailable captures block F. Start with the game focused." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,10" />
                                 <StackPanel x:Name="RingTimingPanel" Visibility="Collapsed">
                                     <Label Content="Q delay after circle appears (ms)" />
                                     <TextBox x:Name="RingDelayBox" Text="200" ToolTip="Wait before pressing Q: 0 to 5000 milliseconds. Increase to press later; 0 presses immediately." />
@@ -262,6 +263,7 @@
                                         <Label Content="Gate condition" />
                                         <ComboBox x:Name="GateConditionCombo" SelectionChanged="GateConditionCombo_SelectionChanged" ToolTip="Choose the second condition that must also pass." />
                                         <TextBlock x:Name="GateTimerHelpText" Visibility="Collapsed" Text="Select only the other skill's central countdown line, excluding its hotkey and badges. CooldownTimerPresent requires a timer; CooldownTimerAbsent requires none. Unreadable text blocks the gate." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
+                                        <TextBlock x:Name="GateGatheringHelpText" Visibility="Collapsed" Text="GatheringBarsAbsent blocks F while the fixed Success/Fail label outlines are visible, regardless of bar fill or node name. Select their area with SELECT GATE AREA (Ctrl+F8), then apply and save. No reference capture is needed. A missing, too-small or unreadable area blocks F. Uses the supplied HUD scale." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,8" />
                                         <Label Content="Gate location / region" />
                                         <Grid>
                                             <Grid.ColumnDefinitions>

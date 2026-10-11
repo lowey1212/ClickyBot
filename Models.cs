@@ -39,7 +39,9 @@ public enum ConditionType
     CooldownTimerPresent,
     CooldownTimerAbsent,
     AionTargetBarMatches,
-    AionTargetXMatches
+    AionTargetXMatches,
+    GatheringIconMatches,
+    GatheringBarsAbsent
 }
 
 internal static class Conditions
@@ -48,6 +50,8 @@ internal static class Conditions
     internal static bool IsReference(this ConditionType condition) => condition is ConditionType.RegionSnapshotMatches or ConditionType.RegionSnapshotDiffers || condition.IsAionTarget();
     internal static bool IsTimer(this ConditionType condition) => condition is ConditionType.CooldownTimerPresent or ConditionType.CooldownTimerAbsent;
     internal static bool UsesTimer(this MacroRule rule) => rule.Condition.IsTimer() || (rule.GateEnabled && rule.GateCondition.IsTimer());
+    internal static bool IsGathering(this ConditionType condition) => condition is ConditionType.GatheringIconMatches or ConditionType.GatheringBarsAbsent;
+    internal static bool UsesFocusedCapture(this MacroRule rule) => rule.UsesTimer() || rule.Condition.IsGathering() || (rule.GateEnabled && rule.GateCondition.IsGathering());
     internal static ConditionObservation Invert(ConditionObservation observation) => observation with
     {
         Passed = observation.Passed.HasValue ? !observation.Passed.Value : null,

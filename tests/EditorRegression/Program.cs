@@ -99,6 +99,22 @@ internal static class Program
             "Health and mana colour coverage gates must remain editable alongside timer conditions.");
         Console.WriteLine("PASS: real WPF inverted image and timer editors, saved timer AND gate, and independent bar controls.");
 
+        Control<ComboBox>("ConditionCombo").SelectedItem = ConditionType.GatheringIconMatches;
+        Control<ComboBox>("GateConditionCombo").SelectedItem = ConditionType.GatheringBarsAbsent;
+        Check(Control<TextBlock>("GatheringHelpText").Visibility == Visibility.Visible
+            && Control<TextBlock>("GateGatheringHelpText").Visibility == Visibility.Visible
+            && Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Collapsed
+            && Control<StackPanel>("ColorPanel").Visibility == Visibility.Collapsed
+            && Control<StackPanel>("GateColorPanel").Visibility == Visibility.Collapsed
+            && Control<StackPanel>("GateCoveragePanel").Visibility == Visibility.Collapsed,
+            "Gathering editors must offer independent areas and built-in outline guidance without changing-color or reference controls.");
+        var gatherRule = new MacroRule();
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [gatherRule]);
+        Check(gatherRule.Condition == ConditionType.GatheringIconMatches && !gatherRule.SearchReference
+            && gatherRule.GateEnabled && gatherRule.GateCondition == ConditionType.GatheringBarsAbsent,
+            "Apply/save must retain hand detection AND gathering bars absent.");
+        Console.WriteLine("PASS: real WPF gathering main/gate areas, built-in detector guidance and saved combined conditions.");
+
         var originalSteps = new[]
         {
             new RecordedStep { Type = RecordedStepType.KeyDown, Key = "Q", DelayBeforeMs = 0 },

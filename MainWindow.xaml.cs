@@ -368,9 +368,9 @@ public partial class MainWindow : Window
                 AppendLog($"Focus Aion 2 and start with {_settings.StartStopHotKey} so combat stays bound to the game window.");
                 return;
             }
-            if (_profile.Rules.Any(rule => rule.Enabled && rule.UsesTimer()))
+            if (_profile.Rules.Any(rule => rule.Enabled && rule.UsesFocusedCapture()))
             {
-                AppendLog($"Focus the game and start with {_settings.StartStopHotKey}. Timer profiles pause when the game loses focus.");
+                AppendLog($"Focus the game and start with {_settings.StartStopHotKey}. Timer and gathering detection pause when the game loses focus.");
                 return;
             }
             if (_profile.ThroneCombatMode)
@@ -1965,6 +1965,7 @@ public partial class MainWindow : Window
         ConditionTargetPanel.IsEnabled = condition != ConditionType.Always;
         var snapshotCondition = condition.IsReference();
         TimerHelpText.Visibility = condition.IsTimer() ? Visibility.Visible : Visibility.Collapsed;
+        GatheringHelpText.Visibility = condition.IsGathering() ? Visibility.Visible : Visibility.Collapsed;
         ImageSearchPanel.Visibility = snapshotCondition ? Visibility.Visible : Visibility.Collapsed;
         PixelWatchPanel.Visibility = snapshotCondition ? Visibility.Collapsed : Visibility.Visible;
         RingTimingPanel.Visibility = condition == ConditionType.PurpleRingMatches ? Visibility.Visible : Visibility.Collapsed;
@@ -2013,6 +2014,7 @@ public partial class MainWindow : Window
         GateEditorPanel.IsEnabled = GateEnabledCheckBox.IsChecked == true;
         var gateSnapshotCondition = gateCondition.IsReference();
         GateTimerHelpText.Visibility = gateCondition.IsTimer() ? Visibility.Visible : Visibility.Collapsed;
+        GateGatheringHelpText.Visibility = gateCondition.IsGathering() ? Visibility.Visible : Visibility.Collapsed;
         GateColorPanel.Visibility = GateEnabledCheckBox.IsChecked == true && gateCondition is ConditionType.PixelMatches or ConditionType.PixelDiffers or ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost
             ? Visibility.Visible : Visibility.Collapsed;
         GateCoveragePanel.Visibility = GateEnabledCheckBox.IsChecked == true && (gateCondition is ConditionType.RegionCoverageAtLeast or ConditionType.RegionCoverageAtMost || gateSnapshotCondition)
