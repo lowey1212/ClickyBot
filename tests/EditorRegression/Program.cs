@@ -74,6 +74,64 @@ internal static class Program
             "Pixel conditions must still have their original location controls.");
         Console.WriteLine("PASS: real WPF image editor has one area selector, separate reference details, and no fixed target fields for matched-location actions.");
 
+        foreach (var condition in new[] { ConditionType.PixelMatches, ConditionType.RegionSnapshotMatches, ConditionType.GatheringIconMatches })
+        foreach (var gateEnabled in new[] { false, true })
+        foreach (var gate in new[] { false, true })
+        foreach (var readable in new[] { false, true })
+        {
+            var sampleRule = new MacroRule
+            {
+                Condition = condition, WatchX = 620, WatchY = 291, WatchWidth = 710, WatchHeight = 593,
+                SearchX = 200, SearchY = 150, SearchWidth = 1100, SearchHeight = 700,
+                ReferenceImagePath = "original.png", ReferenceRgb = [10, 20, 30],
+                GateEnabled = gateEnabled, GateAreaSelected = gateEnabled, GateCondition = ConditionType.RegionCoverageAtMost,
+                GateX = 730, GateY = 790, GateWidth = 470, GateHeight = 120,
+                GateReferenceImagePath = "original-gate.png", GateReferenceRgb = [40, 50, 60],
+                TargetRed = 1, TargetGreen = 2, TargetBlue = 3,
+                GateTargetRed = 4, GateTargetGreen = 5, GateTargetBlue = 6
+            };
+            typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [sampleRule]);
+            MacroRule ReadSamplingEditor()
+            {
+                var result = new MacroRule { Id = sampleRule.Id };
+                typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [result]);
+                return result;
+            }
+            var expected = ReadSamplingEditor();
+            var sampleReads = 0;
+            Func<int, int, RgbColor?> samplePixel = (x, y) =>
+            {
+                Check(x == -275 && y == 75, "Sampling must read the chosen center pixel, including negative monitor coordinates.");
+                sampleReads++;
+                return readable ? new RgbColor(23, 87, 199) : null;
+            };
+            if (readable)
+            {
+                if (gate) { expected.GateTargetRed = 23; expected.GateTargetGreen = 87; expected.GateTargetBlue = 199; }
+                else { expected.TargetRed = 23; expected.TargetGreen = 87; expected.TargetBlue = 199; }
+            }
+            typeof(MainWindow).GetMethod(gate ? "ApplyGateSelection" : "ApplyWatchSelection", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(window, [new ScreenSelection(-300, 55, 50, 40), true, false, samplePixel]);
+            var actual = ReadSamplingEditor();
+            Check(sampleReads == 1 && JsonSerializer.Serialize(actual) == JsonSerializer.Serialize(expected)
+                && actual.ReferenceRgb.SequenceEqual(expected.ReferenceRgb)
+                && actual.GateReferenceRgb.SequenceEqual(expected.GateReferenceRgb),
+                "Sample color must change only its RGB triplet, preserving both areas, references, conditions and gate selection/enabled state; failed reads change nothing.");
+        }
+        var colorBoxes = new[] { "TargetRedBox", "TargetGreenBox", "TargetBlueBox", "GateTargetRedBox", "GateTargetGreenBox", "GateTargetBlueBox" };
+        var colorsBeforeAreaSelection = colorBoxes.Select(name => Control<TextBox>(name).Text).ToArray();
+        typeof(MainWindow).GetMethod("ApplyWatchSelection", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(window, [new ScreenSelection(100, 200, 300, 400), false, false, null]);
+        Check(Control<TextBox>("WatchXBox").Text == "100" && Control<TextBox>("WatchHeightBox").Text == "400",
+            "Selecting the watch area must still change its coordinates.");
+        typeof(MainWindow).GetMethod("ApplyGateSelection", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(window, [new ScreenSelection(500, 600, 70, 80), false, false, null]);
+        Check(Control<TextBox>("GateXBox").Text == "500" && Control<TextBox>("GateHeightBox").Text == "80"
+            && Control<CheckBox>("GateEnabledCheckBox").IsChecked == true
+            && colorBoxes.Select(name => Control<TextBox>(name).Text).SequenceEqual(colorsBeforeAreaSelection),
+            "Selecting areas must still change their coordinates and enable the gate without sampling new RGB values.");
+        Console.WriteLine("PASS: main/gate color sampling updates only RGB, preserves pixel/image/gathering areas and references, handles disabled/unselected gates and failed reads; separate area selection still works.");
+
         Control<ComboBox>("ConditionCombo").SelectedItem = ConditionType.RegionSnapshotDiffers;
         Check(Control<StackPanel>("ImageSearchPanel").Visibility == Visibility.Visible,
             "Inverted image conditions need the same reference and search editor.");

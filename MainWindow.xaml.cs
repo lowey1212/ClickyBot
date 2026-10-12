@@ -280,7 +280,7 @@ public partial class MainWindow : Window
                     handled = true;
                     break;
                 case CapturePixelHotKeyId:
-                    SelectWatchArea(sampleColor: true);
+                    SelectWatchArea();
                     handled = true;
                     break;
                 case CaptureClickHotKeyId:
@@ -288,7 +288,7 @@ public partial class MainWindow : Window
                     handled = true;
                     break;
                 case CaptureGateHotKeyId:
-                    SelectGateArea(sampleColor: true);
+                    SelectGateArea();
                     handled = true;
                     break;
             }
@@ -1635,15 +1635,27 @@ public partial class MainWindow : Window
 
     private void SelectWatchArea(bool sampleColor = false, bool captureReference = false)
     {
-        if (!captureReference && ConditionCombo.SelectedItem is ConditionType current && current.IsReference())
+        if (!sampleColor && !captureReference && ConditionCombo.SelectedItem is ConditionType current && current.IsReference())
         {
             SelectSearchArea_Click(this, new RoutedEventArgs());
             return;
         }
-        var selection = SelectScreenArea();
+        var selection = SelectScreenArea(sampleColor ? "Sample the center color of a click or dragged area. Existing watch areas stay unchanged." : null);
         if (selection is null)
         {
             AppendLog("Screen selection cancelled.");
+            return;
+        }
+
+        ApplyWatchSelection(selection, sampleColor, captureReference);
+    }
+
+    private void ApplyWatchSelection(ScreenSelection selection, bool sampleColor, bool captureReference,
+        Func<int, int, RgbColor?>? readPixel = null)
+    {
+        if (sampleColor)
+        {
+            SampleColorInto(TargetRedBox, TargetGreenBox, TargetBlueBox, selection, readPixel);
             return;
         }
 
@@ -1664,27 +1676,26 @@ public partial class MainWindow : Window
         WatchYBox.Text = selection.Y.ToString();
         WatchWidthBox.Text = selection.Width.ToString();
         WatchHeightBox.Text = selection.Height.ToString();
-        if (sampleColor)
-        {
-            SampleColorInto(TargetRedBox, TargetGreenBox, TargetBlueBox, selection);
-        }
         UpdateEditorState();
         AppendLog($"Watch area selected: {selection.X},{selection.Y} {selection.Width}×{selection.Height}.");
     }
 
-    private void SampleColorInto(System.Windows.Controls.TextBox redBox, System.Windows.Controls.TextBox greenBox, System.Windows.Controls.TextBox blueBox, ScreenSelection selection)
+    private void SampleColorInto(System.Windows.Controls.TextBox redBox, System.Windows.Controls.TextBox greenBox, System.Windows.Controls.TextBox blueBox,
+        ScreenSelection selection, Func<int, int, RgbColor?>? readPixel = null)
     {
         var centerX = selection.X + selection.Width / 2;
         var centerY = selection.Y + selection.Height / 2;
-        if (!ScreenProbe.TryReadPixel(centerX, centerY, out var color))
+        var color = readPixel is not null ? readPixel(centerX, centerY)
+            : ScreenProbe.TryReadPixel(centerX, centerY, out var captured) ? captured : (RgbColor?)null;
+        if (color is null)
         {
             AppendLog("Could not sample a screen pixel from the selected area.");
             return;
         }
 
-        redBox.Text = color.R.ToString();
-        greenBox.Text = color.G.ToString();
-        blueBox.Text = color.B.ToString();
+        redBox.Text = color.Value.R.ToString();
+        greenBox.Text = color.Value.G.ToString();
+        blueBox.Text = color.Value.B.ToString();
         AppendLog($"Sampled center color {color} from the selected area.");
     }
 
@@ -1704,10 +1715,22 @@ public partial class MainWindow : Window
 
     private void SelectGateArea(bool sampleColor = false, bool captureReference = false)
     {
-        var selection = SelectScreenArea();
+        var selection = SelectScreenArea(sampleColor ? "Sample the center gate color of a click or dragged area. The gate area stays unchanged." : null);
         if (selection is null)
         {
             AppendLog("Gate selection cancelled.");
+            return;
+        }
+
+        ApplyGateSelection(selection, sampleColor, captureReference);
+    }
+
+    private void ApplyGateSelection(ScreenSelection selection, bool sampleColor, bool captureReference,
+        Func<int, int, RgbColor?>? readPixel = null)
+    {
+        if (sampleColor)
+        {
+            SampleColorInto(GateTargetRedBox, GateTargetGreenBox, GateTargetBlueBox, selection, readPixel);
             return;
         }
 
@@ -1717,10 +1740,6 @@ public partial class MainWindow : Window
         GateYBox.Text = selection.Y.ToString();
         GateWidthBox.Text = selection.Width.ToString();
         GateHeightBox.Text = selection.Height.ToString();
-        if (sampleColor)
-        {
-            SampleColorInto(GateTargetRedBox, GateTargetGreenBox, GateTargetBlueBox, selection);
-        }
         if (captureReference)
         {
             GateConditionCombo.SelectedItem = GateConditionCombo.SelectedItem is ConditionType.RegionSnapshotDiffers ? ConditionType.RegionSnapshotDiffers : ConditionType.RegionSnapshotMatches;
