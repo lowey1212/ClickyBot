@@ -365,8 +365,10 @@ internal sealed class MacroEngine
         {
             case ConditionType.GatheringIconMatches:
             case ConditionType.GatheringBarsAbsent:
-                if (width is < 1 or > 1200 || height is < 1 or > 800
-                    || !ScreenProbe.TryCaptureRegion(x, y, width, height, out var gatheringFrame, 1200 * 800))
+                var maxWidth = condition == ConditionType.GatheringIconMatches ? AionGatherMatcher.MaxIconWidth : 1200;
+                var maxHeight = condition == ConditionType.GatheringIconMatches ? AionGatherMatcher.MaxIconHeight : 800;
+                if (width < 1 || width > maxWidth || height < 1 || height > maxHeight
+                    || !ScreenProbe.TryCaptureRegion(x, y, width, height, out var gatheringFrame, maxWidth * maxHeight))
                     return new(null, "Windows could not capture the gathering area; F remains blocked.");
                 return AionGatherMatcher.Observe(gatheringFrame, width, height, condition == ConditionType.GatheringBarsAbsent, token);
             case ConditionType.Always:

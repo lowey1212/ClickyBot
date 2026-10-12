@@ -27,6 +27,7 @@
     <EmbeddedResource Include="../../Assets/Aio2/Target-X.png" LogicalName="ClickyBot.Aio2.TargetX.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Gather-icon.png" LogicalName="ClickyBot.Aio2.GatherIcon.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Gather-icon-live.png" LogicalName="ClickyBot.Aio2.GatherIconLive.png" />
+    <EmbeddedResource Include="../../Assets/Aio2/Gather-icon-compact.png" LogicalName="ClickyBot.Aio2.GatherIconCompact.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Gather-bars-labels.png" LogicalName="ClickyBot.Aio2.GatherBars.png" />
     <EmbeddedResource Include="../../Assets/Aio2/Out-of-range-message.png" LogicalName="ClickyBot.Aio2.OutOfRange.png" />
     <Content Include="fixtures/Aio2-out-of-range.png" CopyToOutputDirectory="PreserveNewest" />

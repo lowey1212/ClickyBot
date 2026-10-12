@@ -1899,8 +1899,8 @@ public partial class MainWindow : Window
         rule.Condition = ConditionCombo.SelectedItem is ConditionType condition ? condition : ConditionType.Always;
         rule.WatchX = ReadInt(WatchXBox, rule.WatchX);
         rule.WatchY = ReadInt(WatchYBox, rule.WatchY);
-        rule.WatchWidth = ReadInt(WatchWidthBox, rule.WatchWidth, 1, rule.Condition == ConditionType.PurpleRingMatches ? ScreenProbe.MaxSearchWidth : 1200);
-        rule.WatchHeight = ReadInt(WatchHeightBox, rule.WatchHeight, 1, rule.Condition == ConditionType.PurpleRingMatches ? ScreenProbe.MaxSearchHeight : 800);
+        rule.WatchWidth = ReadInt(WatchWidthBox, rule.WatchWidth, 1, rule.Condition is ConditionType.PurpleRingMatches or ConditionType.GatheringIconMatches ? ScreenProbe.MaxSearchWidth : 1200);
+        rule.WatchHeight = ReadInt(WatchHeightBox, rule.WatchHeight, 1, rule.Condition is ConditionType.PurpleRingMatches or ConditionType.GatheringIconMatches ? ScreenProbe.MaxSearchHeight : 800);
         rule.TargetRed = (byte)ReadInt(TargetRedBox, rule.TargetRed, 0, 255);
         rule.TargetGreen = (byte)ReadInt(TargetGreenBox, rule.TargetGreen, 0, 255);
         rule.TargetBlue = (byte)ReadInt(TargetBlueBox, rule.TargetBlue, 0, 255);

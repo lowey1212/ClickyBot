@@ -109,10 +109,13 @@ internal static class Program
             && Control<StackPanel>("GateCoveragePanel").Visibility == Visibility.Collapsed,
             "Gathering editors must offer independent areas and built-in outline guidance without changing-color or reference controls.");
         var gatherRule = new MacroRule();
+        Control<TextBox>("WatchWidthBox").Text = "3840";
+        Control<TextBox>("WatchHeightBox").Text = "2160";
         typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [gatherRule]);
         Check(gatherRule.Condition == ConditionType.GatheringIconMatches && !gatherRule.SearchReference
-            && gatherRule.GateEnabled && gatherRule.GateCondition == ConditionType.GatheringBarsAbsent,
-            "Apply/save must retain hand detection AND gathering bars absent.");
+            && gatherRule.GateEnabled && gatherRule.GateCondition == ConditionType.GatheringBarsAbsent
+            && gatherRule.WatchWidth == 3840 && gatherRule.WatchHeight == 2160,
+            "Apply/save must retain a 4K hand search AND the separate gathering bars absent gate.");
         Console.WriteLine("PASS: real WPF gathering main/gate areas, built-in detector guidance and saved combined conditions.");
 
         var originalSteps = new[]

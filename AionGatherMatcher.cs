@@ -6,8 +6,10 @@ namespace ClickyBot;
 
 internal static class AionGatherMatcher
 {
+    internal const int MaxIconWidth = 3840;
+    internal const int MaxIconHeight = 2160;
     private sealed record Pattern(byte[] Rgb, int Width, int Height);
-    private static readonly Lazy<Pattern[]> Icons = new(() => [Load("Icon"), Load("IconLive")]);
+    private static readonly Lazy<Pattern[]> Icons = new(() => [Load("Icon"), Load("IconLive"), Load("IconCompact")]);
     private static readonly Lazy<Pattern[]> Bars = new(() =>
     {
         var pair = Load("Bars");
@@ -42,18 +44,20 @@ internal static class AionGatherMatcher
         try
         {
             var patterns = barsAbsent ? Bars.Value : Icons.Value;
-            if (width is < 1 or > 1200 || height is < 1 or > 800
+            if (width < 1 || width > (barsAbsent ? 1200 : MaxIconWidth)
+                || height < 1 || height > (barsAbsent ? 800 : MaxIconHeight)
                 || frame.LongLength != (long)width * height * 3
-                || patterns.Any(pattern => width < pattern.Width || height < pattern.Height))
+                || patterns.All(pattern => width < pattern.Width || height < pattern.Height))
                 return new(null, "Gathering area is unavailable or too small. Select an area containing the full icon or both Success/Fail labels.");
             // Reuse the local-contrast outline matcher. Only white strokes from
             // the reference vote, so terrain, blue/orange fill and the amount of
             // progress are not compared with the screenshot.
-            var present = patterns.Any(pattern => AionTargetBarMatcher.Find(frame, width, height,
+            var present = patterns.Where(pattern => width >= pattern.Width && height >= pattern.Height)
+                .Any(pattern => AionTargetBarMatcher.Find(frame, width, height,
                 pattern.Rgb, pattern.Width, pattern.Height, 90, token).Location is not null);
             return new(barsAbsent ? !present : present, barsAbsent
                 ? present ? "Success/Fail gathering bars visible; F is blocked." : "No Success/Fail gathering bars in the selected area."
-                : present ? "Gathering hand icon outline visible." : "No gathering hand icon in the selected area.");
+                : present ? "Gathering hand icon outline visible." : "No gathering hand icon in the selected area. The hand moves with the resource and camera; select a wider watch area covering its possible positions.");
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or NotSupportedException)

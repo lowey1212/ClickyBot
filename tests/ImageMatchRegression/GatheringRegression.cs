@@ -28,6 +28,30 @@ internal static class GatheringRegression
         var idle = Load("Aio2-Gather-idle.png");
         var bars = Load("Aio2-Gather-bars.png");
         var icon = Load("Aio2-Gather-icon.png");
+        var ruby = Load("Aio2-Gather-ruby.png");
+        var misplaced = Load("Aio2-Gather-misplaced.png");
+        Check(AionGatherMatcher.Observe(ruby.Rgb, ruby.Width, ruby.Height, false, default).Passed == true,
+            "Current compact Ruby hand must match at its actual HUD size.");
+        Check(AionGatherMatcher.Observe(misplaced.Rgb, misplaced.Width, misplaced.Height, false, default).Passed == false,
+            "The user's old tight box excludes the hand and must not authorize F.");
+        Check(AionGatherMatcher.Observe(idle.Rgb, idle.Width, idle.Height, false, default).Passed == false,
+            "A full idle game viewport must not authorize F from terrain or HUD icons.");
+        var farCorner = new byte[AionGatherMatcher.MaxIconWidth * AionGatherMatcher.MaxIconHeight * 3];
+        var compact = ruby.Rgb;
+        var fullViewport = idle.Rgb.ToArray();
+        for (var row = 0; row < ruby.Height; row++)
+            Array.Copy(compact, row * ruby.Width * 3, fullViewport,
+                ((240 + row) * idle.Width + 786) * 3, ruby.Width * 3);
+        Check(AionGatherMatcher.Observe(fullViewport, idle.Width, idle.Height, false, default).Passed == true,
+            "The compact hand must match outside the old selected box in a full game viewport.");
+        for (var row = 0; row < 47; row++)
+            Array.Copy(compact, row * 50 * 3, farCorner,
+                ((AionGatherMatcher.MaxIconHeight - 47 + row) * AionGatherMatcher.MaxIconWidth
+                    + AionGatherMatcher.MaxIconWidth - 50) * 3, 50 * 3);
+        Check(AionGatherMatcher.Observe(farCorner, AionGatherMatcher.MaxIconWidth, AionGatherMatcher.MaxIconHeight,
+            false, default).Passed == true, "A moving compact hand must be detected at the 4K search boundary.");
+        Check(AionGatherMatcher.Observe([], AionGatherMatcher.MaxIconWidth + 1, 50, false, default).Passed is null,
+            "Oversized icon searches must remain unavailable.");
         var activeIcon = Crop(active, 850, 360, 250, 200);
         var activeBars = Crop(active, 730, 790, 470, 120);
         var idleIcon = Crop(idle, 850, 360, 250, 200);
@@ -84,6 +108,6 @@ internal static class GatheringRegression
             Check(new RuleObservation(Guid.NewGuid(), DateTime.UtcNow, main, gate, "").Passed == allowed,
                 "F must require hand visible AND gathering bars absent.");
         }
-        Console.WriteLine("PASS: actual gathering icon/panel/absent river screenshots, changed terrain and progress fills, either label blocks F, hand AND no bars, invalid captures and cancellation; no real input sent.");
+        Console.WriteLine("PASS: actual compact Ruby hand/full viewport, old misplaced watch box, moving hand at 4K boundary, idle full viewport, original icons/panels, changed terrain/fills, either label blocks F, hand AND no bars, invalid captures and cancellation; no real input sent.");
     }
 }
