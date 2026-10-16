@@ -80,15 +80,6 @@ internal sealed class AionCombatRunner
         return rule;
     }
 
-    internal static bool IsBackupRule(MacroRule rule) => rule.Enabled && !rule.ThroneHealingOnly
-        && rule.Condition == ConditionType.Always && !rule.GateEnabled
-        && rule.Action == ActionType.KeyPress && string.Equals(rule.Key?.Trim(), "1", StringComparison.Ordinal)
-        && rule.Repeat == RepeatMode.WhileTrue && !rule.RandomizeReactionDelay;
-
-    // Previously ignored rules can have a very short editor cooldown. A backup
-    // must never turn those old values into a rapid-fire combat override.
-    internal static int BackupIntervalMs(MacroRule rule) => Math.Max(5000, rule.CooldownMs);
-
     internal async Task RunAsync(CancellationToken token)
     {
         var target = Validate(_profile);
@@ -96,8 +87,6 @@ internal sealed class AionCombatRunner
         var cooldown = ValidateCooldown(_profile);
         var targetX = ValidateTargetX(_profile);
         var indicator = targetX ?? target;
-        var backupDue = _profile.Rules.Where(IsBackupRule)
-            .ToDictionary(rule => rule, rule => _now() + BackupIntervalMs(rule));
         var held = false;
         var cooldownSeen = false;
         var cooldownRetrying = false;
@@ -188,36 +177,10 @@ internal sealed class AionCombatRunner
         {
             _log("Aion combat: Tab selects a target, then 1 and held LEFT mouse. F7 stops. Camera turning "
                 + (settings.CameraTurnEnabled ? "enabled only after Tab finds no target." : "disabled."));
-            foreach (var backup in backupDue.Keys)
-                _log($"{backup.Name}: backup 1 enabled every {BackupIntervalMs(backup)} ms; first tap after that interval.");
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    EnsureActive();
-                    // These fixed-interval backup taps run before HUD checks,
-                    // so unavailable captures or uncertain OCR cannot starve them.
-                    // Keep them on this loop to serialize input with combat taps.
-                    foreach (var backup in backupDue.Keys)
-                    {
-                        if (!IsBackupRule(backup) || _now() < backupDue[backup]) continue;
-                        EnsureActive();
-                        backupDue[backup] = _now() + BackupIntervalMs(backup);
-                        try
-                        {
-                            _observe(backup, token);
-                            _reportAction(backup, "Sending backup 1.");
-                            await InputSimulator.ExecuteAsync(backup, token);
-                            backup.LastTriggeredUtc = DateTime.UtcNow;
-                            _reportAction(backup, "Backup 1 sent; waiting for the next interval.");
-                            _log($"{backup.Name}: backup sent 1 (every {BackupIntervalMs(backup)} ms).");
-                        }
-                        catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException)
-                        {
-                            _reportAction(backup, "Backup failed: " + ex.Message);
-                            _log($"{backup.Name}: backup action failed — {ex.Message}");
-                        }
-                    }
                     EnsureActive();
                     if (!driverReset) { FakerInputKeyboard.Shared.ResetMouseButtons(); driverReset = true; }
                     // Read the rejection before the cooldown, including when
