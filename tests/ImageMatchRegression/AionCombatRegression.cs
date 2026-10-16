@@ -502,6 +502,7 @@ internal static class AionCombatRegression
                     && messages.Any(message => message.Contains("combat resumed")),
                     "Focus loss must release and pause without stopping, generate no input while unfocused, then resume until manual Stop.");
             }
+            await BackupOneRegression.Run(profile);
             Console.WriteLine("PASS: ambiguous OCR retains held input, retries and recovers without false Tab/1 or log spam; startup/after-Tab readiness, hard capture recovery, indefinite search restart, focus pause/resume and manual Stop cleanup.");
             Console.WriteLine("PASS: real X presence/absence/dimming, setup/save-load/calibration preservation, all X/cooldown truth-table states, idle cooldown gating, flicker and unavailable capture cleanup; no real input sent.");
             Console.WriteLine("PASS: production combat search/Tab, confirmed 1 then held attack, death/reacquisition, signed camera driver reports, cancellation, focus/capture recovery and restarted search/attack; no real input sent.");
