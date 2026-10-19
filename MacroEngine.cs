@@ -58,7 +58,10 @@ internal sealed class MacroEngine
             return;
         }
 
-        var timerWindow = profile.Rules.Any(rule => rule.Enabled && rule.UsesFocusedCapture()) ? NativeMethods.GetForegroundWindow() : IntPtr.Zero;
+        var timerWindow = profile.Rules.Any(rule => rule.Enabled && (rule.UsesFocusedCapture() || rule.Action == ActionType.RightClickAnd2))
+            ? NativeMethods.GetForegroundWindow() : IntPtr.Zero;
+        if (timerWindow == IntPtr.Zero && profile.Rules.Any(rule => rule.Enabled && rule.Action == ActionType.RightClickAnd2))
+            throw new InvalidOperationException("Focus the game and start Cleric auto attack with the hotkey.");
         var observedRules = new HashSet<Guid>();
         foreach (var rule in profile.Rules)
         {
@@ -182,7 +185,7 @@ internal sealed class MacroEngine
                 rule.LastCondition = condition;
             }
 
-            await Task.Delay(Math.Clamp(profile.PollIntervalMs, 20, 2000), token);
+            await Task.Delay(Math.Clamp(profile.PollIntervalMs, profile.MinimumPollIntervalMs, 2000), token);
         }
     }
 

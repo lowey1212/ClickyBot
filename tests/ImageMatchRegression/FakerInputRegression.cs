@@ -94,6 +94,39 @@ internal static class FakerInputRegression
             fail = false;
             Check(NativeMethods.KeyboardInputs.Count == 0, "Driver errors must never fall back to SendInput.");
 
+            reports.Clear();
+            NativeMethods.Events.Clear();
+            var cleric = new MacroRule { Action = ActionType.RightClickAnd2 };
+            await InputSimulator.ExecuteAsync(cleric, default);
+            Check(reports.Count == 4 && reports[0][1] == 8 && reports[0][3] == 2
+                && reports[0].Skip(4).All(value => value == 0)
+                && reports[1][1] == 9 && reports[1][5] == 0x1F && reports[1][3] == 0
+                && reports[1].Skip(6).All(value => value == 0)
+                && reports[2][1] == 9 && reports[2].Skip(3).All(value => value == 0)
+                && reports[3][1] == 8 && reports[3].Skip(3).All(value => value == 0),
+                "Cleric must send only right down, 2 down, 2 up and right up, with no pointer movement.");
+            Check(NativeMethods.Events.Count == 0, "Cleric must not send software input or move the pointer.");
+            Check(new MacroProfile { Rules = [cleric] }.MinimumPollIntervalMs == 1
+                && new MacroProfile { Rules = [tap] }.MinimumPollIntervalMs == 20,
+                "Only a profile with the rapid action opts into 1 ms polling.");
+            reports.Clear();
+            using (var stop = new CancellationTokenSource())
+            {
+                var pending = InputSimulator.ExecuteAsync(cleric, stop.Token);
+                stop.Cancel();
+                try { await pending; throw new Exception("Cancelled Cleric tap continued."); }
+                catch (OperationCanceledException) { }
+            }
+            Check(reports.Count == 4 && reports[2].Skip(3).All(value => value == 0)
+                && reports[3].Skip(3).All(value => value == 0), "Cancellation must release both Cleric inputs.");
+            reports.Clear();
+            fail = true;
+            try { await InputSimulator.ExecuteAsync(cleric, default); throw new Exception("Cleric driver failure was hidden."); }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Simulated")) { }
+            fail = false;
+            Check(reports.Count == 0 && NativeMethods.Events.Count == 0, "Cleric driver failure must send no fallback input.");
+            Console.WriteLine("PASS: Cleric exact right/2 taps, no movement/other inputs, cancellation, driver failures and polling opt-in.");
+
             var sixKeys = Enumerable.Range(0x41, 6).Select(key => (ushort)key).ToArray();
             Check(FakerInputKeyboard.BuildReport(sixKeys).Skip(5).Take(6).SequenceEqual(new byte[] { 4, 5, 6, 7, 8, 9 }), "Six-key reports must retain every held key.");
             try { FakerInputKeyboard.BuildReport(sixKeys.Append((ushort)0x47)); throw new Exception("Overfull report accepted."); }

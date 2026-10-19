@@ -1,0 +1,26 @@
+{
+  "Name": "aion-2-cleric",
+  "Game": "Aion 2",
+  "PollIntervalMs": 1,
+  "Rules": [
+    {
+      "Id": "6a65cfa2-5d68-4d5d-828e-65a21a2667fd",
+      "Name": "Tap right mouse and 2 only",
+      "Enabled": true,
+      "Condition": "Always",
+      "GateEnabled": false,
+      "Action": "RightClickAnd2",
+      "KeyboardInputMode": "FakerInput",
+      "Key": "2",
+      "Repeat": "WhileTrue",
+      "CooldownMs": 0,
+      "RandomizeReactionDelay": false,
+      "DelayAfterActionMs": 0,
+      "RecordedSteps": []
+    }
+  ],
+  "ResourceNavigation": { "Enabled": false, "RestartWhenBarMissing": false },
+  "ThroneCombatMode": false,
+  "ThroneHealing": { "Enabled": false },
+  "AionCombat": { "Enabled": false }
+}

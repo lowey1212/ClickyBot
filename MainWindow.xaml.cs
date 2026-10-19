@@ -363,6 +363,11 @@ public partial class MainWindow : Window
         ApplyProfileEditorToModel();
         if (NativeMethods.GetForegroundWindow() == new WindowInteropHelper(this).Handle)
         {
+            if (_profile.Rules.Any(rule => rule.Enabled && rule.Action == ActionType.RightClickAnd2))
+            {
+                AppendLog($"Focus Aion 2 and start with {_settings.StartStopHotKey} to tap only right mouse and 2. Focus loss pauses the macro.");
+                return;
+            }
             if (_profile.AionCombat?.Enabled == true)
             {
                 AppendLog($"Focus Aion 2 and start with {_settings.StartStopHotKey} so combat stays bound to the game window.");
@@ -396,8 +401,8 @@ public partial class MainWindow : Window
             try { AionCombatRunner.Validate(_profile); }
             catch (InvalidOperationException ex) { AppendLog($"Cannot start: {ex.Message}"); return; }
         }
-        if (_profile.AionCombat?.Enabled == true || _profile.Rules.Any(rule => rule.Enabled && rule.KeyboardInputMode == KeyboardInputMode.FakerInput
-            && rule.Action is ActionType.KeyPress or ActionType.KeyHold or ActionType.RecordedCombo))
+        if (_profile.AionCombat?.Enabled == true || _profile.Rules.Any(rule => rule.Enabled && (rule.Action == ActionType.RightClickAnd2
+            || (rule.KeyboardInputMode == KeyboardInputMode.FakerInput && rule.Action is ActionType.KeyPress or ActionType.KeyHold or ActionType.RecordedCombo))))
         {
             try { FakerInputKeyboard.Shared.CheckAvailable(); }
             catch (InvalidOperationException ex) { AppendLog($"Cannot start: {ex.Message}"); return; }
@@ -844,7 +849,7 @@ public partial class MainWindow : Window
     {
         _profile.Name = MacroDisplayName(ProfileNameCombo.Text);
         _profile.Game = NormalizeGameName(GameCombo.Text);
-        _profile.PollIntervalMs = ReadInt(PollIntervalBox, 80, 20, 2000);
+        _profile.PollIntervalMs = ReadInt(PollIntervalBox, 80, _profile.MinimumPollIntervalMs, 2000);
         _profile.ResourceNavigation ??= new ResourceNavigationSettings();
         var isPax = IsPaxGame(_profile.Game);
         _profile.ResourceNavigation.Enabled = isPax && ResourceNavigationCheckBox.IsChecked == true;

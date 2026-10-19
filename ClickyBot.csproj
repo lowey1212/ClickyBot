@@ -10,9 +10,9 @@
     <ApplicationIcon>Assets\ClickyBot.ico</ApplicationIcon>
     <Platforms>AnyCPU</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.63</Version>
-    <AssemblyVersion>0.1.63.0</AssemblyVersion>
-    <FileVersion>0.1.63.0</FileVersion>
+    <Version>0.1.64</Version>
+    <AssemblyVersion>0.1.64.0</AssemblyVersion>
+    <FileVersion>0.1.64.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <OutputPath>bin\Release-macros\</OutputPath>
@@ -39,5 +39,6 @@
     <EmbeddedResource Remove="installer\**" />
     <None Remove="installer\**" />
     <None Update="FAKERINPUT-NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Presets\aion-2-cleric.clicky.json" TargetPath="Macros\aion-2-cleric.clicky.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 #define MyAppName "ClickyBot"
 #ifndef MyAppVersion
-#define MyAppVersion "0.1.63"
+#define MyAppVersion "0.1.64"
 #endif
 #define MyAppPublisher "ClickyBot"
 #define MyAppExeName "ClickyBot.exe"
@@ -29,7 +29,8 @@ CloseApplications=yes
 RestartApplications=no
 
 [Files]
-Source: "{#InstallerSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#InstallerSource}\*"; DestDir: "{app}"; Excludes: "Macros\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#InstallerSource}\Macros\aion-2-cleric.clicky.json"; DestDir: "{app}\Macros"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

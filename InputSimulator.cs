@@ -27,6 +27,21 @@ internal static class InputSimulator
         token.ThrowIfCancellationRequested();
         switch (rule.Action)
         {
+            case ActionType.RightClickAnd2:
+                // Driver reports contain no pointer movement or other keys.
+                // Keep a short down/up pulse instead of the normal 70 ms key tap.
+                try
+                {
+                    FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, true);
+                    SendKeyDown("2", KeyboardInputMode.FakerInput);
+                    await Task.Delay(1, token);
+                }
+                finally
+                {
+                    try { SendKeyUp("2", KeyboardInputMode.FakerInput); }
+                    finally { FakerInputKeyboard.Shared.SendMouseButton(MouseButtonType.Right, false); }
+                }
+                break;
             case ActionType.KeyPress:
                 await PressKeyAsync(rule.Key, rule.KeyboardInputMode, token);
                 break;

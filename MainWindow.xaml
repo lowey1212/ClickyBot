@@ -89,8 +89,8 @@
                             <ComboBox x:Name="GameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="GameCombo_DropDownClosed" LostKeyboardFocus="GameCombo_LostKeyboardFocus" ToolTip="Choose an existing game or type a new game name. Only profiles assigned to this game appear below." />
                             <Label Content="Macro name / file" />
                             <ComboBox x:Name="ProfileNameCombo" IsEditable="True" IsTextSearchEnabled="True" DropDownClosed="ProfileNameCombo_DropDownClosed" KeyDown="ProfileNameCombo_KeyDown" ToolTip="Choose a JSON macro for the selected game and it will open automatically, or type a new macro name before saving." />
-                            <Label Content="Poll interval (20–2000 ms)" />
-                            <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often the screen conditions are checked, in milliseconds. Lower values react faster but use more CPU." />
+                            <Label Content="Poll interval (ms)" />
+                            <TextBox x:Name="PollIntervalBox" Text="80" ToolTip="How often conditions are checked: 20–2000 ms normally, or 1–2000 ms with the right mouse + 2 action. Lower values use more CPU." />
                             <StackPanel x:Name="Aio2OptionsPanel" Visibility="Collapsed">
                                 <Button Content="SET UP ALT+1 PROMPT" Click="SetupAio2Prompt_Click" ToolTip="Load the supplied Alt+1 badge. Select the search area under your minimap in the rule editor, then apply and save." />
                                 <Button Content="SET UP F PROMPT" Click="SetupAio2Interaction_Click" ToolTip="Load the supplied F badge and tap F while it is visible. Reuses the Alt+1 rule's Auto Move gate when available. Select the F watch area manually." />

@@ -354,6 +354,22 @@ internal static class Program
         typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [driverRule]);
         Check(Control<ComboBox>("KeyboardInputModeCombo").SelectedValue is KeyboardInputMode.FakerInput, "The editor must display saved driver mode.");
 
+        var clericRule = new MacroRule { Action = ActionType.RightClickAnd2, Repeat = RepeatMode.WhileTrue,
+            CooldownMs = 0, DelayAfterActionMs = 0, KeyboardInputMode = KeyboardInputMode.FakerInput };
+        typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [clericRule]);
+        var editedCleric = new MacroRule();
+        typeof(MainWindow).GetMethod("ReadEditorIntoRule", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [editedCleric]);
+        Check(editedCleric.Action == ActionType.RightClickAnd2 && editedCleric.CooldownMs == 0
+            && editedCleric.DelayAfterActionMs == 0 && editedCleric.Repeat == RepeatMode.WhileTrue,
+            "The editor must retain the Cleric action and zero-delay timing.");
+        var priorRules = combatProfile.Rules;
+        combatProfile.Rules = [clericRule];
+        Control<TextBox>("PollIntervalBox").Text = "1";
+        typeof(MainWindow).GetMethod("ApplyProfileEditorToModel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+        Check(combatProfile.PollIntervalMs == 1, "Applying a Cleric profile must retain its 1 ms polling interval.");
+        combatProfile.Rules = priorRules;
+        Console.WriteLine("PASS: WPF Cleric action/timing and 1 ms polling preserved on apply.");
+
         var randomRule = new MacroRule { Key = "F", RandomizeReactionDelay = true, ReactionDelayMinMs = 0, ReactionDelayMaxMs = 1000 };
         typeof(MainWindow).GetMethod("LoadEditor", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [randomRule]);
         Check(Control<CheckBox>("ReactionDelayCheckBox").IsChecked == true && Control<StackPanel>("ReactionDelayPanel").Visibility == Visibility.Visible

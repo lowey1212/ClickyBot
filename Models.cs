@@ -66,7 +66,8 @@ public enum ActionType
     MouseClick,
     Wait,
     RecordedCombo,
-    MouseMove
+    MouseMove,
+    RightClickAnd2
 }
 
 public enum RecordedStepType
@@ -123,6 +124,8 @@ public sealed class MacroProfile
     public bool ThroneCombatMode { get; set; }
     public ThroneHealingSettings ThroneHealing { get; set; } = new();
     public AionCombatSettings AionCombat { get; set; } = new();
+
+    internal int MinimumPollIntervalMs => Rules.Any(rule => rule.Enabled && rule.Action == ActionType.RightClickAnd2) ? 1 : 20;
 }
 
 public sealed class AionCombatSettings
@@ -352,6 +355,7 @@ public sealed class MacroRule
     {
         ActionType.KeyPress => $"press {Key}",
         ActionType.KeyHold => $"hold {Key}",
+        ActionType.RightClickAnd2 => "tap right mouse + 2",
         ActionType.MouseClick => $"{MouseButton.ToString().ToLowerInvariant()} click {MouseTargetSummary}",
         ActionType.MouseMove => $"move pointer to {MouseTargetSummary}",
         ActionType.Wait => $"wait {DelayAfterActionMs} ms",

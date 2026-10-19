@@ -2,6 +2,12 @@
 
 ClickyBot is a Windows desktop macro studio for keyboard/mouse actions driven by screen conditions. It is intentionally built as a small, inspectable MVP so the rule model can grow without locking the project into a game-specific implementation.
 
+## Aion 2 Cleric macro
+
+The supplied `aion-2-cleric` macro repeats only right mouse and the top-row `2` key through the installed FakerInput driver. It taps at the current pointer position without moving it. Each pair has a 1 ms requested down pulse and a 1 ms requested repeat interval, with zero cooldown, reaction delay or post-action delay. Windows scheduling and driver/game processing determine the actual rate. Select **Aion 2**, open **aion-2-cleric**, focus the game and press your configured start/stop hotkey. Focus loss pauses it; Stop/F7 releases both inputs. Target detection, Tab, skill 1, left mouse, camera movement and the Templar combat mode are disabled in this preset.
+
+The installer and portable package include this preset. The installer preserves an existing Cleric macro and keeps user macros on uninstall. Other profiles retain their existing minimum polling interval and key tap duration.
+
 ## What is included
 
 - Pixel matching and pixel-difference conditions.
